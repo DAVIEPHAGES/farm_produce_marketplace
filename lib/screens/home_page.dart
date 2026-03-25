@@ -53,8 +53,11 @@ class _HomePageState extends State<HomePage> {
                         children: [
                           IconButton(
                             icon: const Icon(Icons.shopping_cart_outlined),
-                            onPressed: () {
-                              Navigator.pushNamed(context, '/cart');
+                            onPressed: () async {
+                              await Navigator.pushNamed(context, '/cart');
+                              setState(() {
+                                // Rebuild to update cart badge
+                              });
                             },
                           ),
                           if (cartItems.isNotEmpty)
@@ -243,6 +246,7 @@ class ProductCard extends StatelessWidget {
                   'name': name,
                   'price': price,
                   'image': image,
+                  'quantity': '1',
                 });
 
                 ScaffoldMessenger.of(context).showSnackBar(
