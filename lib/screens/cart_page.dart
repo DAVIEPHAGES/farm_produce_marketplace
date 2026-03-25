@@ -31,13 +31,13 @@ class _CartPageState extends State<CartPage> {
       name: 'Maize',
       farmer: 'David Malunga',
       price: 100000,
-      image: 'assets/images/maize.jpg',
+      image: 'assets/maize.png',
     ),
     CartItem(
       name: 'Soya Beans',
       farmer: 'Felix Zulu',
       price: 100000,
-      image: 'assets/images/soya.jpg',
+      image: 'assets/banana.png',
     ),
     // You can add more items to simulate many purchases
   ];
@@ -90,58 +90,96 @@ class _CartPageState extends State<CartPage> {
                           margin: const EdgeInsets.symmetric(vertical: 6),
                           child: Padding(
                             padding: const EdgeInsets.all(8.0),
-                            child: Row(
+                            child: Column(
                               children: [
-                                Image.asset(
-                                  item.image,
-                                  width: 70,
-                                  height: 70,
-                                  fit: BoxFit.cover,
-                                ),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text('Name: ${item.name}',
-                                          style: const TextStyle(
-                                              fontWeight: FontWeight.bold)),
-                                      Text('Farmer: ${item.farmer}'),
-                                      const SizedBox(height: 5),
-                                      Row(
+                                Row(
+                                  children: [
+                                    Container(
+                                      width: 70,
+                                      height: 70,
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(8),
+                                        image: DecorationImage(
+                                          image: AssetImage(item.image),
+                                          fit: BoxFit.cover,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
-                                          IconButton(
-                                            icon: const Icon(Icons.remove),
-                                            onPressed: () {
-                                              setState(() {
-                                                if (item.quantity > 1) item.quantity--;
-                                              });
-                                            },
+                                          Text(
+                                            item.name,
+                                            style: const TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 14),
+                                            overflow: TextOverflow.ellipsis,
                                           ),
-                                          Text(item.quantity.toString()),
-                                          IconButton(
-                                            icon: const Icon(Icons.add),
-                                            onPressed: () {
-                                              setState(() {
-                                                item.quantity++;
-                                              });
-                                            },
+                                          Text(
+                                            'Farmer: ${item.farmer}',
+                                            style: const TextStyle(fontSize: 12),
+                                            overflow: TextOverflow.ellipsis,
                                           ),
-                                          const Spacer(),
-                                          Text('MK ${item.price * item.quantity}'),
-                                          IconButton(
-                                            icon: const Icon(Icons.delete),
-                                            onPressed: () {
-                                              setState(() {
-                                                cartItems.removeAt(index);
-                                              });
-                                            },
+                                          const SizedBox(height: 5),
+                                          Text(
+                                            'MK ${item.price * item.quantity}',
+                                            style: const TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.green),
                                           ),
                                         ],
                                       ),
-                                    ],
-                                  ),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.delete, size: 20),
+                                      padding: EdgeInsets.zero,
+                                      onPressed: () {
+                                        setState(() {
+                                          cartItems.removeAt(index);
+                                        });
+                                      },
+                                    ),
+                                  ],
                                 ),
+                                const Divider(height: 8),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        IconButton(
+                                          icon: const Icon(Icons.remove, size: 18),
+                                          padding: EdgeInsets.zero,
+                                          constraints: const BoxConstraints(),
+                                          onPressed: () {
+                                            setState(() {
+                                              if (item.quantity > 1) item.quantity--;
+                                            });
+                                          },
+                                        ),
+                                        Text(item.quantity.toString(),
+                                            style:
+                                                const TextStyle(fontSize: 14)),
+                                        IconButton(
+                                          icon: const Icon(Icons.add, size: 18),
+                                          padding: EdgeInsets.zero,
+                                          constraints: const BoxConstraints(),
+                                          onPressed: () {
+                                            setState(() {
+                                              item.quantity++;
+                                            });
+                                          },
+                                        ),
+                                      ],
+                                    ),
+                                    Text(
+                                      'Qty: ${item.quantity}',
+                                      style: const TextStyle(fontSize: 12),
+                                    )
+                                  ],
+                                )
                               ],
                             ),
                           ),
