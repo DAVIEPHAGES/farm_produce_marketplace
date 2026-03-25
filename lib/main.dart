@@ -17,7 +17,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Farm Produce Marketplace',
-      initialRoute: '/signin', // Start with sign in page
+      initialRoute: '/home', // Start with home page
       routes: {
         '/home': (context) => const HomePage(),
         '/signin': (context) => const SignInPage(),
