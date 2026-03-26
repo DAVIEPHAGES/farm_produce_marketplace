@@ -16,7 +16,7 @@ class _SignUpPageState extends State<SignUpPage> {
   final _phoneController = TextEditingController();
 
   bool _isLoading = false;
-  bool _isFarmer = false;
+  String _userType = 'customer'; // 'customer', 'farmer', or 'admin'
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
 
@@ -90,7 +90,7 @@ class _SignUpPageState extends State<SignUpPage> {
         'email': _emailController.text.trim().toLowerCase(),
         'phone': _phoneController.text.trim(),
         'password': _passwordController.text,
-        'userType': _isFarmer ? 'farmer' : 'customer',
+        'userType': _userType,
       };
 
       // TODO: Implement actual signup logic here
@@ -98,17 +98,31 @@ class _SignUpPageState extends State<SignUpPage> {
       await Future.delayed(const Duration(seconds: 2));
 
       if (mounted) {
+        // Show different success message based on user type
+        String successMessage = '';
+        if (_userType == 'admin') {
+          successMessage = 'Admin account created successfully!';
+        } else if (_userType == 'farmer') {
+          successMessage = 'Farmer account created successfully!';
+        } else {
+          successMessage = 'Account created successfully!';
+        }
+
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Account created successfully!'),
+          SnackBar(
+            content: Text(successMessage),
             backgroundColor: Colors.green,
-            duration: Duration(seconds: 2),
+            duration: const Duration(seconds: 2),
           ),
         );
 
-        // Navigate to home page after successful signup
+        // Navigate to home page with user type
         if (mounted) {
-          Navigator.pushReplacementNamed(context, '/home');
+          Navigator.pushReplacementNamed(
+            context,
+            '/home',
+            arguments: {'userType': _userType},
+          );
         }
       }
     } catch (e) {
@@ -142,7 +156,7 @@ class _SignUpPageState extends State<SignUpPage> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SizedBox(height: 40),
-                
+
                 // Logo/Title
                 const Text(
                   'Farm Produce\nMarketplace',
@@ -162,7 +176,7 @@ class _SignUpPageState extends State<SignUpPage> {
                 ),
                 const SizedBox(height: 40),
 
-                // User Type Selection
+                // User Type Selection (3 options: Customer, Farmer, Admin)
                 Container(
                   padding: const EdgeInsets.all(4),
                   decoration: BoxDecoration(
@@ -171,50 +185,125 @@ class _SignUpPageState extends State<SignUpPage> {
                   ),
                   child: Row(
                     children: [
+                      // Customer Option
                       Expanded(
                         child: GestureDetector(
-                          onTap: _isLoading ? null : () => setState(() => _isFarmer = false),
+                          onTap: _isLoading
+                              ? null
+                              : () => setState(() => _userType = 'customer'),
                           child: Container(
                             padding: const EdgeInsets.symmetric(vertical: 12),
                             decoration: BoxDecoration(
-                              color: !_isFarmer
+                              color: _userType == 'customer'
                                   ? const Color(0xFF2E7D32)
                                   : Colors.transparent,
                               borderRadius: BorderRadius.circular(8),
                             ),
-                            child: Text(
-                              'Customer',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: !_isFarmer
-                                    ? Colors.white
-                                    : Colors.grey.shade600,
-                                fontWeight: FontWeight.w500,
-                              ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.person,
+                                  size: 18,
+                                  color: _userType == 'customer'
+                                      ? Colors.white
+                                      : Colors.grey.shade600,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'Customer',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    color: _userType == 'customer'
+                                        ? Colors.white
+                                        : Colors.grey.shade600,
+                                    fontWeight: FontWeight.w500,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ),
                       ),
+                      // Farmer Option
                       Expanded(
                         child: GestureDetector(
-                          onTap: _isLoading ? null : () => setState(() => _isFarmer = true),
+                          onTap: _isLoading
+                              ? null
+                              : () => setState(() => _userType = 'farmer'),
                           child: Container(
                             padding: const EdgeInsets.symmetric(vertical: 12),
                             decoration: BoxDecoration(
-                              color: _isFarmer
+                              color: _userType == 'farmer'
                                   ? const Color(0xFF2E7D32)
                                   : Colors.transparent,
                               borderRadius: BorderRadius.circular(8),
                             ),
-                            child: Text(
-                              'Farmer',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: _isFarmer
-                                    ? Colors.white
-                                    : Colors.grey.shade600,
-                                fontWeight: FontWeight.w500,
-                              ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.agriculture,
+                                  size: 18,
+                                  color: _userType == 'farmer'
+                                      ? Colors.white
+                                      : Colors.grey.shade600,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'Farmer',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    color: _userType == 'farmer'
+                                        ? Colors.white
+                                        : Colors.grey.shade600,
+                                    fontWeight: FontWeight.w500,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      // Admin Option
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: _isLoading
+                              ? null
+                              : () => setState(() => _userType = 'admin'),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            decoration: BoxDecoration(
+                              color: _userType == 'admin'
+                                  ? const Color(0xFF2E7D32)
+                                  : Colors.transparent,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.admin_panel_settings,
+                                  size: 18,
+                                  color: _userType == 'admin'
+                                      ? Colors.white
+                                      : Colors.grey.shade600,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'Admin',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    color: _userType == 'admin'
+                                        ? Colors.white
+                                        : Colors.grey.shade600,
+                                    fontWeight: FontWeight.w500,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ),
@@ -396,7 +485,10 @@ class _SignUpPageState extends State<SignUpPage> {
                       onTap: _isLoading
                           ? null
                           : () {
-                              Navigator.pushReplacementNamed(context, '/signin');
+                              Navigator.pushReplacementNamed(
+                                context,
+                                '/signin',
+                              );
                             },
                       child: const Text(
                         'Sign In',
