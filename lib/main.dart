@@ -23,7 +23,7 @@ class MyApp extends StatelessWidget {
         '/signin': (context) => const SignInPage(),
         '/signup': (context) => const SignUpPage(),
         '/payment': (context) => const PaymentPage(),
-        '/produce': (context) => const ProduceDetailsPage(),
+        '/produce': (context) => const AddProducePage(),
         '/cart': (context) => const CartPage(),
       },
     );
