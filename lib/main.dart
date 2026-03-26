@@ -16,15 +16,15 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Routing Example',
-      initialRoute: '/home',  // This is the first page when app launches
+      title: 'Farm Produce Marketplace',
+      initialRoute: '/home', // Start with home page
       routes: {
         '/home': (context) => const HomePage(),
         '/signin': (context) => const SignInPage(),
         '/signup': (context) => const SignUpPage(),
         '/payment': (context) => const PaymentPage(),
-        'produce': (context) => const ProduceDetailsPage(),
-        'cart': (context) => const CartPage(),
+        '/produce': (context) => const ProduceDetailsPage(),
+        '/cart': (context) => const CartPage(),
       },
     );
   }
