@@ -5,7 +5,8 @@ import 'screens/signup_page.dart';
 import 'screens/produce_details_page.dart';
 import 'screens/payment_page.dart';
 import 'screens/cart_page.dart';
-
+import 'screens/myproduce_page.dart';
+import 'screens/oders_page.dart';
 void main() {
   runApp(const MyApp());
 }
@@ -25,6 +26,8 @@ class MyApp extends StatelessWidget {
         '/payment': (context) => const PaymentPage(),
         '/produce': (context) => const ProduceDetailsPage(),
         '/cart': (context) => const CartPage(),
+        '/myproduce': (context) => const MyProducePage(),
+        '/orders': (context) => const OrdersPage(),
       },
     );
   }
