@@ -24,7 +24,7 @@ class MyApp extends StatelessWidget {
       title: 'Farm Produce Marketplace',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(primarySwatch: Colors.green, useMaterial3: true),
-      initialRoute: '/signin', // Start with sign in page
+      initialRoute: '/home', // Start with sign in page
       routes: {
         '/home': (context) => const HomePage(),
         '/signin': (context) => const SignInPage(),
