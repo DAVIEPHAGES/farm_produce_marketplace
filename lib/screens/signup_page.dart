@@ -116,13 +116,15 @@ class _SignUpPageState extends State<SignUpPage> {
           ),
         );
 
-        // Navigate to home page with user type
+        // Navigate to respective page based on user type
         if (mounted) {
-          Navigator.pushReplacementNamed(
-            context,
-            '/home',
-            arguments: {'userType': _userType},
-          );
+          if (_userType == 'farmer') {
+            Navigator.pushReplacementNamed(context, '/farmers-dashboard');
+          } else if (_userType == 'admin') {
+            Navigator.pushReplacementNamed(context, '/admin-dashboard');
+          } else {
+            Navigator.pushReplacementNamed(context, '/home');
+          }
         }
       }
     } catch (e) {
