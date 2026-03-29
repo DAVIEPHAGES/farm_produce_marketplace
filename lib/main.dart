@@ -10,11 +10,7 @@ import 'screens/signup_page.dart';
 import 'screens/produce_details_page.dart';
 import 'screens/payment_page.dart';
 import 'screens/cart_page.dart';
-import 'screens/myproduce_page.dart';
-import 'screens/orders_page.dart';
-import 'screens/farmers_dashboard-page.dart';
-import 'screens/admin_dashboard_page.dart';
-import 'screens/home_wrapper.dart';
+import 'screens/farmers_dashboard.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

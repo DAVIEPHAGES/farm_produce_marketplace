@@ -133,7 +133,7 @@ class _PaymentPageState extends State<PaymentPage> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           const Text('Delivery Fee:'),
-                          const Text('\$5.00',
+                          const Text('\MKW5.00',
                               style: TextStyle(fontWeight: FontWeight.bold)),
                         ],
                       ),
