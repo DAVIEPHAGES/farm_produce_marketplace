@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 class SignUpPage extends StatefulWidget {
   const SignUpPage({super.key});
 
@@ -84,19 +85,28 @@ class _SignUpPageState extends State<SignUpPage> {
     });
 
     try {
+      // Create user with email and password
+      final UserCredential userCredential = await FirebaseAuth.instance
+          .createUserWithEmailAndPassword(
+        email: _emailController.text.trim().toLowerCase(),
+        password: _passwordController.text,
+      );
+
       // Prepare user data
       final userData = {
+        'uid': userCredential.user!.uid,
         'name': _nameController.text.trim(),
         'email': _emailController.text.trim().toLowerCase(),
         'phone': _phoneController.text.trim(),
-        'password': _passwordController.text,
         'userType': _userType,
+        'createdAt': FieldValue.serverTimestamp(),
       };
 
-      // TODO: Implement actual signup logic here
-      // For now, just simulate a delay
-      await Future.delayed(const Duration(seconds: 2));
-
+      // Store additional user details in Firestore 'users' collection
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userCredential.user!.uid)
+          .set(userData);
       if (mounted) {
         // Show different success message based on user type
         String successMessage = '';
