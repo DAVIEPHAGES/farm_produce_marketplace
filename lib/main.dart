@@ -1,4 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:firebase_core/firebase_core.dart';
+import 'js_stub.dart' as js;
+ // ignore: deprecated_member_use
+ import 'dart:js' as js;
 import 'screens/home_page.dart';
 import 'screens/signin_page.dart';
 import 'screens/signup_page.dart';
@@ -11,7 +16,29 @@ import 'screens/farmers_dashboard-page.dart';
 import 'screens/admin_dashboard_page.dart';
 import 'screens/home_wrapper.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize Firebase differently for web vs mobile
+  if (kIsWeb) {
+    // For web: Get config from index.html
+    final config = js.context['firebaseConfig'];
+    
+    await Firebase.initializeApp(
+      options: FirebaseOptions(
+        apiKey: config['apiKey'],
+        authDomain: config['authDomain'],
+        projectId: config['projectId'],
+        storageBucket: config['storageBucket'],
+        messagingSenderId: config['messagingSenderId'],
+        appId: config['appId'],
+      ),
+    );
+  } else {
+    // For Android/iOS: Auto-detects from google-services.json / GoogleService-Info.plist
+    await Firebase.initializeApp();
+  }
+  
   runApp(const MyApp());
 }
 
