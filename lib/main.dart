@@ -18,7 +18,9 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Farm Produce Marketplace',
-      initialRoute: '/home', // Start with home page
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(primarySwatch: Colors.green, useMaterial3: true),
+      initialRoute: '/home', // Start with sign in page
       routes: {
         '/home': (context) => const HomePage(),
         '/signin': (context) => const SignInPage(),
@@ -26,7 +28,24 @@ class MyApp extends StatelessWidget {
         '/payment': (context) => const PaymentPage(),
         '/produce': (context) => const ProduceDetailsPage(),
         '/cart': (context) => const CartPage(),
-        '/farmers-dashboard': (context) => const FarmersDashboardPage(),
+        '/myproduce': (context) => const MyProducePage(),
+        '/orders': (context) => const OrdersPage(),
+        '/farmers-dashboard': (context) => const FarmersDashboard(),
+        '/admin-dashboard': (context) => const AdminDashboard(),
+      },
+      onGenerateRoute: (settings) {
+        // Handle dynamic routes with arguments
+        if (settings.name == '/home') {
+          final args = settings.arguments as Map<String, dynamic>?;
+          final userType = args?['userType'] ?? 'customer';
+          return MaterialPageRoute(
+            builder: (context) => HomeWrapper(userType: userType),
+          );
+        }
+        return null;
+      },
+      onUnknownRoute: (settings) {
+        return MaterialPageRoute(builder: (context) => const SignInPage());
       },
     );
   }

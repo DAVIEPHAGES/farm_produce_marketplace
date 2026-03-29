@@ -53,8 +53,11 @@ class _HomePageState extends State<HomePage> {
                         children: [
                           IconButton(
                             icon: const Icon(Icons.shopping_cart_outlined),
-                            onPressed: () {
-                              Navigator.pushNamed(context, '/cart');
+                            onPressed: () async {
+                              await Navigator.pushNamed(context, '/cart');
+                              setState(() {
+                                // Rebuild to update cart badge
+                              });
                             },
                           ),
                           if (cartItems.isNotEmpty)
@@ -76,12 +79,12 @@ class _HomePageState extends State<HomePage> {
                         ],
                       ),
                       const SizedBox(width: 10),
-                      ActionChip(
-                        label: const Text("Sign in"),
-                        onPressed: () {
+                      GestureDetector(
+                        onTap: () {
                           Navigator.pushNamed(context, '/signin');
                         },
-                      ),
+                        child: const Chip(label: Text("Sign in")),
+                      )
                     ],
                   )
                 ],
@@ -239,17 +242,12 @@ class ProductCard extends StatelessWidget {
                 ),
               ),
               onPressed: () {
-                final existingItem = cartItems.where((item) => item['name'] == name);
-                if (existingItem.isNotEmpty) {
-                  existingItem.first['quantity'] = (int.parse(existingItem.first['quantity'] ?? '1') + 1).toString();
-                } else {
-                  cartItems.add({
-                    'name': name,
-                    'price': price,
-                    'image': image,
-                    'quantity': '1',
-                  });
-                }
+                cartItems.add({
+                  'name': name,
+                  'price': price,
+                  'image': image,
+                  'quantity': '1',
+                });
 
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text('$name added to cart')),
