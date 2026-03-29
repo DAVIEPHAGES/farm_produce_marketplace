@@ -1,13 +1,33 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'screens/home_page.dart';
 import 'screens/signin_page.dart';
 import 'screens/signup_page.dart';
 import 'screens/produce_details_page.dart';
 import 'screens/payment_page.dart';
 import 'screens/cart_page.dart';
-import 'screens/farmers_dashboard.dart';
+import 'screens/farmers_dashboard_page.dart';
+import 'screens/myproduce_page.dart';
+import 'screens/orders_page.dart';
+import 'screens/admin_dashboard_page.dart';
+import 'screens/home_wrapper.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // Pass Firebase options directly
+  await Firebase.initializeApp(
+    options: const FirebaseOptions(
+      apiKey: "AIzaSyB7qNtGJ2o_0WM4yw1AxLITu2efhZCdmtY",
+      authDomain: "farm-36c66.firebaseapp.com",
+      projectId: "farm-36c66",
+      storageBucket: "farm-36c66.firebasestorage.app",
+      messagingSenderId: "488620623240",
+      appId: "1:488620623240:web:693c1f944e3cb377b4a63d",
+      measurementId: "G-3BFF52S82G",
+    ),
+  );
+  
   runApp(const MyApp());
 }
 
@@ -20,7 +40,7 @@ class MyApp extends StatelessWidget {
       title: 'Farm Produce Marketplace',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(primarySwatch: Colors.green, useMaterial3: true),
-      initialRoute: '/home', // Start with sign in page
+      initialRoute: '/signin',
       routes: {
         '/home': (context) => const HomePage(),
         '/signin': (context) => const SignInPage(),
@@ -30,12 +50,11 @@ class MyApp extends StatelessWidget {
         '/cart': (context) => const CartPage(),
         '/myproduce': (context) => const MyProducePage(),
         '/orders': (context) => const OrdersPage(),
-        '/farmers-dashboard': (context) => const FarmersDashboard(),
+        '/farmers-dashboard': (context) => const FarmersDashboardPage(),
         '/admin-dashboard': (context) => const AdminDashboard(),
       },
       onGenerateRoute: (settings) {
-        // Handle dynamic routes with arguments
-        if (settings.name == '/home') {
+        if (settings.name == '/home-wrapper') {
           final args = settings.arguments as Map<String, dynamic>?;
           final userType = args?['userType'] ?? 'customer';
           return MaterialPageRoute(
@@ -46,38 +65,6 @@ class MyApp extends StatelessWidget {
       },
       onUnknownRoute: (settings) {
         return MaterialPageRoute(builder: (context) => const SignInPage());
-      },
-    );
-  }
-}
-
-import 'package:flutter/material.dart';
-import 'screens/home_page.dart';
-import 'screens/signin_page.dart';
-import 'screens/signup_page.dart';
-import 'screens/produce_details_page.dart';
-import 'screens/payment_page.dart';
-import 'screens/cart_page.dart';
-
-void main() {
-  runApp(const MyApp());
-}
-
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Routing Example',
-      initialRoute: '/home',  // This is the first page when app launches
-      routes: {
-        '/home': (context) => const HomePage(),
-        '/signin': (context) => const SignInPage(),
-        '/signup': (context) => const SignUpPage(),
-        '/payment': (context) => const PaymentPage(),
-        'produce': (context) => const ProduceDetailsPage(),
-        'cart': (context) => const CartPage(),
       },
     );
   }
