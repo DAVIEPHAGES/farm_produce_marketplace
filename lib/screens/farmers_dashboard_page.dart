@@ -1,5 +1,8 @@
 // farmers_dashboard_page.dart
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'add_produce_page.dart';
 
 class FarmersDashboardPage extends StatefulWidget {
   const FarmersDashboardPage({super.key});
@@ -9,67 +12,95 @@ class FarmersDashboardPage extends StatefulWidget {
 }
 
 class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
-  // Sample farmer data
-  Map<String, dynamic> farmerProfile = {
-    'name': 'John Mwale',
-    'location': 'Lilongwe, Malawi',
-    'totalEarnings': 1250000.0,
-    'products': [],
-    'orders': [
-      {'customer': 'Mary James', 'product': 'Tomatoes', 'quantity': 10, 'status': 'pending'},
-      {'customer': 'Peter Banda', 'product': 'Maize', 'quantity': 50, 'status': 'pending'}
-    ]
-  };
+  bool _isLoading = true;
+  late Map<String, dynamic> farmerProfile;
 
-  bool showAddProduceForm = false;
-  final TextEditingController produceNameController = TextEditingController();
-  final TextEditingController unitPriceController = TextEditingController();
-  final TextEditingController locationController = TextEditingController();
-  final TextEditingController quantityController = TextEditingController();
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
 
-  void addNewProduce() {
-    if (produceNameController.text.isNotEmpty &&
-        unitPriceController.text.isNotEmpty &&
-        locationController.text.isNotEmpty &&
-        quantityController.text.isNotEmpty) {
-      
-      setState(() {
-        farmerProfile['products'].add({
-          'name': produceNameController.text,
-          'price': double.parse(unitPriceController.text),
-          'location': locationController.text,
-          'quantity': quantityController.text,
-          'dateAdded': DateTime.now().toString(),
+  Future<void> _loadData() async {
+    try {
+      farmerProfile = await fetchFarmerData();
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
         });
-        
-        showAddProduceForm = false;
-        
-        // Clear controllers
-        produceNameController.clear();
-        unitPriceController.clear();
-        locationController.clear();
-        quantityController.clear();
-      });
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('✓ Produce added successfully!'),
-          backgroundColor: Colors.green,
-          duration: Duration(seconds: 2),
-        ),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please fill all fields'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      }
+    } catch (e) {
+      print('Error loading farmer data: $e');
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<Map<String, dynamic>> fetchFarmerData() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      return {
+        'name': 'Unknown Farmer',
+        'location': 'Unknown',
+        'totalEarnings': 0.0,
+        'products': [],
+        'orders': [],
+      };
+    }
+
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+      final userData = doc.data() ?? {};
+
+      final productsSnapshot = await FirebaseFirestore.instance
+          .collection('products')
+          .where('farmerId', isEqualTo: user.uid)
+          .get();
+
+      final ordersSnapshot = await FirebaseFirestore.instance
+          .collection('orders')
+          .where('farmerId', isEqualTo: user.uid)
+          .get();
+
+      double totalEarnings = 0.0;
+      for (var orderDoc in ordersSnapshot.docs) {
+        final order = orderDoc.data();
+        if (order['status'] == 'completed') {
+          totalEarnings += (order['price'] ?? 0.0) * (order['quantity'] ?? 0);
+        }
+      }
+
+      return {
+        'name': userData['name'] ?? 'Unknown Farmer',
+        'location': userData['location'] ?? 'Unknown',
+        'totalEarnings': totalEarnings,
+        'products': productsSnapshot.docs.map((doc) => doc.data()).toList(),
+        'orders': ordersSnapshot.docs.map((doc) => doc.data()).toList(),
+      };
+    } catch (e) {
+      print('Error fetching farmer data: $e');
+      return {
+        'name': 'Unknown Farmer',
+        'location': 'Unknown',
+        'totalEarnings': 0.0,
+        'products': [],
+        'orders': [],
+      };
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text(
@@ -103,10 +134,7 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
                   const SizedBox(width: 6),
                   const Text(
                     'MY PROFILE',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
                   ),
                 ],
               ),
@@ -181,7 +209,8 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
               _buildDrawerItem(
                 icon: Icons.attach_money,
                 title: 'Total Earnings',
-                subtitle: 'MWK ${farmerProfile['totalEarnings'].toStringAsFixed(2)}',
+                subtitle:
+                    'MWK ${farmerProfile['totalEarnings'].toStringAsFixed(2)}',
                 color: Colors.green,
                 onTap: () {
                   Navigator.pop(context);
@@ -189,7 +218,7 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
                 },
               ),
               _buildDrawerItem(
-                icon: Icons.produce,
+                icon: Icons.agriculture,
                 title: 'My Produce',
                 subtitle: '${farmerProfile['products'].length} products listed',
                 color: Colors.orange,
@@ -215,8 +244,24 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
                 color: Colors.purple,
                 onTap: () {
                   Navigator.pop(context);
-                  setState(() {
-                    showAddProduceForm = true;
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const AddProducePage(),
+                    ),
+                  ).then((result) {
+                    if (result != null) {
+                      setState(() {
+                        farmerProfile['products'].add(result);
+                      });
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('✓ Produce added successfully!'),
+                          backgroundColor: Colors.green,
+                          duration: Duration(seconds: 2),
+                        ),
+                      );
+                    }
                   });
                 },
               ),
@@ -248,100 +293,6 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
         child: SingleChildScrollView(
           child: Column(
             children: [
-              if (showAddProduceForm)
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 300),
-                  margin: const EdgeInsets.all(16),
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.grey.withOpacity(0.2),
-                        spreadRadius: 2,
-                        blurRadius: 10,
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text(
-                            'Add New Produce',
-                            style: TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.green,
-                            ),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.close),
-                            onPressed: () {
-                              setState(() {
-                                showAddProduceForm = false;
-                              });
-                            },
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
-                      _buildTextField(
-                        controller: produceNameController,
-                        label: 'Produce Name',
-                        hint: 'e.g., Maize, Tomatoes, Cabbage',
-                        icon: Icons.agriculture,
-                      ),
-                      const SizedBox(height: 16),
-                      _buildTextField(
-                        controller: unitPriceController,
-                        label: 'Unit Price (MWK)',
-                        hint: 'e.g., 5000',
-                        icon: Icons.attach_money,
-                        keyboardType: TextInputType.number,
-                      ),
-                      const SizedBox(height: 16),
-                      _buildTextField(
-                        controller: locationController,
-                        label: 'Location',
-                        hint: 'e.g., Lilongwe, Zomba',
-                        icon: Icons.location_on,
-                      ),
-                      const SizedBox(height: 16),
-                      _buildTextField(
-                        controller: quantityController,
-                        label: 'Quantity',
-                        hint: 'e.g., 100 kg, 50 bunches',
-                        icon: Icons.numbers,
-                      ),
-                      const SizedBox(height: 24),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: addNewProduce,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            elevation: 2,
-                          ),
-                          child: const Text(
-                            'POST PRODUCE',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
               Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
@@ -358,10 +309,7 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
                     const SizedBox(height: 8),
                     Text(
                       farmerProfile['name'],
-                      style: const TextStyle(
-                        fontSize: 16,
-                        color: Colors.grey,
-                      ),
+                      style: const TextStyle(fontSize: 16, color: Colors.grey),
                     ),
                     const SizedBox(height: 32),
                     GridView.count(
@@ -381,7 +329,7 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
                         _buildDashboardCard(
                           'My Produce',
                           '${farmerProfile['products'].length} items',
-                          Icons.produce,
+                          Icons.agriculture,
                           Colors.orange,
                           () => _showMyProduceDialog(context),
                         ),
@@ -398,8 +346,26 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
                           Icons.add_box,
                           Colors.purple,
                           () {
-                            setState(() {
-                              showAddProduceForm = true;
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const AddProducePage(),
+                              ),
+                            ).then((result) {
+                              if (result != null) {
+                                setState(() {
+                                  farmerProfile['products'].add(result);
+                                });
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      '✓ Produce added successfully!',
+                                    ),
+                                    backgroundColor: Colors.green,
+                                    duration: Duration(seconds: 2),
+                                  ),
+                                );
+                              }
                             });
                           },
                         ),
@@ -433,7 +399,7 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
                               leading: CircleAvatar(
                                 backgroundColor: Colors.green[100],
                                 child: const Icon(
-                                  Icons.produce,
+                                  Icons.agriculture,
                                   color: Colors.green,
                                 ),
                               ),
@@ -492,49 +458,24 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
         ),
         child: Icon(icon, color: color),
       ),
-      title: Text(
-        title,
-        style: const TextStyle(fontWeight: FontWeight.w600),
-      ),
-      subtitle: Text(
-        subtitle,
-        style: const TextStyle(fontSize: 12),
-      ),
+      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
+      subtitle: Text(subtitle, style: const TextStyle(fontSize: 12)),
       onTap: onTap,
     );
   }
 
-  Widget _buildTextField({
-    required TextEditingController controller,
-    required String label,
-    required String hint,
-    required IconData icon,
-    TextInputType keyboardType = TextInputType.text,
-  }) {
-    return TextField(
-      controller: controller,
-      decoration: InputDecoration(
-        labelText: label,
-        hintText: hint,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-        prefixIcon: Icon(icon, color: Colors.green),
-        filled: true,
-        fillColor: Colors.grey[50],
-      ),
-      keyboardType: keyboardType,
-    );
-  }
-
-  Widget _buildDashboardCard(String title, String value, IconData icon, Color color, VoidCallback onTap) {
+  Widget _buildDashboardCard(
+    String title,
+    String value,
+    IconData icon,
+    Color color,
+    VoidCallback onTap,
+  ) {
     return GestureDetector(
       onTap: onTap,
       child: Card(
         elevation: 4,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
@@ -571,10 +512,7 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
               const SizedBox(height: 4),
               Text(
                 title,
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey,
-                ),
+                style: const TextStyle(fontSize: 12, color: Colors.grey),
                 textAlign: TextAlign.center,
               ),
             ],
@@ -627,10 +565,7 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
                 const Divider(height: 24),
                 const Text(
                   'Products:',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                 ),
                 const SizedBox(height: 12),
                 if (farmerProfile['products'].isEmpty)
@@ -644,7 +579,11 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
                       padding: const EdgeInsets.symmetric(vertical: 6),
                       child: Row(
                         children: [
-                          const Icon(Icons.produce, size: 16, color: Colors.green),
+                          const Icon(
+                            Icons.agriculture,
+                            size: 16,
+                            color: Colors.green,
+                          ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
@@ -669,7 +608,11 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
     );
   }
 
-  Widget _buildProfileInfo({required IconData icon, required String label, required String value}) {
+  Widget _buildProfileInfo({
+    required IconData icon,
+    required String label,
+    required String value,
+  }) {
     return Row(
       children: [
         Icon(icon, size: 20, color: Colors.green),
@@ -756,7 +699,7 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.produce, size: 50, color: Colors.grey),
+                        Icon(Icons.agriculture, size: 50, color: Colors.grey),
                         SizedBox(height: 16),
                         Text('No produce added yet'),
                       ],
@@ -770,7 +713,10 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
                       return Card(
                         margin: const EdgeInsets.only(bottom: 8),
                         child: ListTile(
-                          leading: const Icon(Icons.produce, color: Colors.green),
+                          leading: const Icon(
+                            Icons.agriculture,
+                            color: Colors.green,
+                          ),
                           title: Text(
                             product['name'],
                             style: const TextStyle(fontWeight: FontWeight.bold),
@@ -785,7 +731,10 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
                           ),
                           trailing: Text(
                             _formatDate(product['dateAdded']),
-                            style: const TextStyle(fontSize: 11, color: Colors.grey),
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: Colors.grey,
+                            ),
                           ),
                           isThreeLine: true,
                         ),
@@ -833,18 +782,29 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
                       return Card(
                         margin: const EdgeInsets.only(bottom: 8),
                         child: ListTile(
-                          leading: const Icon(Icons.shopping_cart, color: Colors.blue),
+                          leading: const Icon(
+                            Icons.shopping_cart,
+                            color: Colors.blue,
+                          ),
                           title: Text(order['product']),
-                          subtitle: Text('Customer: ${order['customer']}\nQuantity: ${order['quantity']}'),
+                          subtitle: Text(
+                            'Customer: ${order['customer']}\nQuantity: ${order['quantity']}',
+                          ),
                           trailing: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
                             decoration: BoxDecoration(
                               color: Colors.orange.withOpacity(0.2),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(
                               order['status'],
-                              style: const TextStyle(color: Colors.orange, fontSize: 12),
+                              style: const TextStyle(
+                                color: Colors.orange,
+                                fontSize: 12,
+                              ),
                             ),
                           ),
                           isThreeLine: true,
@@ -865,16 +825,16 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
   }
 
   String _formatDate(String dateTime) {
-    DateTime date = DateTime.parse(dateTime);
-    return '${date.day}/${date.month}/${date.year}';
+    try {
+      DateTime date = DateTime.parse(dateTime);
+      return '${date.day}/${date.month}/${date.year}';
+    } catch (e) {
+      return 'Unknown date';
+    }
   }
 
   @override
   void dispose() {
-    produceNameController.dispose();
-    unitPriceController.dispose();
-    locationController.dispose();
-    quantityController.dispose();
     super.dispose();
   }
 }

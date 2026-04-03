@@ -1,28 +1,21 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-
 class AddProducePage extends StatefulWidget {
   const AddProducePage({super.key});
-
   @override
   State<AddProducePage> createState() => _AddProducePageState();
 }
-
 class _AddProducePageState extends State<AddProducePage> {
   final TextEditingController nameController = TextEditingController();
   final TextEditingController priceController = TextEditingController();
-
   String? selectedQuantity;
   File? _image;
-
   final ImagePicker _picker = ImagePicker();
-
   Future<void> pickImage() async {
     final pickedFile =
         await _picker.pickImage(source: ImageSource.gallery);
-
-    if (pickedFile != null) {
+   if (pickedFile != null) {
       setState(() {
         _image = File(pickedFile.path);
       });
@@ -141,7 +134,7 @@ class _AddProducePageState extends State<AddProducePage> {
                 ),
               ),
 
-              const SizedBox(height: 10),
+             const SizedBox(height: 10),
 
               /// IMAGE PREVIEW
               if (_image != null)

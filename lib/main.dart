@@ -1,40 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:firebase_core/firebase_core.dart';
-import 'js_stub.dart' as js;
- // ignore: deprecated_member_use
- import 'dart:js' as js;
+import 'firebase_options.dart'; // Import the new file
 import 'screens/home_page.dart';
 import 'screens/signin_page.dart';
 import 'screens/signup_page.dart';
 import 'screens/produce_details_page.dart';
 import 'screens/payment_page.dart';
 import 'screens/cart_page.dart';
-import 'screens/farmers_dashboard.dart';
+import 'screens/farmers_dashboard_page.dart';
+import 'screens/myproduce_page.dart';
+import 'screens/orders_page.dart';
+import 'screens/admin_dashboard_page.dart';
+import 'screens/home_wrapper.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Initialize Firebase differently for web vs mobile
-  if (kIsWeb) {
-    // For web: Get config from index.html
-    final config = js.context['firebaseConfig'];
-    
-    await Firebase.initializeApp(
-      options: FirebaseOptions(
-        apiKey: config['apiKey'],
-        authDomain: config['authDomain'],
-        projectId: config['projectId'],
-        storageBucket: config['storageBucket'],
-        messagingSenderId: config['messagingSenderId'],
-        appId: config['appId'],
-      ),
-    );
-  } else {
-    // For Android/iOS: Auto-detects from google-services.json / GoogleService-Info.plist
-    await Firebase.initializeApp();
-  }
-  
+  // Initialize Firebase using our platform-specific configuration
+  await FirebaseConfig.initialize();
+
   runApp(const MyApp());
 }
 
@@ -57,7 +45,7 @@ class MyApp extends StatelessWidget {
         '/cart': (context) => const CartPage(),
         '/myproduce': (context) => const MyProducePage(),
         '/orders': (context) => const OrdersPage(),
-        '/farmers-dashboard': (context) => const FarmersDashboard(),
+        '/farmers-dashboard': (context) => const FarmersDashboardPage(),
         '/admin-dashboard': (context) => const AdminDashboard(),
       },
       onGenerateRoute: (settings) {

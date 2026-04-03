@@ -5,11 +5,36 @@ List<Map<String, String>> cartItems = [];
 
 // SAMPLE DATA (simulate database)
 List<Map<String, String>> allProducts = [
-  {"name": "bananas", "price": "MK 2,500/ bunch", "image": "assets/banana.png", "category": "fruits"},
-  {"name": "maize", "price": "MK 50,000/ bag", "image": "assets/maize.png", "category": "maize"},
-  {"name": "beans", "price": "MK 60,000/ bag", "image": "assets/beans.png", "category": "Beans"},
-  {"name": "irish potato", "price": "MK 50,000/ bag", "image": "assets/potato.png", "category": "vegetables"},
-  {"name": "groundnuts", "price": "MK 100,000/ bag", "image": "assets/groundnuts.png", "category": "Beans"},
+  {
+    "name": "bananas",
+    "price": "MK 2,500/ bunch",
+    "image": "assets/banana.png",
+    "category": "fruits",
+  },
+  {
+    "name": "maize",
+    "price": "MK 50,000/ bag",
+    "image": "assets/maize.png",
+    "category": "maize",
+  },
+  {
+    "name": "beans",
+    "price": "MK 60,000/ bag",
+    "image": "assets/beans.png",
+    "category": "Beans",
+  },
+  {
+    "name": "irish potato",
+    "price": "MK 50,000/ bag",
+    "image": "assets/potato.png",
+    "category": "vegetables",
+  },
+  {
+    "name": "groundnuts",
+    "price": "MK 100,000/ bag",
+    "image": "assets/groundnuts.png",
+    "category": "Beans",
+  },
 ];
 
 class HomePage extends StatefulWidget {
@@ -25,8 +50,11 @@ class _HomePageState extends State<HomePage> {
 
   List<Map<String, String>> get filteredProducts {
     return allProducts.where((product) {
-      final matchesCategory = selectedCategory == "All" || product['category'] == selectedCategory;
-      final matchesSearch = product['name']!.toLowerCase().contains(searchQuery.toLowerCase());
+      final matchesCategory =
+          selectedCategory == "All" || product['category'] == selectedCategory;
+      final matchesSearch = product['name']!.toLowerCase().contains(
+        searchQuery.toLowerCase(),
+      );
       return matchesCategory && matchesSearch;
     }).toList();
   }
@@ -41,7 +69,6 @@ class _HomePageState extends State<HomePage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-
               // TOP BAR
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -72,7 +99,10 @@ class _HomePageState extends State<HomePage> {
                                 ),
                                 child: Text(
                                   cartItems.length.toString(),
-                                  style: const TextStyle(color: Colors.white, fontSize: 10),
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                  ),
                                 ),
                               ),
                             ),
@@ -84,9 +114,9 @@ class _HomePageState extends State<HomePage> {
                           Navigator.pushNamed(context, '/signin');
                         },
                         child: const Chip(label: Text("Sign in")),
-                      )
+                      ),
                     ],
-                  )
+                  ),
                 ],
               ),
 
@@ -157,7 +187,7 @@ class _HomePageState extends State<HomePage> {
                     );
                   },
                 ),
-              )
+              ),
             ],
           ),
         ),
@@ -249,13 +279,13 @@ class ProductCard extends StatelessWidget {
                   'quantity': '1',
                 });
 
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('$name added to cart')),
-                );
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(SnackBar(content: Text('$name added to cart')));
               },
               child: const Text("add to cart"),
             ),
-          )
+          ),
         ],
       ),
     );
