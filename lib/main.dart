@@ -14,7 +14,20 @@ import 'screens/home_wrapper.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
+  
+  // Solution 2: Pass Firebase options directly
+  await Firebase.initializeApp(
+    options: const FirebaseOptions(
+      apiKey: "AIzaSyB7qNtGJ2o_0WM4yw1AxLITu2efhZCdmtY",
+      authDomain: "farm-36c66.firebaseapp.com",
+      projectId: "farm-36c66",
+      storageBucket: "farm-36c66.firebasestorage.app",
+      messagingSenderId: "488620623240",
+      appId: "1:488620623240:web:693c1f944e3cb377b4a63d",
+      measurementId: "G-3BFF52S82G",
+    ),
+  );
+  
   runApp(const MyApp());
 }
 
