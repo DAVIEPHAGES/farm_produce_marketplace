@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>farm_produce_marketplace</title>
+</head>
+<body>
+  <!-- Firebase SDKs - Compat version for Flutter -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+  <script>
+    // Your Firebase configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyB7qNtGJ2o_0WM4yw1AxLITu2efhZCdmtY",
+      authDomain: "farm-36c66.firebaseapp.com",
+      projectId: "farm-36c66",
+      storageBucket: "farm-36c66.firebasestorage.app",
+      messagingSenderId: "488620623240",
+      appId: "1:488620623240:web:693c1f944e3cb377b4a63d",
+      measurementId: "G-3BFF52S82G"
+    };
+
+    // Expose config to global scope for Dart access
+    window.firebaseConfig = firebaseConfig;
+
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    console.log('Firebase initialized successfully');
+  </script>
+
+  <script src="main.dart.js" type="application/javascript"></script>
+</body>
+</html>
