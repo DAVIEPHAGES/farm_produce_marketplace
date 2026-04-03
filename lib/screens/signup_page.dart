@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+
 class SignUpPage extends StatefulWidget {
   const SignUpPage({super.key});
 
@@ -35,7 +36,8 @@ class _SignUpPageState extends State<SignUpPage> {
     if (value == null || value.isEmpty) {
       return 'Please enter your email';
     }
-    if (!value.contains('@') || !value.contains('.')) {
+    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+    if (!emailRegex.hasMatch(value)) {
       return 'Please enter a valid email';
     }
     return null;
@@ -88,9 +90,9 @@ class _SignUpPageState extends State<SignUpPage> {
       // Create user with email and password
       final UserCredential userCredential = await FirebaseAuth.instance
           .createUserWithEmailAndPassword(
-        email: _emailController.text.trim().toLowerCase(),
-        password: _passwordController.text,
-      );
+            email: _emailController.text.trim().toLowerCase(),
+            password: _passwordController.text,
+          );
 
       // Prepare user data
       final userData = {
@@ -107,16 +109,26 @@ class _SignUpPageState extends State<SignUpPage> {
           .collection('users')
           .doc(userCredential.user!.uid)
           .set(userData);
+
+      // Show success message
+      String successMessage = '';
+      String redirectRoute = '';
+
+      if (_userType == 'farmer') {
+        successMessage = 'Farmer account created successfully!';
+        redirectRoute = '/farmers-dashboard';
+      } else if (_userType == 'admin') {
+        successMessage = 'Admin account created successfully!';
+        redirectRoute = '/admin-dashboard';
+      } else {
+        successMessage = 'Account created successfully!';
+        redirectRoute = '/home';
+      }
+
       if (mounted) {
-        // Show different success message based on user type
-        String successMessage = '';
-        if (_userType == 'admin') {
-          successMessage = 'Admin account created successfully!';
-        } else if (_userType == 'farmer') {
-          successMessage = 'Farmer account created successfully!';
-        } else {
-          successMessage = 'Account created successfully!';
-        }
+        setState(() {
+          _isLoading = false;
+        });
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -126,22 +138,38 @@ class _SignUpPageState extends State<SignUpPage> {
           ),
         );
 
-        // Navigate to respective page based on user type
+        // Keep user logged in and navigate to appropriate page after a brief delay
+        await Future.delayed(const Duration(milliseconds: 500));
         if (mounted) {
-          if (_userType == 'farmer') {
-            Navigator.pushReplacementNamed(context, '/farmers-dashboard');
-          } else if (_userType == 'admin') {
-            Navigator.pushReplacementNamed(context, '/admin-dashboard');
-          } else {
-            Navigator.pushReplacementNamed(context, '/home');
-          }
+          Navigator.pushReplacementNamed(context, redirectRoute);
         }
+      }
+    } on FirebaseAuthException catch (e) {
+      String errorMessage;
+      switch (e.code) {
+        case 'weak-password':
+          errorMessage = 'Password is too weak. Use at least 6 characters.';
+          break;
+        case 'email-already-in-use':
+          errorMessage = 'An account already exists with this email.';
+          break;
+        case 'invalid-email':
+          errorMessage = 'Please enter a valid email address.';
+          break;
+        default:
+          errorMessage = 'Sign up failed: ${e.message}';
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(errorMessage), backgroundColor: Colors.red),
+        );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Sign up failed: ${e.toString()}'),
+            content: Text('An unexpected error occurred: ${e.toString()}'),
             backgroundColor: Colors.red,
           ),
         );
