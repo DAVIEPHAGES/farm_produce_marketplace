@@ -183,7 +183,7 @@ class _CartPageState extends State<CartPage> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                              builder: (context) => const PaymentPage()),
+                              builder: (context) => PaymentPage(cartItems: cartItems)),
                         );
                       },
                       child: const Text(

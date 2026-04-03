@@ -14,7 +14,7 @@ import 'screens/home_wrapper.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // Pass Firebase options directly
   await Firebase.initializeApp(
     options: const FirebaseOptions(
@@ -27,7 +27,7 @@ void main() async {
       measurementId: "G-3BFF52S82G",
     ),
   );
-  
+
   runApp(const MyApp());
 }
 
@@ -39,7 +39,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Farm Produce Marketplace',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(primarySwatch: Colors.green, useMaterial3: true),
+      theme: ThemeData(primarySwatch: Colors.green, useMaterial3: true),        
       initialRoute: '/signin',
       routes: {
         '/home': (context) => const HomePage(),
@@ -50,7 +50,7 @@ class MyApp extends StatelessWidget {
         '/cart': (context) => const CartPage(),
         '/myproduce': (context) => const MyProducePage(),
         '/orders': (context) => const OrdersPage(),
-        '/farmers-dashboard': (context) => const FarmersDashboardPage(),
+        '/farmers-dashboard': (context) => const FarmersDashboardPage(),        
         '/admin-dashboard': (context) => const AdminDashboard(),
       },
       onGenerateRoute: (settings) {
@@ -64,7 +64,7 @@ class MyApp extends StatelessWidget {
         return null;
       },
       onUnknownRoute: (settings) {
-        return MaterialPageRoute(builder: (context) => const SignInPage());
+        return MaterialPageRoute(builder: (context) => const SignInPage());     
       },
     );
   }
