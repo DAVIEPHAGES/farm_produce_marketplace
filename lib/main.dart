@@ -14,7 +14,7 @@ import 'screens/home_wrapper.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // Solution 2: Pass Firebase options directly
   await Firebase.initializeApp(
     options: const FirebaseOptions(
@@ -27,7 +27,7 @@ void main() async {
       measurementId: "G-3BFF52S82G",
     ),
   );
-  
+
   runApp(const MyApp());
 }
 
@@ -40,7 +40,7 @@ class MyApp extends StatelessWidget {
       title: 'Farm Produce Marketplace',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(primarySwatch: Colors.green, useMaterial3: true),
-      initialRoute: '/signin',
+      initialRoute: '/home',
       routes: {
         '/home': (context) => const HomePage(),
         '/signin': (context) => const SignInPage(),
