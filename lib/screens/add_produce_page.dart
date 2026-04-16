@@ -1,6 +1,10 @@
 import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:http/http.dart' as http;
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class AddProducePage extends StatefulWidget {
   const AddProducePage({super.key});
@@ -15,18 +19,130 @@ class _AddProducePageState extends State<AddProducePage> {
 
   String? selectedQuantity;
   File? _image;
-
   final ImagePicker _picker = ImagePicker();
+  bool _isLoading = false;
 
+  // ✅ PICK IMAGE
   Future<void> pickImage() async {
-    final pickedFile =
-        await _picker.pickImage(source: ImageSource.gallery);
+    try {
+      final pickedFile = await _picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 70,
+      );
 
-    if (pickedFile != null) {
-      setState(() {
-        _image = File(pickedFile.path);
-      });
+      if (pickedFile != null) {
+        setState(() => _image = File(pickedFile.path));
+      }
+    } catch (e) {
+      debugPrint("Image pick error: $e");
     }
+  }
+
+  // ✅ UPLOAD IMAGE TO CLOUDINARY
+  Future<String?> uploadImageToCloudinary(File imageFile) async {
+    try {
+      final uri = Uri.parse(
+        'https://api.cloudinary.com/v1_1/dvdbts38x/image/upload',
+      );
+
+      final request = http.MultipartRequest('POST', uri)
+        ..fields['upload_preset'] = 'farm_produce'
+        ..files.add(await http.MultipartFile.fromPath('file', imageFile.path));
+
+      final response = await request.send();
+      final responseBody = await response.stream.bytesToString();
+
+      if (response.statusCode == 200) {
+        final jsonMap = jsonDecode(responseBody);
+        return jsonMap['secure_url'];
+      } else {
+        debugPrint("Cloudinary upload failed: ${response.statusCode} $responseBody");
+        return null;
+      }
+    } catch (e) {
+      debugPrint('Upload error: $e');
+      return null;
+    }
+  }
+
+  // ✅ UPLOAD PRODUCE
+  Future<void> uploadProduce() async {
+    if (nameController.text.trim().isEmpty ||
+        priceController.text.trim().isEmpty ||
+        selectedQuantity == null ||
+        _image == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please fill all fields and select an image')),
+      );
+      return;
+    }
+
+    double? price = double.tryParse(priceController.text);
+    if (price == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enter a valid price')),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+
+      if (user == null) {
+        throw Exception("User not logged in");
+      }
+
+      // 🔥 Upload Image
+      final imageUrl = await uploadImageToCloudinary(_image!);
+      if (imageUrl == null) throw Exception("Image upload failed");
+
+      // 🔥 Save to Firestore (FIXED)
+      await FirebaseFirestore.instance.collection('products').add({
+        'name': nameController.text.trim(),
+        'price': price,
+        'quantity': selectedQuantity,
+        'imageUrl': imageUrl,
+
+        // ✅ IMPORTANT (LINK TO FARMER)
+        'farmerId': user.uid,
+        'farmerName': user.displayName ?? "Farmer",
+
+        'timestamp': FieldValue.serverTimestamp(),
+      });
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('✅ Produce added successfully')),
+      );
+
+      // ✅ CLEAR FORM
+      nameController.clear();
+      priceController.clear();
+      setState(() {
+        selectedQuantity = null;
+        _image = null;
+      });
+
+    } catch (e) {
+      debugPrint("Error: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('❌ Error: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  void dispose() {
+    nameController.dispose();
+    priceController.dispose();
+    super.dispose();
   }
 
   @override
@@ -36,8 +152,7 @@ class _AddProducePageState extends State<AddProducePage> {
       appBar: AppBar(
         backgroundColor: Colors.green.shade700,
         elevation: 0,
-        leading: const Icon(Icons.arrow_back),
-        title: const Text("add produce"),
+        title: const Text("Add Produce"),
         centerTitle: true,
       ),
       body: Container(
@@ -51,119 +166,60 @@ class _AddProducePageState extends State<AddProducePage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              /// PRODUCE NAME
-              const Text("produce Name"),
+              const Text("Produce Name"),
               const SizedBox(height: 5),
               TextField(
                 controller: nameController,
-                decoration: InputDecoration(
-                  hintText: "e.g maize",
-                  filled: true,
-                  fillColor: Colors.grey.shade300,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(20),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
+                decoration: _inputDecoration("e.g Maize"),
               ),
 
               const SizedBox(height: 15),
-
-              /// PRICE
-              const Text("price"),
+              const Text("Price (MWK)"),
               const SizedBox(height: 5),
               TextField(
                 controller: priceController,
                 keyboardType: TextInputType.number,
-                decoration: InputDecoration(
-                  hintText: "ENTER (MWK)",
-                  filled: true,
-                  fillColor: Colors.grey.shade300,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(20),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
+                decoration: _inputDecoration("Enter price"),
               ),
 
               const SizedBox(height: 15),
-
-              /// MINIMUM QUANTITY
               const Text("Minimum Quantity"),
               const SizedBox(height: 5),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: selectedQuantity,
-                    hint: const Text("e.g 50kg"),
-                    isExpanded: true,
-                    items: ["10kg", "20kg", "50kg", "100kg"]
-                        .map((value) => DropdownMenuItem(
-                              value: value,
-                              child: Text(value),
-                            ))
-                        .toList(),
-                    onChanged: (value) {
-                      setState(() {
-                        selectedQuantity = value;
-                      });
-                    },
-                  ),
-                ),
-              ),
+              _buildDropdown(),
 
               const SizedBox(height: 15),
-
-              /// IMAGE UPLOAD
-              const Text("Upload produce image"),
+              const Text("Upload Produce Image"),
               const SizedBox(height: 5),
               GestureDetector(
                 onTap: pickImage,
                 child: Container(
                   height: 50,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade300,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Row(
+                  decoration: _boxDecoration(),
+                  child: const Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.camera_alt),
-                      const SizedBox(width: 8),
-                      const Text("Tap to upload"),
+                      Icon(Icons.camera_alt),
+                      SizedBox(width: 8),
+                      Text("Tap to upload")
                     ],
                   ),
                 ),
               ),
 
               const SizedBox(height: 10),
-
-              /// IMAGE PREVIEW
               if (_image != null)
                 Center(
-                  child: Image.file(
-                    _image!,
-                    height: 100,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: Image.file(_image!, height: 120),
                   ),
                 ),
 
               const SizedBox(height: 20),
-
-              /// BUTTON
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () {
-                    // handle submission
-                    print("Produce: ${nameController.text}");
-                    print("Price: ${priceController.text}");
-                    print("Quantity: $selectedQuantity");
-                  },
+                  onPressed: _isLoading ? null : uploadProduce,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.green.shade800,
                     padding: const EdgeInsets.symmetric(vertical: 15),
@@ -171,13 +227,55 @@ class _AddProducePageState extends State<AddProducePage> {
                       borderRadius: BorderRadius.circular(20),
                     ),
                   ),
-                  child: const Text("add produce"),
+                  child: _isLoading
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : const Text("Add Produce"),
                 ),
               ),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  // UI Helpers
+
+  InputDecoration _inputDecoration(String hint) {
+    return InputDecoration(
+      hintText: hint,
+      filled: true,
+      fillColor: Colors.grey.shade300,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(20),
+        borderSide: BorderSide.none,
+      ),
+    );
+  }
+
+  Widget _buildDropdown() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: _boxDecoration(),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: selectedQuantity,
+          hint: const Text("e.g 50kg"),
+          isExpanded: true,
+          items: ["10kg", "20kg", "50kg", "100kg"]
+              .map((value) =>
+                  DropdownMenuItem(value: value, child: Text(value)))
+              .toList(),
+          onChanged: (value) => setState(() => selectedQuantity = value),
+        ),
+      ),
+    );
+  }
+
+  BoxDecoration _boxDecoration() {
+    return BoxDecoration(
+      color: Colors.grey.shade300,
+      borderRadius: BorderRadius.circular(20),
     );
   }
 }
