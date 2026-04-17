@@ -1,10 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-
-import 'firebase_options.dart';
-
 import 'screens/home_page.dart';
 import 'screens/signin_page.dart';
 import 'screens/signup_page.dart';
@@ -12,17 +7,27 @@ import 'screens/produce_details_page.dart';
 import 'screens/payment_page.dart';
 import 'screens/cart_page.dart';
 import 'screens/farmers_dashboard_page.dart';
-
-
-
+import 'screens/myproduce_page.dart';
+import 'screens/orders_page.dart';
+import 'screens/admin_dashboard_page.dart';
 import 'screens/home_wrapper.dart';
-import 'screens/add_produce_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Pass Firebase options directly
   await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
+    options: const FirebaseOptions(
+      apiKey: "AIzaSyB7qNtGJ2o_0WM4yw1AxLITu2efhZCdmtY",
+      authDomain: "farm-36c66.firebaseapp.com",
+      projectId: "farm-36c66",
+      storageBucket: "farm-36c66.firebasestorage.app",
+      messagingSenderId: "488620623240",
+      appId: "1:488620623240:web:693c1f944e3cb377b4a63d",
+      measurementId: "G-3BFF52S82G",
+    ),
   );
+
   runApp(const MyApp());
 }
 
@@ -34,10 +39,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Farm Produce Marketplace',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        primarySwatch: Colors.green,
-        useMaterial3: true,
-      ),
+      theme: ThemeData(primarySwatch: Colors.green, useMaterial3: true),        
       initialRoute: '/signin',
       routes: {
         '/home': (context) => const HomePage(),
@@ -46,24 +48,8 @@ class MyApp extends StatelessWidget {
         '/payment': (context) => const PaymentPage(),
         '/produce': (context) => const ProduceDetailsPage(),
         '/cart': (context) => const CartPage(),
-       
-      '/farmers-dashboard': (context) => const FarmersDashboardPage(),
-       
-        '/add-produce': (context) => AddProducePage(), // ← no const
+        '/farmers-dashboard': (context) => const FarmersDashboardPage(),
       },
-      onGenerateRoute: (settings) {
-        if (settings.name == '/home') {
-          final args = settings.arguments as Map<String, dynamic>?;
-          final userType = args?['userType'] ?? 'customer';
-          return MaterialPageRoute(
-            builder: (context) => HomeWrapper(userType: userType),
-          );
-        }
-        return null;
-      },
-      onUnknownRoute: (settings) => MaterialPageRoute(
-        builder: (context) => const SignInPage(),
-      ),
     );
   }
 }

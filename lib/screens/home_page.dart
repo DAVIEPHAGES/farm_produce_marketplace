@@ -1,6 +1,41 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:farm_app/data/cart_data.dart';
+
+// GLOBAL CART
+List<Map<String, String>> cartItems = [];
+
+// SAMPLE DATA (simulate database)
+List<Map<String, String>> allProducts = [
+  {
+    "name": "bananas",
+    "price": "MK 2,500/ bunch",
+    "image": "assets/banana.png",
+    "category": "fruits",
+  },
+  {
+    "name": "maize",
+    "price": "MK 50,000/ bag",
+    "image": "assets/maize.png",
+    "category": "maize",
+  },
+  {
+    "name": "beans",
+    "price": "MK 60,000/ bag",
+    "image": "assets/beans.png",
+    "category": "Beans",
+  },
+  {
+    "name": "irish potato",
+    "price": "MK 50,000/ bag",
+    "image": "assets/potato.png",
+    "category": "vegetables",
+  },
+  {
+    "name": "groundnuts",
+    "price": "MK 100,000/ bag",
+    "image": "assets/groundnuts.png",
+    "category": "Beans",
+  },
+];
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -12,47 +47,84 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   String searchQuery = "";
   String selectedCategory = "All";
+  String searchQuery = "";
 
-  final List<String> categories = [
-    "All",
-    "maize",
-    "beans",
-    "fruits",
-    "vegetables"
-  ];
+  List<Map<String, String>> get filteredProducts {
+    return allProducts.where((product) {
+      final matchesCategory = selectedCategory == "All" || product['category'] == selectedCategory;
+      final matchesSearch = product['name']!.toLowerCase().contains(searchQuery.toLowerCase());
+      return matchesCategory && matchesSearch;
+    }).toList();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey.shade200,
+      backgroundColor: Colors.grey[200],
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(12.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // TOP BAR
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Icon(Icons.menu),
+                  Row(
+                    children: [
+                      Stack(
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.shopping_cart_outlined),
+                            onPressed: () async {
+                              await Navigator.pushNamed(context, '/cart');
+                              setState(() {
+                                // Rebuild to update cart badge
+                              });
+                            },
+                          ),
+                          if (cartItems.isNotEmpty)
+                            Positioned(
+                              right: 0,
+                              top: 0,
+                              child: Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: const BoxDecoration(
+                                  color: Colors.red,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Text(
+                                  cartItems.length.toString(),
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(width: 10),
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.pushNamed(context, '/signin');
+                        },
+                        child: const Chip(label: Text("Sign in")),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
 
-      appBar: AppBar(
-        title: const Text("FarmApp"),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.shopping_cart),
-            onPressed: () => Navigator.pushNamed(context, "/cart"),
-          ),
-        ],
-      ),
+              const SizedBox(height: 10),
 
-      body: Column(
-        children: [
-          // SEARCH
-          Padding(
-            padding: const EdgeInsets.all(10),
-            child: TextField(
-              onChanged: (value) =>
-                  setState(() => searchQuery = value.toLowerCase()),
-              decoration: InputDecoration(
-                hintText: "search for maize, beans etc",
-                prefixIcon: const Icon(Icons.search),
-                filled: true,
-                fillColor: Colors.grey.shade300,
-                border: OutlineInputBorder(
+              // SEARCH
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
                   borderRadius: BorderRadius.circular(20),
                   borderSide: BorderSide.none,
                 ),
@@ -133,13 +205,18 @@ class _HomePageState extends State<HomePage> {
                     childAspectRatio: 0.75,
                   ),
                   itemBuilder: (context, index) {
-                    return _buildCard(filtered[index]);
+                    final product = filteredProducts[index];
+                    return ProductCard(
+                      name: product['name']!,
+                      price: product['price']!,
+                      image: product['image']!,
+                    );
                   },
-                );
-              },
-            ),
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -193,19 +270,30 @@ class _HomePageState extends State<HomePage> {
                 ),
                 const SizedBox(height: 6),
 
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () => addToCart(data),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                    ),
-                    child: const Text("add to cart"),
-                  ),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
                 ),
-              ],
+              ),
+              onPressed: () {
+                cartItems.add({
+                  'name': name,
+                  'price': price,
+                  'image': image,
+                  'quantity': '1',
+                });
+
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(SnackBar(content: Text('$name added to cart')));
+              },
+              child: const Text("add to cart"),
             ),
-          )
+          ),
         ],
       ),
     );

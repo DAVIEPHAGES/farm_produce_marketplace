@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
 
 class PaymentPage extends StatefulWidget {
-  const PaymentPage({super.key});
+  final List<Map<String, String>> cartItems;
+
+  const PaymentPage({
+    super.key,
+    this.cartItems = const [],
+  });
 
   @override
   State<PaymentPage> createState() => _PaymentPageState();
@@ -13,12 +18,6 @@ class _PaymentPageState extends State<PaymentPage> {
 
   final List<PaymentMethod> _paymentMethods = [
     PaymentMethod(
-      id: 'airtel_money',
-      name: 'Airtel Money',
-      icon: Icons.phone_android,
-      color: Colors.red,
-    ),
-    PaymentMethod(
       id: 'paychangu',
       name: 'PayChangu',
       icon: Icons.payment,
@@ -27,12 +26,37 @@ class _PaymentPageState extends State<PaymentPage> {
   ];
 
   final TextEditingController _phoneController = TextEditingController();
-  final TextEditingController _emailController = TextEditingController();
+
+  // Helper method to parse price from format "MK X,XXX/ unit"
+  int _parsePrice(String priceString) {
+    try {
+      final cleaned = priceString.replaceAll(RegExp(r'[^0-9,]'), '');
+      final numericString = cleaned.replaceAll(',', '');
+      return int.parse(numericString);
+    } catch (e) {
+      return 0;
+    }
+  }
+
+  // Calculate subtotal from cart items
+  int _calculateSubtotal() {
+    int subtotal = 0;
+    for (var item in widget.cartItems) {
+      int price = _parsePrice(item['price'] ?? '0');
+      int quantity = int.tryParse(item['quantity'] ?? '1') ?? 1;
+      subtotal += price * quantity;
+    }
+    return subtotal;
+  }
+
+  // Format number with commas
+  String _formatCurrency(int amount) {
+    return 'MK ${amount.toString().replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (match) => '${match.group(1)},').replaceAll(RegExp(r',$'), '')}';
+  }
 
   @override
   void dispose() {
     _phoneController.dispose();
-    _emailController.dispose();
     super.dispose();
   }
 
@@ -42,15 +66,9 @@ class _PaymentPageState extends State<PaymentPage> {
       return;
     }
 
-    if (_selectedPaymentMethod == 'airtel_money' &&
+    if (_selectedPaymentMethod == 'paychangu' &&
         _phoneController.text.isEmpty) {
       _showSnackBar('Please enter your phone number', Colors.red);
-      return;
-    }
-
-    if (_selectedPaymentMethod == 'paychangu' &&
-        _emailController.text.isEmpty) {
-      _showSnackBar('Please enter your email', Colors.red);
       return;
     }
 
@@ -82,14 +100,14 @@ class _PaymentPageState extends State<PaymentPage> {
 
   @override
   Widget build(BuildContext context) {
+    int subtotal = _calculateSubtotal();
+    int total = subtotal;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text(
           'PAY HERE',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
-          ),
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
         ),
         backgroundColor: Colors.green,
         foregroundColor: Colors.white,
@@ -101,7 +119,7 @@ class _PaymentPageState extends State<PaymentPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Order Summary Card (Optional - you can customize this)
+              // Order Summary Card
               Card(
                 elevation: 4,
                 shape: RoundedRectangleBorder(
@@ -124,19 +142,13 @@ class _PaymentPageState extends State<PaymentPage> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           const Text('Subtotal:'),
-                          const Text('\MkW45.99',
-                              style: TextStyle(fontWeight: FontWeight.bold)),
+                          Text(
+                            _formatCurrency(subtotal),
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
                         ],
                       ),
                       const SizedBox(height: 8),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text('Delivery Fee:'),
-                          const Text('\$5.00',
-                              style: TextStyle(fontWeight: FontWeight.bold)),
-                        ],
-                      ),
                       const Divider(height: 24),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -144,10 +156,12 @@ class _PaymentPageState extends State<PaymentPage> {
                           const Text(
                             'Total:',
                             style: TextStyle(
-                                fontSize: 16, fontWeight: FontWeight.bold),
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                           Text(
-                            '\MkW50.99',
+                            _formatCurrency(total),
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
@@ -205,8 +219,9 @@ class _PaymentPageState extends State<PaymentPage> {
                           width: 20,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            valueColor:
-                                AlwaysStoppedAnimation<Color>(Colors.white),
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.white,
+                            ),
                           ),
                         )
                       : const Text(
@@ -244,18 +259,11 @@ class _PaymentPageState extends State<PaymentPage> {
             color: method.color.withOpacity(0.1),
             borderRadius: BorderRadius.circular(8),
           ),
-          child: Icon(
-            method.icon,
-            color: method.color,
-            size: 28,
-          ),
+          child: Icon(method.icon, color: method.color, size: 28),
         ),
         title: Text(
           method.name,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w500,
-          ),
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
         ),
         trailing: Radio<String>(
           value: method.id,
@@ -277,23 +285,18 @@ class _PaymentPageState extends State<PaymentPage> {
   }
 
   Widget _buildPaymentDetailsForm() {
-    if (_selectedPaymentMethod == 'airtel_money') {
+    if (_selectedPaymentMethod == 'paychangu') {
       return Card(
         elevation: 2,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'Airtel Money Details',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
+                'PayChangu Details',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 12),
               TextField(
@@ -301,7 +304,7 @@ class _PaymentPageState extends State<PaymentPage> {
                 keyboardType: TextInputType.phone,
                 decoration: InputDecoration(
                   labelText: 'Phone Number',
-                  hintText: 'Enter your Airtel money number',
+                  hintText: 'Enter your phone number',
                   prefixIcon: const Icon(Icons.phone),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
@@ -318,62 +321,8 @@ class _PaymentPageState extends State<PaymentPage> {
               ),
               const SizedBox(height: 8),
               Text(
-                'You will receive a prompt on your phone to complete the payment',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey[600],
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    } else if (_selectedPaymentMethod == 'paychangu') {
-      return Card(
-        elevation: 2,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'PayChangu Details',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _emailController,
-                keyboardType: TextInputType.emailAddress,
-                decoration: InputDecoration(
-                  labelText: 'Email Address',
-                  hintText: 'Enter your email address',
-                  prefixIcon: const Icon(Icons.email),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: Colors.grey[300]!),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: Colors.green, width: 2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Payment link will be sent to your email',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey[600],
-                ),
+                'Payment prompt will be sent to your phone',
+                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
               ),
             ],
           ),

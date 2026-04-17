@@ -2,125 +2,23 @@ import 'dart:io';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:http/http.dart' as http;
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-
 class AddProducePage extends StatefulWidget {
   const AddProducePage({super.key});
-
   @override
   State<AddProducePage> createState() => _AddProducePageState();
 }
-
 class _AddProducePageState extends State<AddProducePage> {
   final TextEditingController nameController = TextEditingController();
   final TextEditingController priceController = TextEditingController();
-
   String? selectedQuantity;
   File? _image;
   final ImagePicker _picker = ImagePicker();
-  bool _isLoading = false;
 
-  // ✅ PICK IMAGE
   Future<void> pickImage() async {
-    try {
-      final pickedFile = await _picker.pickImage(
-        source: ImageSource.gallery,
-        imageQuality: 70,
-      );
+    final pickedFile =
+        await _picker.pickImage(source: ImageSource.gallery);
 
-      if (pickedFile != null) {
-        setState(() => _image = File(pickedFile.path));
-      }
-    } catch (e) {
-      debugPrint("Image pick error: $e");
-    }
-  }
-
-  // ✅ UPLOAD IMAGE TO CLOUDINARY
-  Future<String?> uploadImageToCloudinary(File imageFile) async {
-    try {
-      final uri = Uri.parse(
-        'https://api.cloudinary.com/v1_1/dvdbts38x/image/upload',
-      );
-
-      final request = http.MultipartRequest('POST', uri)
-        ..fields['upload_preset'] = 'farm_produce'
-        ..files.add(await http.MultipartFile.fromPath('file', imageFile.path));
-
-      final response = await request.send();
-      final responseBody = await response.stream.bytesToString();
-
-      if (response.statusCode == 200) {
-        final jsonMap = jsonDecode(responseBody);
-        return jsonMap['secure_url'];
-      } else {
-        debugPrint("Cloudinary upload failed: ${response.statusCode} $responseBody");
-        return null;
-      }
-    } catch (e) {
-      debugPrint('Upload error: $e');
-      return null;
-    }
-  }
-
-  // ✅ UPLOAD PRODUCE
-  Future<void> uploadProduce() async {
-    if (nameController.text.trim().isEmpty ||
-        priceController.text.trim().isEmpty ||
-        selectedQuantity == null ||
-        _image == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please fill all fields and select an image')),
-      );
-      return;
-    }
-
-    double? price = double.tryParse(priceController.text);
-    if (price == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Enter a valid price')),
-      );
-      return;
-    }
-
-    setState(() => _isLoading = true);
-
-    try {
-      final user = FirebaseAuth.instance.currentUser;
-
-      if (user == null) {
-        throw Exception("User not logged in");
-      }
-
-      // 🔥 Upload Image
-      final imageUrl = await uploadImageToCloudinary(_image!);
-      if (imageUrl == null) throw Exception("Image upload failed");
-
-      // 🔥 Save to Firestore (FIXED)
-      await FirebaseFirestore.instance.collection('products').add({
-        'name': nameController.text.trim(),
-        'price': price,
-        'quantity': selectedQuantity,
-        'imageUrl': imageUrl,
-
-        // ✅ IMPORTANT (LINK TO FARMER)
-        'farmerId': user.uid,
-        'farmerName': user.displayName ?? "Farmer",
-
-        'timestamp': FieldValue.serverTimestamp(),
-      });
-
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('✅ Produce added successfully')),
-      );
-
-      // ✅ CLEAR FORM
-      nameController.clear();
-      priceController.clear();
+    if (pickedFile != null) {
       setState(() {
         selectedQuantity = null;
         _image = null;
@@ -207,6 +105,8 @@ class _AddProducePageState extends State<AddProducePage> {
               ),
 
               const SizedBox(height: 10),
+
+              /// IMAGE PREVIEW
               if (_image != null)
                 Center(
                   child: ClipRRect(

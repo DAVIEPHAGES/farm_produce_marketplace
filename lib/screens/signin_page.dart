@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class SignInPage extends StatefulWidget {
   const SignInPage({super.key});
@@ -50,8 +52,18 @@ class _SignInPageState extends State<SignInPage> {
     });
 
     try {
-      // TODO: Implement actual signin logic with Firebase/Auth service
-      await Future.delayed(const Duration(seconds: 2)); // Simulate API call
+      // Sign in with email and password
+      UserCredential userCredential = await FirebaseAuth.instance
+          .signInWithEmailAndPassword(
+            email: _emailController.text.trim().toLowerCase(),
+            password: _passwordController.text,
+          );
+
+      // IMPORTANT: Get user role from Firestore
+      DocumentSnapshot userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userCredential.user!.uid)
+          .get();
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -61,8 +73,41 @@ class _SignInPageState extends State<SignInPage> {
           ),
         );
 
-        // Navigate to home page
-        Navigator.pushReplacementNamed(context, '/home');
+        // Check user role and navigate accordingly
+        if (userDoc.exists) {
+          String userType = userDoc.get('userType') ?? 'customer';
+          print('User role: $userType'); // Debug print
+
+          if (userType == 'farmer') {
+            // Navigate to Farmer Dashboard
+            Navigator.pushReplacementNamed(context, '/farmers-dashboard');
+          } else if (userType == 'admin') {
+            // Navigate to Admin Dashboard
+            Navigator.pushReplacementNamed(context, '/admin-dashboard');
+          } else {
+            // Navigate to Customer Home Page
+            Navigator.pushReplacementNamed(
+              context,
+              '/home',
+              arguments: {'userType': 'customer'},
+            );
+          }
+        } else {
+          // User document doesn't exist - create one as customer
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(userCredential.user!.uid)
+              .set({
+                'email': _emailController.text.trim().toLowerCase(),
+                'userType': 'customer',
+                'createdAt': FieldValue.serverTimestamp(),
+              });
+          Navigator.pushReplacementNamed(
+            context,
+            '/home',
+            arguments: {'userType': 'customer'},
+          );
+        }
       }
     } catch (e) {
       if (mounted) {
