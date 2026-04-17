@@ -16,7 +16,7 @@ class FarmersDashboardPage extends StatefulWidget {
 class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
   bool _isLoading = true;
   Map<String, dynamic> farmerProfile = {};
-  
+
   bool showAddProduceForm = false;
   final TextEditingController produceNameController = TextEditingController();
   final TextEditingController unitPriceController = TextEditingController();
@@ -36,7 +36,7 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
     setState(() {
       _isLoading = true;
     });
-    
+
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) {
@@ -49,28 +49,29 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
           .collection('users')
           .doc(user.uid)
           .get();
-      
+
       // Get farmer's products
       final productsSnapshot = await FirebaseFirestore.instance
           .collection('products')
           .where('farmerId', isEqualTo: user.uid)
           .get();
-      
+
       // Get farmer's orders
       final ordersSnapshot = await FirebaseFirestore.instance
           .collection('orders')
           .where('farmerId', isEqualTo: user.uid)
           .get();
-      
+
       // Calculate total earnings
       double totalEarnings = 0.0;
       for (var orderDoc in ordersSnapshot.docs) {
         final orderData = orderDoc.data();
         if (orderData['status'] == 'completed') {
-          totalEarnings += (orderData['price'] ?? 0) * (orderData['quantity'] ?? 0);
+          totalEarnings +=
+              (orderData['price'] ?? 0) * (orderData['quantity'] ?? 0);
         }
       }
-      
+
       setState(() {
         farmerProfile = {
           'name': userDoc.data()?['name'] ?? 'Farmer',
@@ -110,12 +111,12 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
       if (user == null) return;
 
       String? imageUrl;
-      
+
       // Upload image if selected
       if (_image != null) {
-        final storageRef = FirebaseStorage.instance
-            .ref()
-            .child('products/${user.uid}/${DateTime.now().millisecondsSinceEpoch}.jpg');
+        final storageRef = FirebaseStorage.instance.ref().child(
+          'products/${user.uid}/${DateTime.now().millisecondsSinceEpoch}.jpg',
+        );
         await storageRef.putFile(_image!);
         imageUrl = await storageRef.getDownloadURL();
       }
@@ -138,15 +139,12 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
           .add(productData);
 
       // Add to local list with document ID
-      final newProduct = {
-        ...productData,
-        'id': docRef.id,
-      };
+      final newProduct = {...productData, 'id': docRef.id};
 
       setState(() {
         (farmerProfile['products'] as List).insert(0, newProduct);
         showAddProduceForm = false;
-        
+
         // Clear controllers
         produceNameController.clear();
         unitPriceController.clear();
@@ -155,7 +153,7 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
         _image = null;
         _isUploading = false;
       });
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('✓ Produce added successfully!'),
@@ -190,21 +188,14 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
 
   void _showErrorSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
-      ),
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(),
-        ),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     return Scaffold(
@@ -240,10 +231,7 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
                   const SizedBox(width: 6),
                   const Text(
                     'MY PROFILE',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
                   ),
                 ],
               ),
@@ -267,8 +255,7 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
         child: SingleChildScrollView(
           child: Column(
             children: [
-              if (showAddProduceForm)
-                _buildAddProduceForm(),
+              if (showAddProduceForm) _buildAddProduceForm(),
               Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
@@ -285,10 +272,7 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
                     const SizedBox(height: 8),
                     Text(
                       farmerProfile['name'] ?? 'Farmer',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        color: Colors.grey,
-                      ),
+                      style: const TextStyle(fontSize: 16, color: Colors.grey),
                     ),
                     const SizedBox(height: 32),
                     _buildDashboardCards(context),
@@ -378,7 +362,8 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
             _buildDrawerItem(
               icon: Icons.attach_money,
               title: 'Total Earnings',
-              subtitle: 'MWK ${(farmerProfile['totalEarnings'] ?? 0).toStringAsFixed(2)}',
+              subtitle:
+                  'MWK ${(farmerProfile['totalEarnings'] ?? 0).toStringAsFixed(2)}',
               color: Colors.green,
               onTap: () {
                 Navigator.pop(context);
@@ -388,7 +373,8 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
             _buildDrawerItem(
               icon: Icons.agriculture,
               title: 'My Produce',
-              subtitle: '${(farmerProfile['products'] as List).length} products listed',
+              subtitle:
+                  '${(farmerProfile['products'] as List).length} products listed',
               color: Colors.orange,
               onTap: () {
                 Navigator.pop(context);
@@ -398,7 +384,8 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
             _buildDrawerItem(
               icon: Icons.shopping_cart,
               title: 'New Orders',
-              subtitle: '${(farmerProfile['orders'] as List).length} pending orders',
+              subtitle:
+                  '${(farmerProfile['orders'] as List).length} pending orders',
               color: Colors.blue,
               onTap: () {
                 Navigator.pop(context);
@@ -497,7 +484,11 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
                   : Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.cloud_upload, size: 50, color: Colors.green[300]),
+                        Icon(
+                          Icons.cloud_upload,
+                          size: 50,
+                          color: Colors.green[300],
+                        ),
                         const SizedBox(height: 8),
                         Text(
                           'Tap to upload product image',
@@ -576,7 +567,7 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
     return GridView.count(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      crossAxisCount: 2,
+      crossAxisCount: 4,
       mainAxisSpacing: 16,
       crossAxisSpacing: 16,
       children: [
@@ -618,7 +609,7 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
 
   Widget _buildRecentProductsList() {
     final products = (farmerProfile['products'] as List).take(3).toList();
-    
+
     return ListView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -634,16 +625,11 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
           child: ListTile(
             leading: CircleAvatar(
               backgroundColor: Colors.green[100],
-              child: const Icon(
-                Icons.agriculture,
-                color: Colors.green,
-              ),
+              child: const Icon(Icons.agriculture, color: Colors.green),
             ),
             title: Text(
               product['name'] ?? 'Unknown',
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-              ),
+              style: const TextStyle(fontWeight: FontWeight.bold),
             ),
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -653,10 +639,7 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
                 Text('📍 ${product['location'] ?? 'Unknown'}'),
               ],
             ),
-            trailing: const Icon(
-              Icons.chevron_right,
-              color: Colors.green,
-            ),
+            trailing: const Icon(Icons.chevron_right, color: Colors.green),
             isThreeLine: true,
           ),
         );
@@ -680,14 +663,8 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
         ),
         child: Icon(icon, color: color),
       ),
-      title: Text(
-        title,
-        style: const TextStyle(fontWeight: FontWeight.w600),
-      ),
-      subtitle: Text(
-        subtitle,
-        style: const TextStyle(fontSize: 12),
-      ),
+      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
+      subtitle: Text(subtitle, style: const TextStyle(fontSize: 12)),
       onTap: onTap,
     );
   }
@@ -704,9 +681,7 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
       decoration: InputDecoration(
         labelText: label,
         hintText: hint,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
         prefixIcon: Icon(icon, color: Colors.green),
         filled: true,
         fillColor: Colors.grey[50],
@@ -715,14 +690,18 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
     );
   }
 
-  Widget _buildDashboardCard(String title, String value, IconData icon, Color color, VoidCallback onTap) {
+  Widget _buildDashboardCard(
+    String title,
+    String value,
+    IconData icon,
+    Color color,
+    VoidCallback onTap,
+  ) {
     return GestureDetector(
       onTap: onTap,
       child: Card(
         elevation: 4,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
@@ -759,10 +738,7 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
               const SizedBox(height: 4),
               Text(
                 title,
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey,
-                ),
+                style: const TextStyle(fontSize: 12, color: Colors.grey),
                 textAlign: TextAlign.center,
               ),
             ],
@@ -827,10 +803,7 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
                 const Divider(height: 24),
                 const Text(
                   'Products:',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                 ),
                 const SizedBox(height: 12),
                 if ((farmerProfile['products'] as List).isEmpty)
@@ -844,7 +817,11 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
                       padding: const EdgeInsets.symmetric(vertical: 6),
                       child: Row(
                         children: [
-                          const Icon(Icons.agriculture, size: 16, color: Colors.green),
+                          const Icon(
+                            Icons.agriculture,
+                            size: 16,
+                            color: Colors.green,
+                          ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
@@ -869,7 +846,11 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
     );
   }
 
-  Widget _buildProfileInfo({required IconData icon, required String label, required String value}) {
+  Widget _buildProfileInfo({
+    required IconData icon,
+    required String label,
+    required String value,
+  }) {
     return Row(
       children: [
         Icon(icon, size: 20, color: Colors.green),
@@ -970,7 +951,10 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
                       return Card(
                         margin: const EdgeInsets.only(bottom: 8),
                         child: ListTile(
-                          leading: const Icon(Icons.agriculture, color: Colors.green),
+                          leading: const Icon(
+                            Icons.agriculture,
+                            color: Colors.green,
+                          ),
                           title: Text(
                             product['name'] ?? 'Unknown',
                             style: const TextStyle(fontWeight: FontWeight.bold),
@@ -980,12 +964,17 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
                             children: [
                               Text('Price: MWK ${product['price'] ?? 0}'),
                               Text('Quantity: ${product['quantity'] ?? 'N/A'}'),
-                              Text('Location: ${product['location'] ?? 'Unknown'}'),
+                              Text(
+                                'Location: ${product['location'] ?? 'Unknown'}',
+                              ),
                             ],
                           ),
                           trailing: Text(
                             _formatDate(product['dateAdded']),
-                            style: const TextStyle(fontSize: 11, color: Colors.grey),
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: Colors.grey,
+                            ),
                           ),
                           isThreeLine: true,
                         ),
@@ -1033,18 +1022,29 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
                       return Card(
                         margin: const EdgeInsets.only(bottom: 8),
                         child: ListTile(
-                          leading: const Icon(Icons.shopping_cart, color: Colors.blue),
+                          leading: const Icon(
+                            Icons.shopping_cart,
+                            color: Colors.blue,
+                          ),
                           title: Text(order['product'] ?? 'Unknown'),
-                          subtitle: Text('Customer: ${order['customer'] ?? 'Unknown'}\nQuantity: ${order['quantity'] ?? 0}'),
+                          subtitle: Text(
+                            'Customer: ${order['customer'] ?? 'Unknown'}\nQuantity: ${order['quantity'] ?? 0}',
+                          ),
                           trailing: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
                             decoration: BoxDecoration(
                               color: Colors.orange.withOpacity(0.2),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(
                               order['status'] ?? 'pending',
-                              style: const TextStyle(color: Colors.orange, fontSize: 12),
+                              style: const TextStyle(
+                                color: Colors.orange,
+                                fontSize: 12,
+                              ),
                             ),
                           ),
                           isThreeLine: true,
@@ -1066,7 +1066,7 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
 
   String _formatDate(dynamic dateTime) {
     if (dateTime == null) return 'Unknown date';
-    
+
     try {
       if (dateTime is Timestamp) {
         DateTime date = dateTime.toDate();
