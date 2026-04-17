@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:farm_app/data/cart_data.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -26,16 +27,59 @@ class _HomePageState extends State<HomePage> {
     return Scaffold(
       backgroundColor: Colors.grey.shade200,
 
+      // ⭐ UBER / E-COMMERCE STYLE APP BAR
       appBar: AppBar(
-        title: const Text("FarmApp"),
         backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
         elevation: 0,
+        centerTitle: true,
+        foregroundColor: Colors.black,
+
+        // LEFT: CART ICON
+        leading: IconButton(
+          icon: const Icon(Icons.shopping_cart),
+          onPressed: () => Navigator.pushNamed(context, "/cart"),
+        ),
+
+        title: const Text(
+          "FarmApp",
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+
+        // RIGHT: AUTH STATE (SIGN IN OR PROFILE)
         actions: [
-          IconButton(
-            icon: const Icon(Icons.shopping_cart),
-            onPressed: () => Navigator.pushNamed(context, "/cart"),
-          ),
+          StreamBuilder<User?>(
+            stream: FirebaseAuth.instance.authStateChanges(),
+            builder: (context, snapshot) {
+              final user = snapshot.data;
+
+              // NOT LOGGED IN → SIGN IN BUTTON
+              if (user == null) {
+                return TextButton(
+                  onPressed: () {
+                    Navigator.pushNamed(context, "/signin");
+                  },
+                  child: const Text(
+                    "Sign In",
+                    style: TextStyle(
+                      color: Colors.black,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                );
+              }
+
+              // LOGGED IN → PROFILE ICON
+              return IconButton(
+                icon: const CircleAvatar(
+                  radius: 14,
+                  child: Icon(Icons.person, size: 18),
+                ),
+                onPressed: () {
+                  Navigator.pushNamed(context, "/profile");
+                },
+              );
+            },
+          )
         ],
       ),
 
@@ -74,7 +118,8 @@ class _HomePageState extends State<HomePage> {
                   onTap: () => setState(() => selectedCategory = cat),
                   child: Container(
                     margin: const EdgeInsets.symmetric(horizontal: 6),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
                       color: isSelected ? Colors.black : Colors.transparent,
                       borderRadius: BorderRadius.circular(20),
@@ -100,7 +145,6 @@ class _HomePageState extends State<HomePage> {
                   .collection('products')
                   .orderBy('timestamp', descending: true)
                   .snapshots(),
-
               builder: (context, snapshot) {
                 if (!snapshot.hasData) {
                   return const Center(child: CircularProgressIndicator());
@@ -126,7 +170,8 @@ class _HomePageState extends State<HomePage> {
                 return GridView.builder(
                   padding: const EdgeInsets.all(10),
                   itemCount: filtered.length,
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  gridDelegate:
+                      const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 2,
                     crossAxisSpacing: 10,
                     mainAxisSpacing: 10,
@@ -146,13 +191,15 @@ class _HomePageState extends State<HomePage> {
 
   // ADD TO CART
   void addToCart(QueryDocumentSnapshot data) {
-    cartItems.add({
-      'name': data['name'],
-      'price': (data['price'] as num).toDouble(),
-      'quantity': 1,
-      'imageUrl': data['imageUrl'],
-      'farmer': data['farmerName'] ?? 'Farmer',
-    });
+    cartItems.add(
+      CartItem(
+        name: data['name'],
+        price: (data['price'] as num).toDouble(),
+        quantity: 1,
+        imageUrl: data['imageUrl'],
+        farmer: data['farmerName'] ?? 'Farmer',
+      ),
+    );
 
     ScaffoldMessenger.of(context)
         .showSnackBar(const SnackBar(content: Text("Added to cart")));
@@ -169,7 +216,8 @@ class _HomePageState extends State<HomePage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           ClipRRect(
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(15)),
+            borderRadius:
+                const BorderRadius.vertical(top: Radius.circular(15)),
             child: Image.network(
               data['imageUrl'],
               height: 100,
@@ -179,7 +227,6 @@ class _HomePageState extends State<HomePage> {
                   const Icon(Icons.image, size: 80),
             ),
           ),
-
           Padding(
             padding: const EdgeInsets.all(8),
             child: Column(
@@ -192,7 +239,6 @@ class _HomePageState extends State<HomePage> {
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 6),
-
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
