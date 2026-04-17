@@ -1,41 +1,7 @@
 import 'package:flutter/material.dart';
-
-// GLOBAL CART
-List<Map<String, String>> cartItems = [];
-
-// SAMPLE DATA (simulate database)
-List<Map<String, String>> allProducts = [
-  {
-    "name": "bananas",
-    "price": "MK 2,500/ bunch",
-    "image": "assets/banana.png",
-    "category": "fruits",
-  },
-  {
-    "name": "maize",
-    "price": "MK 50,000/ bag",
-    "image": "assets/maize.png",
-    "category": "maize",
-  },
-  {
-    "name": "beans",
-    "price": "MK 60,000/ bag",
-    "image": "assets/beans.png",
-    "category": "Beans",
-  },
-  {
-    "name": "irish potato",
-    "price": "MK 50,000/ bag",
-    "image": "assets/potato.png",
-    "category": "vegetables",
-  },
-  {
-    "name": "groundnuts",
-    "price": "MK 100,000/ bag",
-    "image": "assets/groundnuts.png",
-    "category": "Beans",
-  },
-];
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:farm_app/data/cart_data.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -45,197 +11,203 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  String selectedCategory = "All";
   String searchQuery = "";
+  String selectedCategory = "All";
 
-  List<Map<String, String>> get filteredProducts {
-    return allProducts.where((product) {
-      final matchesCategory =
-          selectedCategory == "All" || product['category'] == selectedCategory;
-      final matchesSearch = product['name']!.toLowerCase().contains(
-        searchQuery.toLowerCase(),
-      );
-      return matchesCategory && matchesSearch;
-    }).toList();
-  }
+  final List<String> categories = [
+    "All",
+    "maize",
+    "beans",
+    "fruits",
+    "vegetables"
+  ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[200],
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(12.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // TOP BAR
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Icon(Icons.menu),
-                  Row(
-                    children: [
-                      Stack(
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.shopping_cart_outlined),
-                            onPressed: () async {
-                              await Navigator.pushNamed(context, '/cart');
-                              setState(() {
-                                // Rebuild to update cart badge
-                              });
-                            },
-                          ),
-                          if (cartItems.isNotEmpty)
-                            Positioned(
-                              right: 0,
-                              top: 0,
-                              child: Container(
-                                padding: const EdgeInsets.all(4),
-                                decoration: const BoxDecoration(
-                                  color: Colors.red,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: Text(
-                                  cartItems.length.toString(),
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 10,
-                                  ),
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                      const SizedBox(width: 10),
-                      GestureDetector(
-                        onTap: () {
-                          Navigator.pushNamed(context, '/signin');
-                        },
-                        child: const Chip(label: Text("Sign in")),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+      backgroundColor: Colors.grey.shade200,
 
-              const SizedBox(height: 10),
+      // ⭐ UBER / E-COMMERCE STYLE APP BAR
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        centerTitle: true,
+        foregroundColor: Colors.black,
 
-              // SEARCH
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10),
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: TextField(
-                  onChanged: (value) {
-                    setState(() {
-                      searchQuery = value;
-                    });
+        // LEFT: CART ICON
+        leading: IconButton(
+          icon: const Icon(Icons.shopping_cart),
+          onPressed: () => Navigator.pushNamed(context, "/cart"),
+        ),
+
+        title: const Text(
+          "FarmApp",
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+
+        // RIGHT: AUTH STATE (SIGN IN OR PROFILE)
+        actions: [
+          StreamBuilder<User?>(
+            stream: FirebaseAuth.instance.authStateChanges(),
+            builder: (context, snapshot) {
+              final user = snapshot.data;
+
+              // NOT LOGGED IN → SIGN IN BUTTON
+              if (user == null) {
+                return TextButton(
+                  onPressed: () {
+                    Navigator.pushNamed(context, "/signin");
                   },
-                  decoration: const InputDecoration(
-                    icon: Icon(Icons.search),
-                    hintText: "search for maize, groundnuts etc",
-                    border: InputBorder.none,
+                  child: const Text(
+                    "Sign In",
+                    style: TextStyle(
+                      color: Colors.black,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
+                );
+              }
+
+              // LOGGED IN → PROFILE ICON
+              return IconButton(
+                icon: const CircleAvatar(
+                  radius: 14,
+                  child: Icon(Icons.person, size: 18),
+                ),
+                onPressed: () {
+                  Navigator.pushNamed(context, "/profile");
+                },
+              );
+            },
+          )
+        ],
+      ),
+
+      body: Column(
+        children: [
+          // SEARCH
+          Padding(
+            padding: const EdgeInsets.all(10),
+            child: TextField(
+              onChanged: (value) =>
+                  setState(() => searchQuery = value.toLowerCase()),
+              decoration: InputDecoration(
+                hintText: "search for maize, beans etc",
+                prefixIcon: const Icon(Icons.search),
+                filled: true,
+                fillColor: Colors.grey.shade300,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(20),
+                  borderSide: BorderSide.none,
                 ),
               ),
+            ),
+          ),
 
-              const SizedBox(height: 15),
+          // CATEGORY
+          SizedBox(
+            height: 40,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: categories.length,
+              itemBuilder: (context, index) {
+                final cat = categories[index];
+                final isSelected = selectedCategory == cat;
 
-              const Text(
-                "Buy Farm Produce Delivered To You",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
+                return GestureDetector(
+                  onTap: () => setState(() => selectedCategory = cat),
+                  child: Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 6),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: isSelected ? Colors.black : Colors.transparent,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      cat,
+                      style: TextStyle(
+                        color: isSelected ? Colors.white : Colors.black,
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
 
-              const SizedBox(height: 10),
+          const SizedBox(height: 10),
 
-              // CATEGORIES
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: [
-                    categoryChip("All"),
-                    categoryChip("maize"),
-                    categoryChip("Beans"),
-                    categoryChip("fruits"),
-                    categoryChip("vegetables"),
-                  ],
-                ),
-              ),
+          // PRODUCTS
+          Expanded(
+            child: StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('products')
+                  .orderBy('timestamp', descending: true)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) {
+                  return const Center(child: CircularProgressIndicator());
+                }
 
-              const SizedBox(height: 10),
+                final docs = snapshot.data!.docs;
 
-              // GRID (handles many items)
-              Expanded(
-                child: GridView.builder(
-                  itemCount: filteredProducts.length,
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                final filtered = docs.where((doc) {
+                  final name = (doc['name'] ?? '').toString().toLowerCase();
+
+                  final matchesSearch = name.contains(searchQuery);
+                  final matchesCategory =
+                      selectedCategory == "All" ||
+                      name.contains(selectedCategory);
+
+                  return matchesSearch && matchesCategory;
+                }).toList();
+
+                if (filtered.isEmpty) {
+                  return const Center(child: Text("No matching produce"));
+                }
+
+                return GridView.builder(
+                  padding: const EdgeInsets.all(10),
+                  itemCount: filtered.length,
+                  gridDelegate:
+                      const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 2,
                     crossAxisSpacing: 10,
                     mainAxisSpacing: 10,
                     childAspectRatio: 0.75,
                   ),
                   itemBuilder: (context, index) {
-                    final product = filteredProducts[index];
-                    return ProductCard(
-                      name: product['name']!,
-                      price: product['price']!,
-                      image: product['image']!,
-                    );
+                    return _buildCard(filtered[index]);
                   },
-                ),
-              ),
-            ],
+                );
+              },
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
 
-  Widget categoryChip(String label) {
-    final isSelected = selectedCategory == label;
-
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          selectedCategory = label;
-        });
-      },
-      child: Container(
-        margin: const EdgeInsets.only(right: 8),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: isSelected ? Colors.green : Colors.white,
-          borderRadius: BorderRadius.circular(15),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(color: isSelected ? Colors.white : Colors.black),
-        ),
+  // ADD TO CART
+  void addToCart(QueryDocumentSnapshot data) {
+    cartItems.add(
+      CartItem(
+        name: data['name'],
+        price: (data['price'] as num).toDouble(),
+        quantity: 1,
+        imageUrl: data['imageUrl'],
+        farmer: data['farmerName'] ?? 'Farmer',
       ),
     );
+
+    ScaffoldMessenger.of(context)
+        .showSnackBar(const SnackBar(content: Text("Added to cart")));
   }
-}
 
-class ProductCard extends StatelessWidget {
-  final String name;
-  final String price;
-  final String image;
-
-  const ProductCard({
-    super.key,
-    required this.name,
-    required this.price,
-    required this.image,
-  });
-
-  @override
-  Widget build(BuildContext context) {
+  // CARD
+  Widget _buildCard(QueryDocumentSnapshot data) {
     return Container(
-      padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(15),
@@ -243,49 +215,43 @@ class ProductCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(10),
-                image: DecorationImage(
-                  image: AssetImage(image),
-                  fit: BoxFit.cover,
-                ),
-              ),
+          ClipRRect(
+            borderRadius:
+                const BorderRadius.vertical(top: Radius.circular(15)),
+            child: Image.network(
+              data['imageUrl'],
+              height: 100,
+              width: double.infinity,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) =>
+                  const Icon(Icons.image, size: 80),
             ),
           ),
-
-          const SizedBox(height: 5),
-
-          Text(name, style: const TextStyle(fontWeight: FontWeight.bold)),
-          Text(price),
-
-          const SizedBox(height: 5),
-
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
+          Padding(
+            padding: const EdgeInsets.all(8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(data['name'] ?? ''),
+                const SizedBox(height: 4),
+                Text(
+                  "MK ${data['price']}",
+                  style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
-              ),
-              onPressed: () {
-                cartItems.add({
-                  'name': name,
-                  'price': price,
-                  'image': image,
-                  'quantity': '1',
-                });
-
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(SnackBar(content: Text('$name added to cart')));
-              },
-              child: const Text("add to cart"),
+                const SizedBox(height: 6),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () => addToCart(data),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                    ),
+                    child: const Text("add to cart"),
+                  ),
+                ),
+              ],
             ),
-          ),
+          )
         ],
       ),
     );

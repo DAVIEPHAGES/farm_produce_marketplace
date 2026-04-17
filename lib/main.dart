@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:firebase_core/firebase_core.dart';
-import 'firebase_options.dart'; // Import the new file
+import 'firebase_options.dart';
+
 import 'screens/home_page.dart';
 import 'screens/signin_page.dart';
 import 'screens/signup_page.dart';
@@ -13,15 +13,14 @@ import 'screens/myproduce_page.dart';
 import 'screens/orders_page.dart';
 import 'screens/admin_dashboard_page.dart';
 import 'screens/home_wrapper.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
-  // Initialize Firebase using our platform-specific configuration
-  await FirebaseConfig.initialize();
+
+  // ✅ Correct Firebase initialization
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
 
   runApp(const MyApp());
 }
@@ -34,8 +33,13 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Farm Produce Marketplace',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(primarySwatch: Colors.green, useMaterial3: true),
-      initialRoute: '/home', // Start with sign in page
+      theme: ThemeData(
+        primarySwatch: Colors.green,
+        useMaterial3: true,
+      ),
+
+      initialRoute: '/home',
+
       routes: {
         '/home': (context) => const HomePage(),
         '/signin': (context) => const SignInPage(),
@@ -48,19 +52,24 @@ class MyApp extends StatelessWidget {
         '/farmers-dashboard': (context) => const FarmersDashboardPage(),
         '/admin-dashboard': (context) => const AdminDashboard(),
       },
+
       onGenerateRoute: (settings) {
-        // Handle dynamic routes with arguments
         if (settings.name == '/home') {
           final args = settings.arguments as Map<String, dynamic>?;
+
           final userType = args?['userType'] ?? 'customer';
+
           return MaterialPageRoute(
             builder: (context) => HomeWrapper(userType: userType),
           );
         }
         return null;
       },
+
       onUnknownRoute: (settings) {
-        return MaterialPageRoute(builder: (context) => const SignInPage());
+        return MaterialPageRoute(
+          builder: (context) => const SignInPage(),
+        );
       },
     );
   }
