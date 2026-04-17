@@ -564,46 +564,48 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
   }
 
   Widget _buildDashboardCards(BuildContext context) {
-    return GridView.count(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisCount: 4,
-      mainAxisSpacing: 16,
-      crossAxisSpacing: 16,
-      children: [
-        _buildDashboardCard(
-          'Total Earnings',
-          'MWK ${(farmerProfile['totalEarnings'] ?? 0).toStringAsFixed(2)}',
-          Icons.attach_money,
-          Colors.green,
-          () => _showEarningsDialog(context),
-        ),
-        _buildDashboardCard(
-          'My Produce',
-          '${(farmerProfile['products'] as List).length} items',
-          Icons.agriculture,
-          Colors.orange,
-          () => _showMyProduceDialog(context),
-        ),
-        _buildDashboardCard(
-          'New Orders',
-          '${(farmerProfile['orders'] as List).length} pending',
-          Icons.shopping_cart,
-          Colors.blue,
-          () => _showOrdersDialog(context),
-        ),
-        _buildDashboardCard(
-          'Add Produce',
-          'Post new items',
-          Icons.add_box,
-          Colors.purple,
-          () {
-            setState(() {
-              showAddProduceForm = true;
-            });
-          },
-        ),
-      ],
+    // Single row layout using SingleChildScrollView for horizontal scrolling
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          _buildDashboardCard(
+            'Total Earnings',
+            'MWK ${(farmerProfile['totalEarnings'] ?? 0).toStringAsFixed(2)}',
+            Icons.attach_money,
+            Colors.green,
+            () => _showEarningsDialog(context),
+          ),
+          const SizedBox(width: 16),
+          _buildDashboardCard(
+            'My Produce',
+            '${(farmerProfile['products'] as List).length} items',
+            Icons.agriculture,
+            Colors.orange,
+            () => _showMyProduceDialog(context),
+          ),
+          const SizedBox(width: 16),
+          _buildDashboardCard(
+            'New Orders',
+            '${(farmerProfile['orders'] as List).length} pending',
+            Icons.shopping_cart,
+            Colors.blue,
+            () => _showOrdersDialog(context),
+          ),
+          const SizedBox(width: 16),
+          _buildDashboardCard(
+            'Add Produce',
+            'Post new items',
+            Icons.add_box,
+            Colors.purple,
+            () {
+              setState(() {
+                showAddProduceForm = true;
+              });
+            },
+          ),
+        ],
+      ),
     );
   }
 
@@ -699,49 +701,52 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
   ) {
     return GestureDetector(
       onTap: onTap,
-      child: Card(
-        elevation: 4,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [color.withOpacity(0.1), Colors.white],
+      child: SizedBox(
+        width: 140, // Fixed width for consistent card size
+        child: Card(
+          elevation: 4,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [color.withOpacity(0.1), Colors.white],
+              ),
             ),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
-                  shape: BoxShape.circle,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(icon, size: 32, color: color),
                 ),
-                child: Icon(icon, size: 32, color: color),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                value,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: color,
+                const SizedBox(height: 12),
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: color,
+                  ),
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 4),
-              Text(
-                title,
-                style: const TextStyle(fontSize: 12, color: Colors.grey),
-                textAlign: TextAlign.center,
-              ),
-            ],
+                const SizedBox(height: 4),
+                Text(
+                  title,
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
           ),
         ),
       ),
