@@ -1,39 +1,230 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:farm_app/data/cart_data.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
-class ProduceDetailsPage extends StatelessWidget {
-  const ProduceDetailsPage({super.key});
+class ProduceDetailsPage extends StatefulWidget {
+  final QueryDocumentSnapshot data;
+
+  const ProduceDetailsPage({super.key, required this.data});
+
+  @override
+  State<ProduceDetailsPage> createState() => _ProduceDetailsPageState();
+}
+
+class _ProduceDetailsPageState extends State<ProduceDetailsPage> {
+  int quantity = 1;
+
+  void addToCart() {
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user == null) {
+      Navigator.pushNamed(context, "/signin");
+      return;
+    }
+
+    cartItems.add(
+      CartItem(
+        name: widget.data['name'],
+        price: (widget.data['price'] as num).toDouble(),
+        quantity: quantity,
+        imageUrl: widget.data['imageUrl'],
+        farmer: widget.data.data().toString().contains('farmerName')
+            ? widget.data['farmerName']
+            : 'Farmer',
+      ),
+    );
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Added to cart")),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
+    final data = widget.data.data() as Map<String, dynamic>;
+
+    // 🧠 SAFE FIELD ACCESS (NO CRASHES)
+    final farmerName = data['farmerName'] ?? 'Unknown';
+    final farmerPhone = data['farmerPhone'] ?? 'Not set';
+    final farmerLocation = data['farmerLocation'] ?? 'Not set';
+
     return Scaffold(
+      backgroundColor: Colors.white,
+
       appBar: AppBar(
-        title: const Text('Product Details'),
-        backgroundColor: const Color(0xFF2E7D32),
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
+        elevation: 0,
+        title: Text(data['name'] ?? 'Product'),
       ),
-      body: const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.construction,
-              size: 80,
-              color: Colors.grey,
-            ),
-            SizedBox(height: 16),
-            Text(
-              'Coming Soon',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
+
+      body: Column(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+
+                  // 🖼️ IMAGE
+                  Image.network(
+                    data['imageUrl'],
+                    width: double.infinity,
+                    height: 250,
+                    fit: BoxFit.cover,
+                  ),
+
+                  const SizedBox(height: 15),
+
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+
+                        // NAME
+                        Text(
+                          data['name'] ?? '',
+                          style: const TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+
+                        const SizedBox(height: 8),
+
+                        // PRICE
+                        Text(
+                          "MK ${data['price']}",
+                          style: const TextStyle(
+                            fontSize: 18,
+                            color: Colors.green,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+
+                        const SizedBox(height: 15),
+
+                        // 👨‍🌾 FARMER INFO
+                        Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade100,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.grey.shade300),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                "👨‍🌾 Farmer Details",
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
+                              ),
+
+                              const SizedBox(height: 10),
+
+                              Row(
+                                children: [
+                                  const Icon(Icons.person, size: 18),
+                                  const SizedBox(width: 8),
+                                  Text("Name: $farmerName"),
+                                ],
+                              ),
+
+                              const SizedBox(height: 6),
+
+                              Row(
+                                children: [
+                                  const Icon(Icons.location_on, size: 18),
+                                  const SizedBox(width: 8),
+                                  Text("Location: $farmerLocation"),
+                                ],
+                              ),
+
+                              const SizedBox(height: 6),
+
+                              Row(
+                                children: [
+                                  const Icon(Icons.phone, size: 18),
+                                  const SizedBox(width: 8),
+                                  Text("Phone: $farmerPhone"),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: 20),
+
+                        // 🔢 QUANTITY
+                        Row(
+                          children: [
+                            const Text("Quantity", style: TextStyle(fontSize: 16)),
+                            const SizedBox(width: 20),
+
+                            Container(
+                              decoration: BoxDecoration(
+                                border: Border.all(color: Colors.grey.shade300),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Row(
+                                children: [
+                                  IconButton(
+                                    icon: const Icon(Icons.remove),
+                                    onPressed: () {
+                                      if (quantity > 1) {
+                                        setState(() => quantity--);
+                                      }
+                                    },
+                                  ),
+
+                                  Text(quantity.toString()),
+
+                                  IconButton(
+                                    icon: const Icon(Icons.add),
+                                    onPressed: () {
+                                      setState(() => quantity++);
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        const SizedBox(height: 30),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
-            SizedBox(height: 8),
-            Text(
-              'This page is under development',
-              style: TextStyle(color: Colors.grey),
+          ),
+
+          // 🛒 ADD TO CART BUTTON
+          Container(
+            padding: const EdgeInsets.all(16),
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: addToCart,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: Text(
+                "Add to Cart • MK ${(data['price'] * quantity)}",
+                style: const TextStyle(fontSize: 16),
+              ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
