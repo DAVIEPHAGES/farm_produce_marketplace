@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import '../data/cart_data.dart';
-import 'payment_page.dart';
+import 'package:farm_app/data/cart_data.dart';
 
 class CartPage extends StatefulWidget {
   const CartPage({super.key});
@@ -10,186 +9,89 @@ class CartPage extends StatefulWidget {
 }
 
 class _CartPageState extends State<CartPage> {
-  double getTotal() {
-    double total = 0;
-    for (var item in cartItems) {
-      total += item.price * item.quantity;
-    }
-    return total;
+  void _increment(int index) {
+    setState(() => cartItems[index]['quantity']++);
   }
 
-  void refresh() {
-    setState(() {});
+  void _decrement(int index) {
+    setState(() {
+      if (cartItems[index]['quantity'] <= 1) {
+        cartItems.removeAt(index);
+      } else {
+        cartItems[index]['quantity']--;
+      }
+    });
   }
+
+  void _remove(int index) {
+    setState(() => cartItems.removeAt(index));
+  }
+
+  void _clearCart() {
+    setState(() => cartItems.clear());
+  }
+
+  double get _total => cartItems.fold(
+        0,
+        (sum, item) =>
+            sum +
+            (item['price'] as double) * (item['quantity'] as int),
+      );
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Your Cart"),
         backgroundColor: Colors.green,
+        title: Text("Cart (${cartItems.length})"),
+        actions: [
+          if (cartItems.isNotEmpty)
+            TextButton(
+              onPressed: _clearCart,
+              child: const Text("Clear", style: TextStyle(color: Colors.white)),
+            )
+        ],
       ),
 
-      body: Column(
-        children: [
-          const SizedBox(height: 10),
-
-          // CART ITEMS
-          Expanded(
-            child: cartItems.isEmpty
-                ? const Center(
-                    child: Text("Your cart is empty"),
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.all(10),
+      body: cartItems.isEmpty
+          ? const Center(child: Text("Cart is empty"))
+          : Column(
+              children: [
+                Expanded(
+                  child: ListView.builder(
                     itemCount: cartItems.length,
                     itemBuilder: (context, index) {
                       final item = cartItems[index];
 
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 10),
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.05),
-                              blurRadius: 5,
-                            )
-                          ],
-                        ),
-                        child: Row(
-                          children: [
-                            // IMAGE
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(8),
-                              child: Image.network(
-                                item.imageUrl,
-                                width: 50,
-                                height: 50,
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) =>
-                                    const Icon(Icons.image),
-                              ),
-                            ),
-
-                            const SizedBox(width: 10),
-
-                            // NAME + PRICE
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    item.name,
-                                    style: const TextStyle(
-                                        fontWeight: FontWeight.w600),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    "MK ${item.price * item.quantity}",
-                                    style:
-                                        const TextStyle(color: Colors.grey),
-                                  ),
-                                ],
-                              ),
-                            ),
-
-                            // QUANTITY CONTROLS
-                            Row(
-                              children: [
-                                IconButton(
-                                  icon: const Icon(Icons.remove, size: 18),
-                                  onPressed: () {
-                                    setState(() {
-                                      if (item.quantity > 1) {
-                                        item.quantity--;
-                                      } else {
-                                        cartItems.removeAt(index);
-                                      }
-                                    });
-                                  },
-                                ),
-
-                                Text(
-                                  "${item.quantity}",
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.bold),
-                                ),
-
-                                IconButton(
-                                  icon: const Icon(Icons.add, size: 18),
-                                  onPressed: () {
-                                    setState(() {
-                                      item.quantity++;
-                                    });
-                                  },
-                                ),
-                              ],
-                            ),
-                          ],
+                      return Card(
+                        child: ListTile(
+                          leading: Image.network(
+                            item['imageUrl'],
+                            width: 60,
+                            height: 60,
+                            errorBuilder: (_, __, ___) =>
+                                const Icon(Icons.image),
+                          ),
+                          title: Text(item['name']),
+                          subtitle: Text("Farmer: ${item['farmer']}"),
+                          trailing: Text(
+                            "MK ${(item['price'] * item['quantity']).toStringAsFixed(0)}",
+                          ),
                         ),
                       );
                     },
                   ),
-          ),
-
-          const Divider(height: 1),
-
-          // TOTAL
-          Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  "Total",
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
                 ),
-                Text(
-                  "MK ${getTotal().toStringAsFixed(2)}",
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.green,
+
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Text(
+                    "Total: MK ${_total.toStringAsFixed(0)}",
+                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   ),
-                ),
+                )
               ],
             ),
-          ),
-
-          // CHECKOUT BUTTON
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                ),
-                onPressed: cartItems.isEmpty
-                    ? null
-                    : () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) =>
-                                PaymentPage(cartItems: cartItems),
-                          ),
-                        );
-                      },
-                child: const Text("Proceed to Payment"),
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
