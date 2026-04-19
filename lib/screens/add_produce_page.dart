@@ -1,5 +1,7 @@
 import 'dart:io';
 import 'dart:convert';
+import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
@@ -18,11 +20,14 @@ class _AddProducePageState extends State<AddProducePage> {
   final TextEditingController priceController = TextEditingController();
 
   String? selectedQuantity;
-  File? _image;
+
+  File? _image;           // Mobile
+  Uint8List? _webImage;   // Web
+
   final ImagePicker _picker = ImagePicker();
   bool _isLoading = false;
 
-  // ✅ PICK IMAGE
+  // ✅ PICK IMAGE (WEB + MOBILE)
   Future<void> pickImage() async {
     try {
       final pickedFile = await _picker.pickImage(
@@ -30,24 +35,50 @@ class _AddProducePageState extends State<AddProducePage> {
         imageQuality: 70,
       );
 
-      if (pickedFile != null) {
-        setState(() => _image = File(pickedFile.path));
+      if (pickedFile == null) return;
+
+      if (kIsWeb) {
+        final bytes = await pickedFile.readAsBytes();
+        setState(() {
+          _webImage = bytes;
+          _image = null;
+        });
+      } else {
+        setState(() {
+          _image = File(pickedFile.path);
+          _webImage = null;
+        });
       }
     } catch (e) {
       debugPrint("Image pick error: $e");
     }
   }
 
-  // ✅ UPLOAD IMAGE TO CLOUDINARY
-  Future<String?> uploadImageToCloudinary(File imageFile) async {
+  // ✅ UPLOAD IMAGE (WEB + MOBILE)
+  Future<String?> uploadImageToCloudinary() async {
     try {
       final uri = Uri.parse(
         'https://api.cloudinary.com/v1_1/dvdbts38x/image/upload',
       );
 
       final request = http.MultipartRequest('POST', uri)
-        ..fields['upload_preset'] = 'farm_produce'
-        ..files.add(await http.MultipartFile.fromPath('file', imageFile.path));
+        ..fields['upload_preset'] = 'farm_produce';
+
+      if (kIsWeb && _webImage != null) {
+        request.files.add(
+          http.MultipartFile.fromBytes(
+            'file',
+            _webImage!,
+            filename: 'upload.jpg',
+          ),
+        );
+      } else if (_image != null) {
+        request.files.add(
+          await http.MultipartFile.fromPath('file', _image!.path),
+        );
+      } else {
+        return null;
+      }
 
       final response = await request.send();
       final responseBody = await response.stream.bytesToString();
@@ -70,7 +101,7 @@ class _AddProducePageState extends State<AddProducePage> {
     if (nameController.text.trim().isEmpty ||
         priceController.text.trim().isEmpty ||
         selectedQuantity == null ||
-        _image == null) {
+        (_image == null && _webImage == null)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please fill all fields and select an image')),
       );
@@ -95,20 +126,17 @@ class _AddProducePageState extends State<AddProducePage> {
       }
 
       // 🔥 Upload Image
-      final imageUrl = await uploadImageToCloudinary(_image!);
+      final imageUrl = await uploadImageToCloudinary();
       if (imageUrl == null) throw Exception("Image upload failed");
 
-      // 🔥 Save to Firestore (FIXED)
+      // 🔥 Save to Firestore
       await FirebaseFirestore.instance.collection('products').add({
         'name': nameController.text.trim(),
         'price': price,
         'quantity': selectedQuantity,
         'imageUrl': imageUrl,
-
-        // ✅ IMPORTANT (LINK TO FARMER)
         'farmerId': user.uid,
         'farmerName': user.displayName ?? "Farmer",
-
         'timestamp': FieldValue.serverTimestamp(),
       });
 
@@ -124,6 +152,7 @@ class _AddProducePageState extends State<AddProducePage> {
       setState(() {
         selectedQuantity = null;
         _image = null;
+        _webImage = null;
       });
 
     } catch (e) {
@@ -207,7 +236,16 @@ class _AddProducePageState extends State<AddProducePage> {
               ),
 
               const SizedBox(height: 10),
-              if (_image != null)
+
+              // ✅ FIXED IMAGE PREVIEW
+              if (_webImage != null)
+                Center(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: Image.memory(_webImage!, height: 120),
+                  ),
+                )
+              else if (_image != null)
                 Center(
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(10),
@@ -238,8 +276,6 @@ class _AddProducePageState extends State<AddProducePage> {
       ),
     );
   }
-
-  // UI Helpers
 
   InputDecoration _inputDecoration(String hint) {
     return InputDecoration(
