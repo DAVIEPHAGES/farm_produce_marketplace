@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../data/cart_data.dart';
-import 'payment_page.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class CartPage extends StatefulWidget {
   const CartPage({super.key});
@@ -10,16 +11,14 @@ class CartPage extends StatefulWidget {
 }
 
 class _CartPageState extends State<CartPage> {
+  bool _isPlacingOrder = false;
+
   double getTotal() {
     double total = 0;
     for (var item in cartItems) {
       total += item.price * item.quantity;
     }
     return total;
-  }
-
-  void refresh() {
-    setState(() {});
   }
 
   @override
@@ -61,7 +60,6 @@ class _CartPageState extends State<CartPage> {
                         ),
                         child: Row(
                           children: [
-                            // IMAGE
                             ClipRRect(
                               borderRadius: BorderRadius.circular(8),
                               child: Image.network(
@@ -76,7 +74,6 @@ class _CartPageState extends State<CartPage> {
 
                             const SizedBox(width: 10),
 
-                            // NAME + PRICE
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -88,7 +85,7 @@ class _CartPageState extends State<CartPage> {
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
-                                    "MK ${item.price * item.quantity}",
+                                    "MK ${(item.price * item.quantity).toStringAsFixed(2)}",
                                     style:
                                         const TextStyle(color: Colors.grey),
                                   ),
@@ -96,7 +93,6 @@ class _CartPageState extends State<CartPage> {
                               ),
                             ),
 
-                            // QUANTITY CONTROLS
                             Row(
                               children: [
                                 IconButton(
@@ -111,13 +107,11 @@ class _CartPageState extends State<CartPage> {
                                     });
                                   },
                                 ),
-
                                 Text(
                                   "${item.quantity}",
                                   style: const TextStyle(
                                       fontWeight: FontWeight.bold),
                                 ),
-
                                 IconButton(
                                   icon: const Icon(Icons.add, size: 18),
                                   onPressed: () {
@@ -139,17 +133,15 @@ class _CartPageState extends State<CartPage> {
 
           // TOTAL
           Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            padding: const EdgeInsets.symmetric(
+                horizontal: 16, vertical: 10),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text(
                   "Total",
                   style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
+                      fontSize: 16, fontWeight: FontWeight.bold),
                 ),
                 Text(
                   "MK ${getTotal().toStringAsFixed(2)}",
@@ -163,7 +155,7 @@ class _CartPageState extends State<CartPage> {
             ),
           ),
 
-          // CHECKOUT BUTTON
+          // PLACE ORDER BUTTON (UPDATED)
           Padding(
             padding: const EdgeInsets.all(12),
             child: SizedBox(
@@ -171,20 +163,96 @@ class _CartPageState extends State<CartPage> {
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.green,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 14),
                 ),
-                onPressed: cartItems.isEmpty
+
+                onPressed: cartItems.isEmpty || _isPlacingOrder
                     ? null
-                    : () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) =>
-                                PaymentPage(cartItems: cartItems),
-                          ),
-                        );
+                    : () async {
+                        final user =
+                            FirebaseAuth.instance.currentUser;
+
+                        if (user == null) {
+                          Navigator.pushNamed(
+                              context, "/signin");
+                          return;
+                        }
+
+                        setState(() => _isPlacingOrder = true);
+
+                        try {
+                          // 🧾 CREATE SINGLE ORDER
+                          final orderRef = FirebaseFirestore
+                              .instance
+                              .collection('orders')
+                              .doc();
+
+                          final total = getTotal();
+
+                          await orderRef.set({
+                            "customerId": user.uid,
+                            "totalPrice": total,
+                            "status": "pending",
+                            "timestamp":
+                                FieldValue.serverTimestamp(),
+                          });
+
+                          // 📦 ADD ITEMS AS SUBCOLLECTION
+                          for (var item in cartItems) {
+                            await orderRef
+                                .collection("items")
+                                .add({
+                              "productId": item.productId,
+                              "productName": item.name,
+                              "quantity": item.quantity,
+                              "price": item.price,
+                              "totalPrice":
+                                  item.price * item.quantity,
+                              "imageUrl": item.imageUrl,
+                              "farmerId": item.farmer,
+                            });
+                          }
+
+                          // 🧹 CLEAR CART
+                          cartItems.clear();
+
+                          if (!mounted) return;
+
+                          setState(() {});
+
+                          ScaffoldMessenger.of(context)
+                              .showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                  "✅ Order placed successfully"),
+                            ),
+                          );
+
+                          Navigator.pushReplacementNamed(
+                              context, "/orders");
+                        } catch (e) {
+                          ScaffoldMessenger.of(context)
+                              .showSnackBar(
+                            SnackBar(
+                                content: Text("❌ Error: $e")),
+                          );
+                        } finally {
+                          if (mounted) {
+                            setState(
+                                () => _isPlacingOrder = false);
+                          }
+                        }
                       },
-                child: const Text("Proceed to Payment"),
+
+                child: _isPlacingOrder
+                    ? const CircularProgressIndicator(
+                        color: Colors.white,
+                      )
+                    : const Text(
+                        "Place Order",
+                        style: TextStyle(fontSize: 16),
+                      ),
               ),
             ),
           ),

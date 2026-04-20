@@ -9,7 +9,8 @@ class ProduceDetailsPage extends StatefulWidget {
   const ProduceDetailsPage({super.key, required this.data});
 
   @override
-  State<ProduceDetailsPage> createState() => _ProduceDetailsPageState();
+  State<ProduceDetailsPage> createState() =>
+      _ProduceDetailsPageState();
 }
 
 class _ProduceDetailsPageState extends State<ProduceDetailsPage> {
@@ -23,15 +24,16 @@ class _ProduceDetailsPageState extends State<ProduceDetailsPage> {
       return;
     }
 
+    final data = widget.data.data() as Map<String, dynamic>;
+
     cartItems.add(
       CartItem(
-        name: widget.data['name'],
-        price: (widget.data['price'] as num).toDouble(),
+        productId: widget.data.id,
+        name: data['name'] ?? 'Unknown',
+        price: (data['price'] ?? 0).toDouble(),
         quantity: quantity,
-        imageUrl: widget.data['imageUrl'],
-        farmer: widget.data.data().toString().contains('farmerName')
-            ? widget.data['farmerName']
-            : 'Farmer',
+        imageUrl: data['imageUrl'] ?? '',
+        farmer: data['farmerName'] ?? 'Farmer',
       ),
     );
 
@@ -44,10 +46,12 @@ class _ProduceDetailsPageState extends State<ProduceDetailsPage> {
   Widget build(BuildContext context) {
     final data = widget.data.data() as Map<String, dynamic>;
 
-    // 🧠 SAFE FIELD ACCESS (NO CRASHES)
     final farmerName = data['farmerName'] ?? 'Unknown';
     final farmerPhone = data['farmerPhone'] ?? 'Not set';
     final farmerLocation = data['farmerLocation'] ?? 'Not set';
+
+    final double price = (data['price'] ?? 0).toDouble();
+    final String imageUrl = data['imageUrl'] ?? '';
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -61,18 +65,20 @@ class _ProduceDetailsPageState extends State<ProduceDetailsPage> {
 
       body: Column(
         children: [
+
           Expanded(
             child: SingleChildScrollView(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
 
-                  // 🖼️ IMAGE
                   Image.network(
-                    data['imageUrl'],
+                    imageUrl,
                     width: double.infinity,
                     height: 250,
                     fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) =>
+                        const Icon(Icons.image, size: 100),
                   ),
 
                   const SizedBox(height: 15),
@@ -83,7 +89,6 @@ class _ProduceDetailsPageState extends State<ProduceDetailsPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
 
-                        // NAME
                         Text(
                           data['name'] ?? '',
                           style: const TextStyle(
@@ -94,9 +99,8 @@ class _ProduceDetailsPageState extends State<ProduceDetailsPage> {
 
                         const SizedBox(height: 8),
 
-                        // PRICE
                         Text(
-                          "MK ${data['price']}",
+                          "MK $price",
                           style: const TextStyle(
                             fontSize: 18,
                             color: Colors.green,
@@ -106,16 +110,17 @@ class _ProduceDetailsPageState extends State<ProduceDetailsPage> {
 
                         const SizedBox(height: 15),
 
-                        // 👨‍🌾 FARMER INFO
                         Container(
                           padding: const EdgeInsets.all(14),
                           decoration: BoxDecoration(
                             color: Colors.grey.shade100,
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.grey.shade300),
+                            border: Border.all(
+                                color: Colors.grey.shade300),
                           ),
                           child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                            crossAxisAlignment:
+                                CrossAxisAlignment.start,
                             children: [
                               const Text(
                                 "👨‍🌾 Farmer Details",
@@ -139,7 +144,8 @@ class _ProduceDetailsPageState extends State<ProduceDetailsPage> {
 
                               Row(
                                 children: [
-                                  const Icon(Icons.location_on, size: 18),
+                                  const Icon(Icons.location_on,
+                                      size: 18),
                                   const SizedBox(width: 8),
                                   Text("Location: $farmerLocation"),
                                 ],
@@ -160,16 +166,20 @@ class _ProduceDetailsPageState extends State<ProduceDetailsPage> {
 
                         const SizedBox(height: 20),
 
-                        // 🔢 QUANTITY
                         Row(
                           children: [
-                            const Text("Quantity", style: TextStyle(fontSize: 16)),
+                            const Text(
+                              "Quantity",
+                              style: TextStyle(fontSize: 16),
+                            ),
                             const SizedBox(width: 20),
 
                             Container(
                               decoration: BoxDecoration(
-                                border: Border.all(color: Colors.grey.shade300),
-                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                    color: Colors.grey.shade300),
+                                borderRadius:
+                                    BorderRadius.circular(10),
                               ),
                               child: Row(
                                 children: [
@@ -181,9 +191,7 @@ class _ProduceDetailsPageState extends State<ProduceDetailsPage> {
                                       }
                                     },
                                   ),
-
                                   Text(quantity.toString()),
-
                                   IconButton(
                                     icon: const Icon(Icons.add),
                                     onPressed: () {
@@ -205,7 +213,6 @@ class _ProduceDetailsPageState extends State<ProduceDetailsPage> {
             ),
           ),
 
-          // 🛒 ADD TO CART BUTTON
           Container(
             padding: const EdgeInsets.all(16),
             width: double.infinity,
@@ -213,13 +220,14 @@ class _ProduceDetailsPageState extends State<ProduceDetailsPage> {
               onPressed: addToCart,
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.green,
-                padding: const EdgeInsets.symmetric(vertical: 16),
+                padding:
+                    const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
               child: Text(
-                "Add to Cart • MK ${(data['price'] * quantity)}",
+                "Add to Cart • MK ${(price * quantity).toStringAsFixed(2)}",
                 style: const TextStyle(fontSize: 16),
               ),
             ),

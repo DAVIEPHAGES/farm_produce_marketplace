@@ -3,7 +3,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:farm_app/data/cart_data.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'cart_page.dart';
-import 'produce_details_page.dart'; 
+import 'produce_details_page.dart';
+import '../widgets/customer_drawer.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -24,12 +25,11 @@ class _HomePageState extends State<HomePage> {
     "vegetables"
   ];
 
-  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      key: _scaffoldKey,
+      drawer: const CustomerDrawer(),
+
       backgroundColor: Colors.grey.shade200,
 
       appBar: AppBar(
@@ -37,7 +37,15 @@ class _HomePageState extends State<HomePage> {
         elevation: 0,
         centerTitle: true,
         foregroundColor: Colors.black,
-        leading: const SizedBox(),
+
+        leading: Builder(
+          builder: (context) => IconButton(
+            icon: const Icon(Icons.menu, color: Colors.black),
+            onPressed: () {
+              Scaffold.of(context).openDrawer();
+            },
+          ),
+        ),
 
         title: const Text(
           "FarmApp",
@@ -45,7 +53,6 @@ class _HomePageState extends State<HomePage> {
         ),
 
         actions: [
-          // 🛒 CART ICON → NAVIGATES TO CART PAGE
           Stack(
             children: [
               IconButton(
@@ -53,9 +60,7 @@ class _HomePageState extends State<HomePage> {
                 onPressed: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(
-                      builder: (_) => const CartPage(),
-                    ),
+                    MaterialPageRoute(builder: (_) => const CartPage()),
                   );
                 },
               ),
@@ -82,7 +87,6 @@ class _HomePageState extends State<HomePage> {
             ],
           ),
 
-          // 👤 AUTH
           StreamBuilder<User?>(
             stream: FirebaseAuth.instance.authStateChanges(),
             builder: (context, snapshot) {
@@ -116,12 +120,12 @@ class _HomePageState extends State<HomePage> {
 
       body: Column(
         children: [
-          // 🔍 SEARCH BAR
           Padding(
             padding: const EdgeInsets.all(10),
             child: TextField(
-              onChanged: (value) =>
-                  setState(() => searchQuery = value.toLowerCase()),
+              onChanged: (value) {
+                setState(() => searchQuery = value.toLowerCase());
+              },
               decoration: InputDecoration(
                 hintText: "Search for maize, beans...",
                 prefixIcon: const Icon(Icons.search),
@@ -135,7 +139,6 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
 
-          // 📦 CATEGORY FILTER
           SizedBox(
             height: 45,
             child: ListView.builder(
@@ -146,7 +149,9 @@ class _HomePageState extends State<HomePage> {
                 final isSelected = selectedCategory == cat;
 
                 return GestureDetector(
-                  onTap: () => setState(() => selectedCategory = cat),
+                  onTap: () {
+                    setState(() => selectedCategory = cat);
+                  },
                   child: Container(
                     margin: const EdgeInsets.symmetric(horizontal: 6),
                     padding: const EdgeInsets.symmetric(
@@ -170,93 +175,22 @@ class _HomePageState extends State<HomePage> {
 
           const SizedBox(height: 10),
 
-          // 🔥 WHAT'S NEW SECTION
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: const [
-                Text(
-                  "Fresh Today 🌽",
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 10),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                "Fresh Today 🌽",
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
                 ),
-              ],
+              ),
             ),
           ),
 
           const SizedBox(height: 10),
 
-          SizedBox(
-            height: 180,
-            child: StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('products')
-                  .orderBy('timestamp', descending: true)
-                  .limit(10)
-                  .snapshots(),
-              builder: (context, snapshot) {
-                if (!snapshot.hasData) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-
-                final items = snapshot.data!.docs;
-
-                return ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
-                  itemCount: items.length,
-                  itemBuilder: (context, index) {
-                    final data = items[index];
-
-                    return Container(
-                      width: 140,
-                      margin: const EdgeInsets.only(right: 10),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Column(
-                        children: [
-                          Expanded(
-                            child: ClipRRect(
-                              borderRadius: const BorderRadius.vertical(
-                                  top: Radius.circular(16)),
-                              child: Image.network(
-                                data['imageUrl'],
-                                width: double.infinity,
-                                fit: BoxFit.cover,
-                              ),
-                            ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.all(8),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  data['name'],
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                Text("MK ${data['price']}"),
-                              ],
-                            ),
-                          )
-                        ],
-                      ),
-                    );
-                  },
-                );
-              },
-            ),
-          ),
-
-          const SizedBox(height: 10),
-
-          // 🧺 PRODUCTS GRID
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
@@ -264,26 +198,27 @@ class _HomePageState extends State<HomePage> {
                   .orderBy('timestamp', descending: true)
                   .snapshots(),
               builder: (context, snapshot) {
-                if (!snapshot.hasData) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
+                }
+
+                if (!snapshot.hasData) {
+                  return const Center(child: Text("No products"));
                 }
 
                 final docs = snapshot.data!.docs;
 
                 final filtered = docs.where((doc) {
-                  final name = (doc['name'] ?? '').toString().toLowerCase();
+                  final data = doc.data() as Map<String, dynamic>;
+                  final name = (data['name'] ?? '').toLowerCase();
 
                   final matchesSearch = name.contains(searchQuery);
-                  final matchesCategory =
-                      selectedCategory == "All" ||
-                      name.contains(selectedCategory);
+                  final matchesCategory = selectedCategory == "All"
+                      ? true
+                      : name.contains(selectedCategory);
 
                   return matchesSearch && matchesCategory;
                 }).toList();
-
-                if (filtered.isEmpty) {
-                  return const Center(child: Text("No matching produce"));
-                }
 
                 return GridView.builder(
                   padding: const EdgeInsets.all(10),
@@ -296,7 +231,10 @@ class _HomePageState extends State<HomePage> {
                     childAspectRatio: 0.7,
                   ),
                   itemBuilder: (context, index) {
-                    return _buildCard(filtered[index]);
+                    final doc = filtered[index];
+                    final data = doc.data() as Map<String, dynamic>;
+
+                    return _buildCard(data, doc.id, doc);
                   },
                 );
               },
@@ -307,8 +245,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // 🔐 ADD TO CART (AUTH CHECK)
-  void addToCart(QueryDocumentSnapshot data) {
+  void addToCart(Map<String, dynamic> data, String id) {
     final user = FirebaseAuth.instance.currentUser;
 
     if (user == null) {
@@ -319,10 +256,11 @@ class _HomePageState extends State<HomePage> {
     setState(() {
       cartItems.add(
         CartItem(
-          name: data['name'],
-          price: (data['price'] as num).toDouble(),
+          productId: id,
+          name: data['name'] ?? '',
+          price: (data['price'] ?? 0).toDouble(),
           quantity: 1,
-          imageUrl: data['imageUrl'],
+          imageUrl: data['imageUrl'] ?? '',
           farmer: data['farmerName'] ?? 'Farmer',
         ),
       );
@@ -333,7 +271,8 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildCard(QueryDocumentSnapshot data) {
+  Widget _buildCard(
+      Map<String, dynamic> data, String id, QueryDocumentSnapshot doc) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -344,21 +283,22 @@ class _HomePageState extends State<HomePage> {
           Expanded(
             child: Stack(
               children: [
-                // ✅ MODIFIED: IMAGE CLICK NAVIGATION
                 GestureDetector(
                   onTap: () {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => ProduceDetailsPage(data: data),
+                        builder: (_) => ProduceDetailsPage(
+                          data: doc, // ✅ FIXED HERE
+                        ),
                       ),
                     );
                   },
                   child: ClipRRect(
-                    borderRadius:
-                        const BorderRadius.vertical(top: Radius.circular(16)),
+                    borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(16)),
                     child: Image.network(
-                      data['imageUrl'],
+                      data['imageUrl'] ?? '',
                       width: double.infinity,
                       fit: BoxFit.cover,
                     ),
@@ -369,7 +309,7 @@ class _HomePageState extends State<HomePage> {
                   top: 8,
                   right: 8,
                   child: GestureDetector(
-                    onTap: () => addToCart(data),
+                    onTap: () => addToCart(data, id),
                     child: Container(
                       padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
@@ -384,13 +324,14 @@ class _HomePageState extends State<HomePage> {
               ],
             ),
           ),
+
           Padding(
             padding: const EdgeInsets.all(10),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(data['name']),
-                Text("MK ${data['price']}"),
+                Text(data['name'] ?? ''),
+                Text("MK ${data['price'] ?? 0}"),
               ],
             ),
           )

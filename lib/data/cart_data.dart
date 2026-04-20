@@ -1,4 +1,5 @@
 class CartItem {
+  final String productId; // ✅ added
   final String name;
   final double price;
   int quantity;
@@ -6,6 +7,7 @@ class CartItem {
   final String farmer;
 
   CartItem({
+    required this.productId,
     required this.name,
     required this.price,
     required this.quantity,
