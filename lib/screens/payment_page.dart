@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-
+import '../data/cart_data.dart';
 class PaymentPage extends StatefulWidget {
-  final List<Map<String, String>> cartItems;
+ final List<CartItem> cartItems;
 
   const PaymentPage({
     super.key,
@@ -28,26 +28,18 @@ class _PaymentPageState extends State<PaymentPage> {
   final TextEditingController _phoneController = TextEditingController();
 
   // Helper method to parse price from format "MK X,XXX/ unit"
-  int _parsePrice(String priceString) {
-    try {
-      final cleaned = priceString.replaceAll(RegExp(r'[^0-9,]'), '');
-      final numericString = cleaned.replaceAll(',', '');
-      return int.parse(numericString);
-    } catch (e) {
-      return 0;
-    }
-  }
+ 
 
   // Calculate subtotal from cart items
   int _calculateSubtotal() {
-    int subtotal = 0;
-    for (var item in widget.cartItems) {
-      int price = _parsePrice(item['price'] ?? '0');
-      int quantity = int.tryParse(item['quantity'] ?? '1') ?? 1;
-      subtotal += price * quantity;
-    }
-    return subtotal;
+  int subtotal = 0;
+  for (var item in widget.cartItems) {
+    int price = item.price.toInt();
+    int quantity = item.quantity;
+    subtotal += price * quantity;
   }
+  return subtotal;
+}
 
   // Format number with commas
   String _formatCurrency(int amount) {

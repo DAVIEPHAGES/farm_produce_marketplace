@@ -1,27 +1,158 @@
 import 'dart:io';
 import 'dart:convert';
+import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:http/http.dart' as http;
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
 class AddProducePage extends StatefulWidget {
   const AddProducePage({super.key});
+
   @override
   State<AddProducePage> createState() => _AddProducePageState();
 }
+
 class _AddProducePageState extends State<AddProducePage> {
   final TextEditingController nameController = TextEditingController();
   final TextEditingController priceController = TextEditingController();
+
   String? selectedQuantity;
-  File? _image;
+
+  File? _image;           // Mobile
+  Uint8List? _webImage;   // Web
+
   final ImagePicker _picker = ImagePicker();
+  bool _isLoading = false;
 
+  // ✅ PICK IMAGE (WEB + MOBILE)
   Future<void> pickImage() async {
-    final pickedFile =
-        await _picker.pickImage(source: ImageSource.gallery);
+    try {
+      final pickedFile = await _picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 70,
+      );
 
-    if (pickedFile != null) {
+      if (pickedFile == null) return;
+
+      if (kIsWeb) {
+        final bytes = await pickedFile.readAsBytes();
+        setState(() {
+          _webImage = bytes;
+          _image = null;
+        });
+      } else {
+        setState(() {
+          _image = File(pickedFile.path);
+          _webImage = null;
+        });
+      }
+    } catch (e) {
+      debugPrint("Image pick error: $e");
+    }
+  }
+
+  // ✅ UPLOAD IMAGE (WEB + MOBILE)
+  Future<String?> uploadImageToCloudinary() async {
+    try {
+      final uri = Uri.parse(
+        'https://api.cloudinary.com/v1_1/dvdbts38x/image/upload',
+      );
+
+      final request = http.MultipartRequest('POST', uri)
+        ..fields['upload_preset'] = 'farm_produce';
+
+      if (kIsWeb && _webImage != null) {
+        request.files.add(
+          http.MultipartFile.fromBytes(
+            'file',
+            _webImage!,
+            filename: 'upload.jpg',
+          ),
+        );
+      } else if (_image != null) {
+        request.files.add(
+          await http.MultipartFile.fromPath('file', _image!.path),
+        );
+      } else {
+        return null;
+      }
+
+      final response = await request.send();
+      final responseBody = await response.stream.bytesToString();
+
+      if (response.statusCode == 200) {
+        final jsonMap = jsonDecode(responseBody);
+        return jsonMap['secure_url'];
+      } else {
+        debugPrint("Cloudinary upload failed: ${response.statusCode} $responseBody");
+        return null;
+      }
+    } catch (e) {
+      debugPrint('Upload error: $e');
+      return null;
+    }
+  }
+
+  // ✅ UPLOAD PRODUCE
+  Future<void> uploadProduce() async {
+    if (nameController.text.trim().isEmpty ||
+        priceController.text.trim().isEmpty ||
+        selectedQuantity == null ||
+        (_image == null && _webImage == null)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please fill all fields and select an image')),
+      );
+      return;
+    }
+
+    double? price = double.tryParse(priceController.text);
+    if (price == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enter a valid price')),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+
+      if (user == null) {
+        throw Exception("User not logged in");
+      }
+
+      // 🔥 Upload Image
+      final imageUrl = await uploadImageToCloudinary();
+      if (imageUrl == null) throw Exception("Image upload failed");
+
+      // 🔥 Save to Firestore
+      await FirebaseFirestore.instance.collection('products').add({
+        'name': nameController.text.trim(),
+        'price': price,
+        'quantity': selectedQuantity,
+        'imageUrl': imageUrl,
+        'farmerId': user.uid,
+        'farmerName': user.displayName ?? "Farmer",
+        'timestamp': FieldValue.serverTimestamp(),
+      });
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('✅ Produce added successfully')),
+      );
+
+      // ✅ CLEAR FORM
+      nameController.clear();
+      priceController.clear();
       setState(() {
         selectedQuantity = null;
         _image = null;
+        _webImage = null;
       });
 
     } catch (e) {
@@ -106,8 +237,15 @@ class _AddProducePageState extends State<AddProducePage> {
 
               const SizedBox(height: 10),
 
-              /// IMAGE PREVIEW
-              if (_image != null)
+              // ✅ FIXED IMAGE PREVIEW
+              if (_webImage != null)
+                Center(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: Image.memory(_webImage!, height: 120),
+                  ),
+                )
+              else if (_image != null)
                 Center(
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(10),
@@ -138,8 +276,6 @@ class _AddProducePageState extends State<AddProducePage> {
       ),
     );
   }
-
-  // UI Helpers
 
   InputDecoration _inputDecoration(String hint) {
     return InputDecoration(

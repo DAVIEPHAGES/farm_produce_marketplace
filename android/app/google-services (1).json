@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "488620623240",
+    "firebase_url": "https://farm-36c66-default-rtdb.firebaseio.com",
+    "project_id": "farm-36c66",
+    "storage_bucket": "farm-36c66.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:488620623240:android:0eb158a40af33aefb4a63d",
+        "android_client_info": {
+          "package_name": "com.example.farm_produce_marketplace"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "488620623240-sa4nephg2n4dlbu1cufa8qdjvua352k5.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCKv3oGPvp1luIyUyisCsbbuTqScZuuPoQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "488620623240-sa4nephg2n4dlbu1cufa8qdjvua352k5.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "488620623240-0blns1os5o8gdnt0bek7or84nfeqfsl1.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.farmProduceMarketplace"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
