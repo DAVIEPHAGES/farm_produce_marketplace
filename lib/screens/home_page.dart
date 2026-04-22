@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:farm_app/data/cart_data.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'cart_page.dart';
+import 'produce_details_page.dart';
+import '../widgets/customer_drawer.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -24,29 +28,103 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      drawer: const CustomerDrawer(),
+
       backgroundColor: Colors.grey.shade200,
 
       appBar: AppBar(
         title: const Text("FarmApp"),
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.shopping_cart),
-            onPressed: () => Navigator.pushNamed(context, "/cart"),
+
+        leading: Builder(
+          builder: (context) => IconButton(
+            icon: const Icon(Icons.menu, color: Colors.black),
+            onPressed: () {
+              Scaffold.of(context).openDrawer();
+            },
           ),
+        ),
+
+        title: const Text(
+          "FarmApp",
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+
+        actions: [
+          Stack(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.shopping_cart),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const CartPage()),
+                  );
+                },
+              ),
+
+              if (cartItems.isNotEmpty)
+                Positioned(
+                  right: 6,
+                  top: 6,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      cartItems.length.toString(),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+
+          StreamBuilder<User?>(
+            stream: FirebaseAuth.instance.authStateChanges(),
+            builder: (context, snapshot) {
+              final user = snapshot.data;
+
+              if (user == null) {
+                return TextButton(
+                  onPressed: () {
+                    Navigator.pushNamed(context, "/signin");
+                  },
+                  child: const Text(
+                    "Sign In",
+                    style: TextStyle(color: Colors.black),
+                  ),
+                );
+              }
+
+              return IconButton(
+                icon: const CircleAvatar(
+                  radius: 14,
+                  child: Icon(Icons.person, size: 18),
+                ),
+                onPressed: () {
+                  Navigator.pushNamed(context, "/profile");
+                },
+              );
+            },
+          )
         ],
       ),
 
       body: Column(
         children: [
-          // SEARCH
           Padding(
             padding: const EdgeInsets.all(10),
             child: TextField(
-              onChanged: (value) =>
-                  setState(() => searchQuery = value.toLowerCase()),
+              onChanged: (value) {
+                setState(() => searchQuery = value.toLowerCase());
+              },
               decoration: InputDecoration(
                 hintText: "search for maize, beans etc",
                 prefixIcon: const Icon(Icons.search),
@@ -60,7 +138,6 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
 
-          // CATEGORY
           SizedBox(
             height: 40,
             child: ListView.builder(
@@ -71,7 +148,9 @@ class _HomePageState extends State<HomePage> {
                 final isSelected = selectedCategory == cat;
 
                 return GestureDetector(
-                  onTap: () => setState(() => selectedCategory = cat),
+                  onTap: () {
+                    setState(() => selectedCategory = cat);
+                  },
                   child: Container(
                     margin: const EdgeInsets.symmetric(horizontal: 6),
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -93,7 +172,22 @@ class _HomePageState extends State<HomePage> {
 
           const SizedBox(height: 10),
 
-          // PRODUCTS
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 10),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                "Fresh Today 🌽",
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 10),
+
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
@@ -102,26 +196,27 @@ class _HomePageState extends State<HomePage> {
                   .snapshots(),
 
               builder: (context, snapshot) {
-                if (!snapshot.hasData) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
+                }
+
+                if (!snapshot.hasData) {
+                  return const Center(child: Text("No products"));
                 }
 
                 final docs = snapshot.data!.docs;
 
                 final filtered = docs.where((doc) {
-                  final name = (doc['name'] ?? '').toString().toLowerCase();
+                  final data = doc.data() as Map<String, dynamic>;
+                  final name = (data['name'] ?? '').toLowerCase();
 
                   final matchesSearch = name.contains(searchQuery);
-                  final matchesCategory =
-                      selectedCategory == "All" ||
-                      name.contains(selectedCategory);
+                  final matchesCategory = selectedCategory == "All"
+                      ? true
+                      : name.contains(selectedCategory);
 
                   return matchesSearch && matchesCategory;
                 }).toList();
-
-                if (filtered.isEmpty) {
-                  return const Center(child: Text("No matching produce"));
-                }
 
                 return GridView.builder(
                   padding: const EdgeInsets.all(10),
@@ -133,7 +228,10 @@ class _HomePageState extends State<HomePage> {
                     childAspectRatio: 0.75,
                   ),
                   itemBuilder: (context, index) {
-                    return _buildCard(filtered[index]);
+                    final doc = filtered[index];
+                    final data = doc.data() as Map<String, dynamic>;
+
+                    return _buildCard(data, doc.id, doc);
                   },
                 );
               },
@@ -144,22 +242,33 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // ADD TO CART
-  void addToCart(QueryDocumentSnapshot data) {
-    cartItems.add({
-      'name': data['name'],
-      'price': (data['price'] as num).toDouble(),
-      'quantity': 1,
-      'imageUrl': data['imageUrl'],
-      'farmer': data['farmerName'] ?? 'Farmer',
+  void addToCart(Map<String, dynamic> data, String id) {
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user == null) {
+      Navigator.pushNamed(context, "/signin");
+      return;
+    }
+
+    setState(() {
+      cartItems.add(
+        CartItem(
+          productId: id,
+          name: data['name'] ?? '',
+          price: (data['price'] ?? 0).toDouble(),
+          quantity: 1,
+          imageUrl: data['imageUrl'] ?? '',
+          farmer: data['farmerName'] ?? 'Farmer',
+        ),
+      );
     });
 
     ScaffoldMessenger.of(context)
         .showSnackBar(const SnackBar(content: Text("Added to cart")));
   }
 
-  // CARD
-  Widget _buildCard(QueryDocumentSnapshot data) {
+  Widget _buildCard(
+      Map<String, dynamic> data, String id, QueryDocumentSnapshot doc) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -168,15 +277,48 @@ class _HomePageState extends State<HomePage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ClipRRect(
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(15)),
-            child: Image.network(
-              data['imageUrl'],
-              height: 100,
-              width: double.infinity,
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) =>
-                  const Icon(Icons.image, size: 80),
+          Expanded(
+            child: Stack(
+              children: [
+                GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => ProduceDetailsPage(
+                          data: doc, // ✅ FIXED HERE
+                        ),
+                      ),
+                    );
+                  },
+                  child: ClipRRect(
+                    borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(16)),
+                    child: Image.network(
+                      data['imageUrl'] ?? '',
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                ),
+
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: GestureDetector(
+                    onTap: () => addToCart(data, id),
+                    child: Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: Colors.green,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(Icons.add,
+                          color: Colors.white, size: 18),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
 
@@ -186,23 +328,7 @@ class _HomePageState extends State<HomePage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(data['name'] ?? ''),
-                const SizedBox(height: 4),
-                Text(
-                  "MK ${data['price']}",
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 6),
-
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () => addToCart(data),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                    ),
-                    child: const Text("add to cart"),
-                  ),
-                ),
+                Text("MK ${data['price'] ?? 0}"),
               ],
             ),
           )
