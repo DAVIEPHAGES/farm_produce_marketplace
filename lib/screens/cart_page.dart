@@ -33,7 +33,6 @@ class _CartPageState extends State<CartPage> {
         children: [
           const SizedBox(height: 10),
 
-          // CART ITEMS
           Expanded(
             child: cartItems.isEmpty
                 ? const Center(
@@ -131,7 +130,6 @@ class _CartPageState extends State<CartPage> {
 
           const Divider(height: 1),
 
-          // TOTAL
           Padding(
             padding: const EdgeInsets.symmetric(
                 horizontal: 16, vertical: 10),
@@ -155,7 +153,6 @@ class _CartPageState extends State<CartPage> {
             ),
           ),
 
-          // PLACE ORDER BUTTON (UPDATED)
           Padding(
             padding: const EdgeInsets.all(12),
             child: SizedBox(
@@ -182,7 +179,6 @@ class _CartPageState extends State<CartPage> {
                         setState(() => _isPlacingOrder = true);
 
                         try {
-                          // 🧾 CREATE SINGLE ORDER
                           final orderRef = FirebaseFirestore
                               .instance
                               .collection('orders')
@@ -193,12 +189,11 @@ class _CartPageState extends State<CartPage> {
                           await orderRef.set({
                             "customerId": user.uid,
                             "totalPrice": total,
-                            "status": "pending",
+                            "status": "Pending", // ✅ FIXED HERE
                             "timestamp":
                                 FieldValue.serverTimestamp(),
                           });
 
-                          // 📦 ADD ITEMS AS SUBCOLLECTION
                           for (var item in cartItems) {
                             await orderRef
                                 .collection("items")
@@ -214,7 +209,6 @@ class _CartPageState extends State<CartPage> {
                             });
                           }
 
-                          // 🧹 CLEAR CART
                           cartItems.clear();
 
                           if (!mounted) return;
