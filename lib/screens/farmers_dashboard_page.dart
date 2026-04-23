@@ -80,7 +80,7 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
         'name': userData['name'] ?? 'Unknown Farmer',
         'location': userData['location'] ?? 'Unknown',
         'totalEarnings': totalEarnings,
-        'products': productsSnapshot.docs.map((doc) => doc.data()).toList(),
+        'products': productsSnapshot.docs.map((doc) => {'id': doc.id, ...doc.data()}).toList(),
         'orders': ordersSnapshot.docs.map((doc) => doc.data()).toList(),
       };
     } catch (e) {
@@ -251,9 +251,7 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
                     ),
                   ).then((result) {
                     if (result != null) {
-                      setState(() {
-                        farmerProfile['products'].add(result);
-                      });
+                      _loadData();
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
                           content: Text('✓ Produce added successfully!'),
@@ -353,9 +351,7 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
                               ),
                             ).then((result) {
                               if (result != null) {
-                                setState(() {
-                                  farmerProfile['products'].add(result);
-                                });
+                                _loadData();
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(
                                     content: Text(
@@ -729,12 +725,22 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
                               Text('Location: ${product['location']}'),
                             ],
                           ),
-                          trailing: Text(
-                            _formatDate(product['dateAdded']),
-                            style: const TextStyle(
-                              fontSize: 11,
-                              color: Colors.grey,
-                            ),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                _formatDate(product['dateAdded']),
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.delete, color: Colors.red),
+                                onPressed: () => _deleteProduct(product['id'], index),
+                                tooltip: 'Delete product',
+                              ),
+                            ],
                           ),
                           isThreeLine: true,
                         ),
@@ -830,6 +836,29 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
       return '${date.day}/${date.month}/${date.year}';
     } catch (e) {
       return 'Unknown date';
+    }
+  }
+
+  Future<void> _deleteProduct(String productId, int index) async {
+    try {
+      await FirebaseFirestore.instance.collection('products').doc(productId).delete();
+      setState(() {
+        farmerProfile['products'].removeAt(index);
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('✓ Product deleted successfully!'),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 2),
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Error deleting product'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
