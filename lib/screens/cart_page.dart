@@ -35,9 +35,7 @@ class _CartPageState extends State<CartPage> {
 
           Expanded(
             child: cartItems.isEmpty
-                ? const Center(
-                    child: Text("Your cart is empty"),
-                  )
+                ? const Center(child: Text("Your cart is empty"))
                 : ListView.builder(
                     padding: const EdgeInsets.all(10),
                     itemCount: cartItems.length,
@@ -77,16 +75,13 @@ class _CartPageState extends State<CartPage> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(
-                                    item.name,
-                                    style: const TextStyle(
-                                        fontWeight: FontWeight.w600),
-                                  ),
+                                  Text(item.name,
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.w600)),
                                   const SizedBox(height: 4),
                                   Text(
                                     "MK ${(item.price * item.quantity).toStringAsFixed(2)}",
-                                    style:
-                                        const TextStyle(color: Colors.grey),
+                                    style: const TextStyle(color: Colors.grey),
                                   ),
                                 ],
                               ),
@@ -106,11 +101,8 @@ class _CartPageState extends State<CartPage> {
                                     });
                                   },
                                 ),
-                                Text(
-                                  "${item.quantity}",
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.bold),
-                                ),
+                                Text("${item.quantity}",
+                                    style: const TextStyle(fontWeight: FontWeight.bold)),
                                 IconButton(
                                   icon: const Icon(Icons.add, size: 18),
                                   onPressed: () {
@@ -131,16 +123,12 @@ class _CartPageState extends State<CartPage> {
           const Divider(height: 1),
 
           Padding(
-            padding: const EdgeInsets.symmetric(
-                horizontal: 16, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
-                  "Total",
-                  style: TextStyle(
-                      fontSize: 16, fontWeight: FontWeight.bold),
-                ),
+                const Text("Total",
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                 Text(
                   "MK ${getTotal().toStringAsFixed(2)}",
                   style: const TextStyle(
@@ -160,50 +148,49 @@ class _CartPageState extends State<CartPage> {
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.green,
-                  padding:
-                      const EdgeInsets.symmetric(vertical: 14),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
                 ),
 
                 onPressed: cartItems.isEmpty || _isPlacingOrder
                     ? null
                     : () async {
-                        final user =
-                            FirebaseAuth.instance.currentUser;
+                        final user = FirebaseAuth.instance.currentUser;
 
                         if (user == null) {
-                          Navigator.pushNamed(
-                              context, "/signin");
+                          Navigator.pushNamed(context, "/signin");
                           return;
                         }
 
                         setState(() => _isPlacingOrder = true);
 
                         try {
-                          final orderRef = FirebaseFirestore
-                              .instance
+                          final orderRef = FirebaseFirestore.instance
                               .collection('orders')
                               .doc();
 
                           final total = getTotal();
 
+                          // 🔥 Collect farmer IDs from cart
+                          final Set<String> farmerIds = {};
+                          for (var item in cartItems) {
+                            farmerIds.add(item.farmer);
+                          }
+
                           await orderRef.set({
                             "customerId": user.uid,
+                            "farmerIds": farmerIds.toList(),
                             "totalPrice": total,
-                            "status": "Pending", // ✅ FIXED HERE
-                            "timestamp":
-                                FieldValue.serverTimestamp(),
+                            "status": "Pending",
+                            "timestamp": FieldValue.serverTimestamp(),
                           });
 
                           for (var item in cartItems) {
-                            await orderRef
-                                .collection("items")
-                                .add({
+                            await orderRef.collection("items").add({
                               "productId": item.productId,
                               "productName": item.name,
                               "quantity": item.quantity,
                               "price": item.price,
-                              "totalPrice":
-                                  item.price * item.quantity,
+                              "totalPrice": item.price * item.quantity,
                               "imageUrl": item.imageUrl,
                               "farmerId": item.farmer,
                             });
@@ -212,41 +199,29 @@ class _CartPageState extends State<CartPage> {
                           cartItems.clear();
 
                           if (!mounted) return;
-
                           setState(() {});
 
-                          ScaffoldMessenger.of(context)
-                              .showSnackBar(
+                          ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
-                              content: Text(
-                                  "✅ Order placed successfully"),
+                              content: Text("✅ Order placed successfully"),
                             ),
                           );
 
-                          Navigator.pushReplacementNamed(
-                              context, "/orders");
+                          Navigator.pushReplacementNamed(context, "/orders");
                         } catch (e) {
-                          ScaffoldMessenger.of(context)
-                              .showSnackBar(
-                            SnackBar(
-                                content: Text("❌ Error: $e")),
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text("❌ Error: $e")),
                           );
                         } finally {
                           if (mounted) {
-                            setState(
-                                () => _isPlacingOrder = false);
+                            setState(() => _isPlacingOrder = false);
                           }
                         }
                       },
 
                 child: _isPlacingOrder
-                    ? const CircularProgressIndicator(
-                        color: Colors.white,
-                      )
-                    : const Text(
-                        "Place Order",
-                        style: TextStyle(fontSize: 16),
-                      ),
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : const Text("Place Order"),
               ),
             ),
           ),
