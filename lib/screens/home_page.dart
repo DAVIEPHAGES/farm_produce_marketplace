@@ -29,7 +29,6 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       drawer: const CustomerDrawer(),
-
       backgroundColor: Colors.grey.shade200,
 
       appBar: AppBar(
@@ -87,6 +86,7 @@ class _HomePageState extends State<HomePage> {
             ],
           ),
 
+          // ✅ MODIFIED: Profile icon removed after login
           StreamBuilder<User?>(
             stream: FirebaseAuth.instance.authStateChanges(),
             builder: (context, snapshot) {
@@ -104,15 +104,7 @@ class _HomePageState extends State<HomePage> {
                 );
               }
 
-              return IconButton(
-                icon: const CircleAvatar(
-                  radius: 14,
-                  child: Icon(Icons.person, size: 18),
-                ),
-                onPressed: () {
-                  Navigator.pushNamed(context, "/profile");
-                },
-              );
+              return const SizedBox.shrink();
             },
           )
         ],
@@ -228,7 +220,7 @@ class _HomePageState extends State<HomePage> {
                     crossAxisCount: 2,
                     crossAxisSpacing: 10,
                     mainAxisSpacing: 10,
-                    childAspectRatio: 0.7,
+                    childAspectRatio: 0.8,
                   ),
                   itemBuilder: (context, index) {
                     final doc = filtered[index];
@@ -239,6 +231,35 @@ class _HomePageState extends State<HomePage> {
                 );
               },
             ),
+          ),
+        ],
+      ),
+
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: 0,
+        selectedItemColor: Colors.green,
+        unselectedItemColor: Colors.black,
+        onTap: (index) {
+          if (index == 0) {
+            // Home
+          } else if (index == 1) {
+            Navigator.pushNamed(context, "/orders");
+          } else if (index == 2) {
+            Navigator.pushNamed(context, "/profile");
+          }
+        },
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home),
+            label: "home",
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.shopping_cart_outlined),
+            label: "orders",
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person_outline),
+            label: "profile",
           ),
         ],
       ),
@@ -280,7 +301,8 @@ class _HomePageState extends State<HomePage> {
       ),
       child: Column(
         children: [
-          Expanded(
+          SizedBox(
+            height: 140,
             child: Stack(
               children: [
                 GestureDetector(
@@ -289,7 +311,7 @@ class _HomePageState extends State<HomePage> {
                       context,
                       MaterialPageRoute(
                         builder: (_) => ProduceDetailsPage(
-                          data: doc, // ✅ FIXED HERE
+                          data: doc,
                         ),
                       ),
                     );
@@ -331,7 +353,9 @@ class _HomePageState extends State<HomePage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(data['name'] ?? ''),
-                Text("MK ${data['price'] ?? 0}"),
+                Text(
+                  "MK ${data['price'] ?? 0} / ${data['quantity'] ?? ''}",
+                ),
               ],
             ),
           )
