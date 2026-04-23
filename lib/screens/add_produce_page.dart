@@ -18,8 +18,8 @@ class AddProducePage extends StatefulWidget {
 class _AddProducePageState extends State<AddProducePage> {
   final TextEditingController nameController = TextEditingController();
   final TextEditingController priceController = TextEditingController();
-
-  String? selectedQuantity;
+  final TextEditingController quantityController = TextEditingController();
+  final TextEditingController unitController = TextEditingController();
 
   File? _image;           // Mobile
   Uint8List? _webImage;   // Web
@@ -100,7 +100,8 @@ class _AddProducePageState extends State<AddProducePage> {
   Future<void> uploadProduce() async {
     if (nameController.text.trim().isEmpty ||
         priceController.text.trim().isEmpty ||
-        selectedQuantity == null ||
+        quantityController.text.trim().isEmpty ||
+        unitController.text.trim().isEmpty ||
         (_image == null && _webImage == null)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please fill all fields and select an image')),
@@ -133,7 +134,7 @@ class _AddProducePageState extends State<AddProducePage> {
       await FirebaseFirestore.instance.collection('products').add({
         'name': nameController.text.trim(),
         'price': price,
-        'quantity': selectedQuantity,
+        'quantity': '${quantityController.text.trim()} ${unitController.text.trim()}',
         'imageUrl': imageUrl,
         'farmerId': user.uid,
         'farmerName': user.displayName ?? "Farmer",
@@ -149,8 +150,9 @@ class _AddProducePageState extends State<AddProducePage> {
       // ✅ CLEAR FORM
       nameController.clear();
       priceController.clear();
+      quantityController.clear();
+      unitController.clear();
       setState(() {
-        selectedQuantity = null;
         _image = null;
         _webImage = null;
       });
@@ -171,6 +173,8 @@ class _AddProducePageState extends State<AddProducePage> {
   void dispose() {
     nameController.dispose();
     priceController.dispose();
+    quantityController.dispose();
+    unitController.dispose();
     super.dispose();
   }
 
@@ -212,9 +216,21 @@ class _AddProducePageState extends State<AddProducePage> {
               ),
 
               const SizedBox(height: 15),
-              const Text("Minimum Quantity"),
+              const Text("Quantity"),
               const SizedBox(height: 5),
-              _buildDropdown(),
+              TextField(
+                controller: quantityController,
+                keyboardType: TextInputType.number,
+                decoration: _inputDecoration("e.g. 50"),
+              ),
+
+              const SizedBox(height: 15),
+              const Text("Selling Unit"),
+              const SizedBox(height: 5),
+              TextField(
+                controller: unitController,
+                decoration: _inputDecoration("e.g. kg, pieces, bunches"),
+              ),
 
               const SizedBox(height: 15),
               const Text("Upload Produce Image"),
@@ -285,25 +301,6 @@ class _AddProducePageState extends State<AddProducePage> {
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(20),
         borderSide: BorderSide.none,
-      ),
-    );
-  }
-
-  Widget _buildDropdown() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      decoration: _boxDecoration(),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: selectedQuantity,
-          hint: const Text("e.g 50kg"),
-          isExpanded: true,
-          items: ["10kg", "20kg", "50kg", "100kg"]
-              .map((value) =>
-                  DropdownMenuItem(value: value, child: Text(value)))
-              .toList(),
-          onChanged: (value) => setState(() => selectedQuantity = value),
-        ),
       ),
     );
   }

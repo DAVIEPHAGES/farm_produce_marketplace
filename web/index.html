@@ -23,22 +23,41 @@
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="farm_produce_marketplace">
+  <meta name="apple-mobile-web-app-title" content="farm_app">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
-  <title>farm_produce_marketplace</title>
+  <title>farm_app</title>
   <link rel="manifest" href="manifest.json">
-  
-  <!-- ✅ ADD PAYCHANGU PUBLIC KEY HERE -->
-  <script>
-    window.paychangu_public_key = 'pub-test-4jj8AWw11xElZ8cVplWYOW8uRIxFImdi';
-    console.log('PayChangu Public Key Loaded'); // This will show in browser console
-  </script>
 </head>
 <body>
+  <!-- Firebase SDKs - Compat version for Flutter -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+  <script>
+    // Your Firebase configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyB7qNtGJ2o_0WM4yw1AxLITu2efhZCdmtY",
+      authDomain: "farm-36c66.firebaseapp.com",
+      projectId: "farm-36c66",
+      storageBucket: "farm-36c66.firebasestorage.app",
+      messagingSenderId: "488620623240",
+      appId: "1:488620623240:web:693c1f944e3cb377b4a63d",
+      measurementId: "G-3BFF52S82G"
+    };
+
+    // Expose config to global scope for Dart access
+    window.firebaseConfig = firebaseConfig;
+
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    console.log('Firebase initialized successfully');
+  </script>
+
   <!--
     You can customize the "flutter_bootstrap.js" script.
     This is useful to provide a custom configuration to the Flutter loader

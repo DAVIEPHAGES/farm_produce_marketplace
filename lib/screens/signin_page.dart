@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';  // ✅ ADD THIS IMPORT
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class SignInPage extends StatefulWidget {
   const SignInPage({super.key});
@@ -16,7 +16,6 @@ class _SignInPageState extends State<SignInPage> {
 
   bool _isLoading = false;
   bool _rememberMe = false;
-  bool _obscurePassword = true;
 
   @override
   void dispose() {
@@ -40,9 +39,6 @@ class _SignInPageState extends State<SignInPage> {
     if (value == null || value.isEmpty) {
       return 'Please enter your password';
     }
-    if (value.length < 6) {
-      return 'Password must be at least 6 characters';
-    }
     return null;
   }
 
@@ -56,14 +52,18 @@ class _SignInPageState extends State<SignInPage> {
     });
 
     try {
-      // ✅ ACTUAL FIREBASE SIGN IN
-      final userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
-      );
+      // Sign in with email and password
+      UserCredential userCredential = await FirebaseAuth.instance
+          .signInWithEmailAndPassword(
+            email: _emailController.text.trim().toLowerCase(),
+            password: _passwordController.text,
+          );
 
-      print('✅ User signed in: ${userCredential.user?.email}');
-      print('✅ User UID: ${userCredential.user?.uid}');
+      // IMPORTANT: Get user role from Firestore
+      DocumentSnapshot userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userCredential.user!.uid)
+          .get();
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -73,49 +73,41 @@ class _SignInPageState extends State<SignInPage> {
           ),
         );
 
-        // Get user type from Firestore to determine redirect
-        final userDoc = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(userCredential.user!.uid)
-            .get();
-        
-        final userType = userDoc.data()?['userType'] ?? 'customer';
-        
-        if (userType == 'farmer') {
-          Navigator.pushReplacementNamed(context, '/farmers-dashboard');
+        // Check user role and navigate accordingly
+        if (userDoc.exists) {
+          String userType = userDoc.get('userType') ?? 'customer';
+          print('User role: $userType'); // Debug print
+
+          if (userType == 'farmer') {
+            // Navigate to Farmer Dashboard
+            Navigator.pushReplacementNamed(context, '/farmers-dashboard');
+          } else if (userType == 'admin') {
+            // Navigate to Admin Dashboard
+            Navigator.pushReplacementNamed(context, '/admin-dashboard');
+          } else {
+            // Navigate to Customer Home Page
+            Navigator.pushReplacementNamed(
+              context,
+              '/home',
+              arguments: {'userType': 'customer'},
+            );
+          }
         } else {
-          Navigator.pushReplacementNamed(context, '/home');
+          // User document doesn't exist - create one as customer
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(userCredential.user!.uid)
+              .set({
+                'email': _emailController.text.trim().toLowerCase(),
+                'userType': 'customer',
+                'createdAt': FieldValue.serverTimestamp(),
+              });
+          Navigator.pushReplacementNamed(
+            context,
+            '/home',
+            arguments: {'userType': 'customer'},
+          );
         }
-      }
-    } on FirebaseAuthException catch (e) {
-      String errorMessage;
-      switch (e.code) {
-        case 'user-not-found':
-          errorMessage = 'No user found with this email. Please sign up first.';
-          break;
-        case 'wrong-password':
-          errorMessage = 'Incorrect password. Please try again.';
-          break;
-        case 'invalid-email':
-          errorMessage = 'Invalid email address.';
-          break;
-        case 'user-disabled':
-          errorMessage = 'This user account has been disabled.';
-          break;
-        case 'too-many-requests':
-          errorMessage = 'Too many failed attempts. Please try again later.';
-          break;
-        default:
-          errorMessage = 'Sign in failed: ${e.message}';
-      }
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(errorMessage),
-            backgroundColor: Colors.red,
-          ),
-        );
       }
     } catch (e) {
       if (mounted) {
@@ -187,22 +179,10 @@ class _SignInPageState extends State<SignInPage> {
                 // Password Field
                 TextFormField(
                   controller: _passwordController,
-                  obscureText: _obscurePassword,
+                  obscureText: true,
                   decoration: InputDecoration(
                     labelText: 'Password',
                     prefixIcon: const Icon(Icons.lock_outline),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscurePassword
-                            ? Icons.visibility_off
-                            : Icons.visibility,
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          _obscurePassword = !_obscurePassword;
-                        });
-                      },
-                    ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -236,7 +216,14 @@ class _SignInPageState extends State<SignInPage> {
                     ),
                     TextButton(
                       onPressed: () {
-                        _showForgotPasswordDialog();
+                        // TODO: Implement forgot password functionality
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Forgot password feature coming soon!',
+                            ),
+                          ),
+                        );
                       },
                       child: const Text(
                         'Forgot Password?',
@@ -303,6 +290,49 @@ class _SignInPageState extends State<SignInPage> {
                 ),
                 const SizedBox(height: 24),
 
+                // Social Sign In Buttons (placeholders)
+                OutlinedButton.icon(
+                  onPressed: () {
+                    // TODO: Implement Google sign in
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Google sign in coming soon!'),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.g_mobiledata, color: Colors.red),
+                  label: const Text('Continue with Google'),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    side: BorderSide(color: Colors.grey[300]!),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                OutlinedButton.icon(
+                  onPressed: () {
+                    // TODO: Implement Facebook sign in
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Facebook sign in coming soon!'),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.facebook, color: Colors.blue),
+                  label: const Text('Continue with Facebook'),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    side: BorderSide(color: Colors.grey[300]!),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+
                 // Sign Up Link
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -329,67 +359,6 @@ class _SignInPageState extends State<SignInPage> {
             ),
           ),
         ),
-      ),
-    );
-  }
-
-  void _showForgotPasswordDialog() {
-    final emailController = TextEditingController();
-    
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Reset Password'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('Enter your email to receive a password reset link.'),
-            const SizedBox(height: 16),
-            TextField(
-              controller: emailController,
-              decoration: InputDecoration(
-                hintText: 'Enter your email',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              keyboardType: TextInputType.emailAddress,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () async {
-              final email = emailController.text.trim();
-              if (email.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Please enter your email')),
-                );
-                return;
-              }
-              
-              try {
-                await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Password reset email sent! Check your inbox.'),
-                    backgroundColor: Colors.green,
-                  ),
-                );
-              } catch (e) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-                );
-              }
-            },
-            child: const Text('Send'),
-          ),
-        ],
       ),
     );
   }

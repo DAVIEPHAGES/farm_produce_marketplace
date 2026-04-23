@@ -1,22 +1,39 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
-
-import 'firebase_options.dart';
-import 'screens/add_produce_page.dart';
-import 'screens/cart_page.dart';
-import 'screens/farmers_dashboard_page.dart';
-import 'screens/home_wrapper.dart';
-import 'screens/orders_page.dart';
-import 'screens/payment_page.dart';
-import 'screens/profile_page.dart';
-import 'screens/produce_details_page.dart';
+import 'package:flutter/foundation.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'screens/home_page.dart';
 import 'screens/signin_page.dart';
 import 'screens/signup_page.dart';
+import 'screens/produce_details_page.dart';
+import 'screens/payment_page.dart';
+import 'screens/orders_page.dart';
 
-Future<void> main() async {
+import 'screens/farmers_dashboard_page.dart';
+import 'screens/myproduce_page.dart';
+import 'screens/orders_page.dart';
+import 'screens/admin_dashboard_page.dart';
+import 'screens/home_wrapper.dart';
+
+Future<FirebaseApp> _initializeFirebase() {
+  if (kIsWeb) {
+    return Firebase.initializeApp(
+      options: const FirebaseOptions(
+        apiKey: "AIzaSyB7qNtGJ2o_0WM4yw1AxLITu2efhZCdmtY",
+        authDomain: "farm-36c66.firebaseapp.com",
+        projectId: "farm-36c66",
+        storageBucket: "farm-36c66.firebasestorage.app",
+        messagingSenderId: "488620623240",
+        appId: "1:488620623240:web:693c1f944e3cb377b4a63d",
+        measurementId: "G-3BFF52S82G",
+      ),
+    );
+  }
+
+  return Firebase.initializeApp();
+}
+
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   runApp(const MyApp());
 }
 
@@ -25,120 +42,66 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final payChanguCallback =
-        Uri.base.queryParameters['paychangu_callback'] == '1';
-
     return MaterialApp(
       title: 'Farm Produce Marketplace',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(primarySwatch: Colors.green, useMaterial3: true),
-      initialRoute: payChanguCallback ? '/payment' : '/home',
+      home: const AppBootstrap(),
       routes: {
         '/home': (context) => const HomeWrapper(userType: 'customer'),
         '/signin': (context) => const SignInPage(),
         '/signup': (context) => const SignUpPage(),
-        '/cart': (context) => const CartPage(),
+        '/payment': (context) => const PaymentPage(),
+        
+        
         '/orders': (context) => const OrdersPage(),
-        '/profile': (context) => const ProfilePage(),
         '/farmers-dashboard': (context) => const FarmersDashboardPage(),
-        '/add-produce': (context) => const AddProducePage(),
-        '/notifications': (context) => const _PlaceholderPage(
-          title: 'Notifications',
-          message: 'Notifications will appear here soon.',
-        ),
+        '/admin-dashboard': (context) => const AdminDashboard(),
       },
-      onGenerateRoute: (settings) {
-        switch (settings.name) {
-          case '/home-wrapper':
-            final args = settings.arguments;
-            final userType =
-                args is Map<String, dynamic> && args['userType'] is String
-                ? args['userType'] as String
-                : 'customer';
-
-            return MaterialPageRoute<void>(
-              builder: (context) => HomeWrapper(userType: userType),
-              settings: settings,
-            );
-          case '/payment':
-            final args = settings.arguments;
-            if (args is Map<String, dynamic>) {
-              final totalAmount = args['totalAmount'];
-              final orderId = args['orderId'];
-              final cartItems = args['cartItems'];
-
-              if (totalAmount is num &&
-                  orderId is String &&
-                  cartItems is List) {
-                return MaterialPageRoute<void>(
-                  builder: (context) => PaymentPage(
-                    totalAmount: totalAmount.toDouble(),
-                    orderId: orderId,
-                    cartItems: cartItems
-                        .whereType<Map>()
-                        .map(
-                          (item) => item.map(
-                            (key, value) => MapEntry(key.toString(), value),
-                          ),
-                        )
-                        .toList(),
-                  ),
-                  settings: settings,
-                );
-              }
-            }
-            final queryParams = Uri.base.queryParameters;
-            final orderId = queryParams['orderId'];
-            final totalAmount = double.tryParse(queryParams['amount'] ?? '');
-
-            if (queryParams['paychangu_callback'] == '1' &&
-                orderId != null &&
-                totalAmount != null) {
-              return MaterialPageRoute<void>(
-                builder: (context) => PaymentPage(
-                  totalAmount: totalAmount,
-                  orderId: orderId,
-                  cartItems: const [],
-                ),
-                settings: settings,
-              );
-            }
-            break;
-          case '/produce':
-            final args = settings.arguments;
-            if (args is QueryDocumentSnapshot) {
-              return MaterialPageRoute<void>(
-                builder: (context) => ProduceDetailsPage(data: args),
-                settings: settings,
-              );
-            }
-            break;
-        }
-
-        return null;
+      onUnknownRoute: (settings) {
+        return MaterialPageRoute(
+          builder: (context) => const SignInPage(),
+        );
       },
-      onUnknownRoute: (settings) =>
-          MaterialPageRoute<void>(builder: (context) => const SignInPage()),
     );
   }
 }
 
-class _PlaceholderPage extends StatelessWidget {
-  final String title;
-  final String message;
-
-  const _PlaceholderPage({required this.title, required this.message});
+class AppBootstrap extends StatelessWidget {
+  const AppBootstrap({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(title)),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Text(message, textAlign: TextAlign.center),
+    return FutureBuilder<FirebaseApp>(
+      future: _initializeFirebase().timeout(
+        const Duration(seconds: 15),
+        onTimeout: () => throw Exception(
+          'Firebase initialization timed out. Check your emulator network and Firebase configuration.',
         ),
       ),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        if (snapshot.hasError) {
+          return Scaffold(
+            body: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Text(
+                  'App startup failed:\n${snapshot.error}',
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+          );
+        }
+
+        return const HomeWrapper(userType: 'customer');
+      },
     );
   }
 }
