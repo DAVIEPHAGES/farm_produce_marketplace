@@ -265,17 +265,6 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
               ),
               const SizedBox(height: 20),
               const Divider(),
-              ListTile(
-                leading: const Icon(Icons.logout, color: Colors.red),
-                title: const Text(
-                  'Logout',
-                  style: TextStyle(fontWeight: FontWeight.w600),
-                ),
-                onTap: () {
-                  Navigator.pop(context);
-                  Navigator.pushReplacementNamed(context, '/signin');
-                },
-              ),
             ],
           ),
         ),
@@ -597,8 +586,13 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
             TextButton(
               onPressed: () => Navigator.pop(context),
               child: const Text('Close'),
-            ),
-          ],
+            ),            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                Navigator.pushReplacementNamed(context, '/signin');
+              },
+              child: const Text('Logout', style: TextStyle(color: Colors.red)),
+            ),          ],
         );
       },
     );
