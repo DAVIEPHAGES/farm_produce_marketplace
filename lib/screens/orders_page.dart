@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:intl/intl.dart';
 
 class OrdersPage extends StatefulWidget {
   const OrdersPage({super.key});
@@ -8,219 +11,545 @@ class OrdersPage extends StatefulWidget {
 }
 
 class _OrdersPageState extends State<OrdersPage> {
-  // Sample orders data - in real app, this would come from your backend
-  List<Map<String, dynamic>> _orders = [
-    {
-      'id': 'ORD-001',
-      'date': '2024-03-26',
-      'status': 'Delivered',
-      'total': 'MK 25,000',
-      'items': 3,
-      'farmer': 'Green Farm',
-    },
-    {
-      'id': 'ORD-002',
-      'date': '2024-03-25',
-      'status': 'Processing',
-      'total': 'MK 45,000',
-      'items': 2,
-      'farmer': 'Organic Fields',
-    },
-    {
-      'id': 'ORD-003',
-      'date': '2024-03-24',
-      'status': 'Pending',
-      'total': 'MK 12,500',
-      'items': 1,
-      'farmer': 'Fresh Produce Co.',
-    },
-  ];
+  final user = FirebaseAuth.instance.currentUser;
+
+  String selectedTab = "All";
+  String searchQuery = "";
+
+  final tabs = ["All", "Ongoing", "Delivered", "Cancelled"];
+
+  String formatDate(Timestamp? timestamp) {
+    if (timestamp == null) return "";
+    final date = timestamp.toDate();
+    return DateFormat('MMM dd, yyyy • hh:mm a').format(date);
+  }
+
+  Color getStatusColor(String status) {
+    switch (status) {
+      case 'Delivered':
+        return Colors.green;
+      case 'Processing':
+        return Colors.blue;
+      case 'Pending':
+        return Colors.orange;
+      case 'Cancelled':
+        return Colors.grey;
+      default:
+        return Colors.orange;
+    }
+  }
+
+  String mapStatusToTab(String status) {
+    if (status == "Delivered") return "Delivered";
+    if (status == "Cancelled") return "Cancelled";
+    return "Ongoing";
+  }
 
   @override
   Widget build(BuildContext context) {
+    if (user == null) {
+      return const Scaffold(
+        body: Center(child: Text("Please sign in")),
+      );
+    }
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('My Orders'),
-        backgroundColor: const Color(0xFF2E7D32),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: () {
-              setState(() {});
-            },
+      backgroundColor: Colors.grey.shade100,
+      body: Column(
+        children: [
+
+          /// 🔥 HERO HEADER
+          Stack(
+            children: [
+              Image.network(
+                "https://images.unsplash.com/photo-1542838132-92c53300491e",
+                height: 180,
+                width: double.infinity,
+                fit: BoxFit.cover,
+              ),
+              Container(
+                height: 180,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      Colors.white.withOpacity(0.9),
+                      Colors.white.withOpacity(0.6),
+                      Colors.transparent,
+                    ],
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                  ),
+                ),
+              ),
+              const Positioned(
+                left: 16,
+                top: 70,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "My Orders",
+                      style: TextStyle(
+                        fontSize: 26,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    SizedBox(height: 6),
+                    Text(
+                      "Track and manage your farm fresh orders",
+                      style: TextStyle(color: Colors.grey),
+                    ),
+                  ],
+                ),
+              )
+            ],
+          ),
+
+          /// 🔹 TABS + SEARCH
+          Container(
+            color: Colors.white,
+            child: Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: tabs.map((tab) {
+                    final isSelected = selectedTab == tab;
+
+                    return GestureDetector(
+                      onTap: () {
+                        setState(() => selectedTab = tab);
+                      },
+                      child: Column(
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            child: Text(
+                              tab,
+                              style: TextStyle(
+                                color: isSelected ? Colors.green : Colors.grey,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          Container(
+                            height: 2,
+                            width: 60,
+                            color: isSelected
+                                ? Colors.green
+                                : Colors.transparent,
+                          )
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                ),
+
+                Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: TextField(
+                    onChanged: (val) =>
+                        setState(() => searchQuery = val.toLowerCase()),
+                    decoration: InputDecoration(
+                      hintText: "Search orders...",
+                      prefixIcon: const Icon(Icons.search),
+                      filled: true,
+                      fillColor: Colors.grey.shade200,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          /// 🔹 LIST
+          Expanded(
+            child: StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('orders')
+                  .where('customerId', isEqualTo: user!.uid)
+                  .orderBy('timestamp', descending: true)
+                  .snapshots(),
+              builder: (context, snapshot) {
+
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Text("Error: ${snapshot.error}"),
+                  );
+                }
+
+                if (!snapshot.hasData) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                final docs = snapshot.data!.docs;
+
+                final filtered = docs.where((doc) {
+                  final data = doc.data() as Map<String, dynamic>;
+                  final status = data['status'] ?? 'Pending';
+
+                  final matchesTab = selectedTab == "All"
+                      ? true
+                      : mapStatusToTab(status) == selectedTab;
+
+                  final matchesSearch =
+                      doc.id.toLowerCase().contains(searchQuery);
+
+                  return matchesTab && matchesSearch;
+                }).toList();
+
+                if (filtered.isEmpty) {
+                  return const Center(child: Text("No orders found"));
+                }
+
+                return ListView.builder(
+                  padding: const EdgeInsets.all(12),
+                  itemCount: filtered.length,
+                  itemBuilder: (context, index) {
+                    final doc = filtered[index];
+                    final data = doc.data() as Map<String, dynamic>;
+                    final status = data['status'] ?? 'Pending';
+
+                    return GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => OrderDetailsPage(
+                              orderId: doc.id,
+                              orderData: data,
+                            ),
+                          ),
+                        );
+                      },
+                      child: Container(
+                        margin: const EdgeInsets.only(bottom: 14),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Column(
+                          children: [
+
+                            /// TOP ROW
+                            Row(
+                              children: [
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Image.network(
+                                    data['imageUrl'] ?? '',
+                                    width: 70,
+                                    height: 70,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) =>
+                                        const Icon(Icons.image),
+                                  ),
+                                ),
+
+                                const SizedBox(width: 12),
+
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        "Order #${doc.id.substring(0, 6)}",
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.bold),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        formatDate(data['timestamp']),
+                                        style: const TextStyle(
+                                            color: Colors.grey,
+                                            fontSize: 12),
+                                      ),
+                                      const SizedBox(height: 6),
+
+                                      Container(
+                                        padding:
+                                            const EdgeInsets.symmetric(
+                                                horizontal: 8, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: getStatusColor(status)
+                                              .withOpacity(0.1),
+                                          borderRadius:
+                                              BorderRadius.circular(6),
+                                        ),
+                                        child: Text(
+                                          status,
+                                          style: TextStyle(
+                                            color:
+                                                getStatusColor(status),
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+
+                                Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.end,
+                                  children: [
+                                    Text(
+                                      "MK ${data['totalPrice']}",
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.green,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    const Icon(Icons.arrow_forward_ios,
+                                        size: 14),
+                                  ],
+                                )
+                              ],
+                            ),
+
+                            const SizedBox(height: 10),
+
+                            /// ITEMS PREVIEW
+                            StreamBuilder<QuerySnapshot>(
+                              stream: FirebaseFirestore.instance
+                                  .collection('orders')
+                                  .doc(doc.id)
+                                  .collection('items')
+                                  .snapshots(),
+                              builder: (context, itemSnapshot) {
+
+                                if (itemSnapshot.hasError) {
+                                  return const Text("Error loading items");
+                                }
+
+                                if (!itemSnapshot.hasData) {
+                                  return const SizedBox();
+                                }
+
+                                final items = itemSnapshot.data!.docs;
+
+                                return Row(
+                                  children: [
+                                    ...items.take(3).map((itemDoc) {
+                                      final item = itemDoc.data()
+                                          as Map<String, dynamic>;
+
+                                      return Container(
+                                        margin:
+                                            const EdgeInsets.only(right: 6),
+                                        width: 35,
+                                        height: 35,
+                                        child: ClipRRect(
+                                          borderRadius:
+                                              BorderRadius.circular(6),
+                                          child: Image.network(
+                                            item['imageUrl'] ?? '',
+                                            fit: BoxFit.cover,
+                                            errorBuilder:
+                                                (_, __, ___) =>
+                                                    const Icon(Icons.image),
+                                          ),
+                                        ),
+                                      );
+                                    }).toList(),
+
+                                    if (items.length > 3)
+                                      Container(
+                                        width: 35,
+                                        height: 35,
+                                        alignment: Alignment.center,
+                                        decoration: BoxDecoration(
+                                          color: Colors.grey.shade200,
+                                          borderRadius:
+                                              BorderRadius.circular(6),
+                                        ),
+                                        child: Text(
+                                          "+${items.length - 3}",
+                                          style:
+                                              const TextStyle(fontSize: 12),
+                                        ),
+                                      ),
+                                  ],
+                                );
+                              },
+                            )
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
           ),
         ],
       ),
-      body: _orders.isEmpty
-          ? const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.shopping_bag_outlined,
-                    size: 80,
-                    color: Colors.grey,
-                  ),
-                  SizedBox(height: 16),
-                  Text(
-                    'No orders yet',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.grey,
-                    ),
-                  ),
-                  SizedBox(height: 8),
-                  Text(
-                    'Your orders will appear here',
-                    style: TextStyle(color: Colors.grey),
-                  ),
-                ],
-              ),
-            )
-          : ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: _orders.length,
-              itemBuilder: (context, index) {
-                final order = _orders[index];
-                return _buildOrderCard(order);
-              },
-            ),
     );
   }
+}
 
-  Widget _buildOrderCard(Map<String, dynamic> order) {
-    Color statusColor;
-    switch (order['status']) {
+/// ================= ORDER DETAILS PAGE =================
+
+class OrderDetailsPage extends StatelessWidget {
+  final String orderId;
+  final Map<String, dynamic> orderData;
+
+  const OrderDetailsPage({
+    super.key,
+    required this.orderId,
+    required this.orderData,
+  });
+
+  Color getStatusColor(String status) {
+    switch (status) {
       case 'Delivered':
-        statusColor = Colors.green;
-        break;
+        return Colors.green;
       case 'Processing':
-        statusColor = Colors.blue;
-        break;
+        return Colors.blue;
       case 'Pending':
-        statusColor = Colors.orange;
-        break;
+        return Colors.orange;
+      case 'Cancelled':
+        return Colors.grey;
       default:
-        statusColor = Colors.grey;
+        return Colors.orange;
     }
+  }
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
+  @override
+  Widget build(BuildContext context) {
+    final status = orderData['status'] ?? 'Pending';
+
+    return Scaffold(
+      appBar: AppBar(title: const Text("Order Details")),
+      body: Padding(
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  order['id'],
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
+
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: getStatusColor(status).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                status,
+                style: TextStyle(
+                  color: getStatusColor(status),
+                  fontWeight: FontWeight.bold,
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            Text(
+              "Total: MK ${orderData['totalPrice']}",
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.green,
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            const Text("Items",
+                style: TextStyle(fontWeight: FontWeight.bold)),
+
+            const SizedBox(height: 10),
+
+            Expanded(
+              child: StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('orders')
+                    .doc(orderId)
+                    .collection('items')
+                    .snapshots(),
+                builder: (context, snapshot) {
+                  if (!snapshot.hasData) {
+                    return const CircularProgressIndicator();
+                  }
+
+                  final items = snapshot.data!.docs;
+
+                  return ListView.builder(
+                    itemCount: items.length,
+                    itemBuilder: (context, index) {
+                      final item =
+                          items[index].data() as Map<String, dynamic>;
+
+                      return ListTile(
+                        leading: Image.network(
+                          item['imageUrl'] ?? '',
+                          width: 40,
+                          errorBuilder: (_, __, ___) =>
+                              const Icon(Icons.image),
+                        ),
+                        title: Text(item['name'] ?? ''),
+                        subtitle: Text("Qty: ${item['quantity']}"),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+
+            if (status == "Processing")
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () async {
+                    await FirebaseFirestore.instance
+                        .collection('orders')
+                        .doc(orderId)
+                        .update({'status': 'Cancelled'});
+
+                    Navigator.pop(context);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red,
                   ),
-                  decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    order['status'],
-                    style: TextStyle(
-                      color: statusColor,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
+                  child: const Text("Cancel Order"),
+                ),
+              ),
+
+            const SizedBox(height: 10),
+
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text("Reorder coming soon"),
                     ),
-                  ),
-                ),
-              ],
+                  );
+                },
+                child: const Text("Reorder"),
+              ),
             ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                const Icon(
-                  Icons.calendar_today,
-                  size: 14,
-                  color: Colors.grey,
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  order['date'],
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                const Icon(
-                  Icons.store,
-                  size: 14,
-                  color: Colors.grey,
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  order['farmer'],
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey,
-                  ),
-                ),
-              ],
-            ),
-            const Divider(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  '${order['items']} items',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey,
-                  ),
-                ),
-                Text(
-                  order['total'],
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF2E7D32),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
+
+            const SizedBox(height: 10),
+
             SizedBox(
               width: double.infinity,
               child: OutlinedButton(
                 onPressed: () {
-                  // TODO: View order details
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                      content: Text('Order details coming soon'),
-                      duration: Duration(seconds: 1),
+                      content: Text("Contact support"),
                     ),
                   );
                 },
-                style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: Color(0xFF2E7D32)),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-                child: const Text(
-                  'View Details',
-                  style: TextStyle(color: Color(0xFF2E7D32)),
-                ),
+                child: const Text("Contact"),
               ),
             ),
           ],
