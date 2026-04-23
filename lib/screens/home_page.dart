@@ -29,7 +29,6 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       drawer: const CustomerDrawer(),
-
       backgroundColor: Colors.grey.shade200,
 
       appBar: AppBar(
@@ -228,7 +227,7 @@ class _HomePageState extends State<HomePage> {
                     crossAxisCount: 2,
                     crossAxisSpacing: 10,
                     mainAxisSpacing: 10,
-                    childAspectRatio: 0.7,
+                    childAspectRatio: 0.8,
                   ),
                   itemBuilder: (context, index) {
                     final doc = filtered[index];
@@ -280,7 +279,9 @@ class _HomePageState extends State<HomePage> {
       ),
       child: Column(
         children: [
-          Expanded(
+          // ✅ FIXED: removed Expanded (this was causing uneven image heights)
+          SizedBox(
+            height: 140,
             child: Stack(
               children: [
                 GestureDetector(
@@ -289,7 +290,7 @@ class _HomePageState extends State<HomePage> {
                       context,
                       MaterialPageRoute(
                         builder: (_) => ProduceDetailsPage(
-                          data: doc, // ✅ FIXED HERE
+                          data: doc,
                         ),
                       ),
                     );
@@ -331,7 +332,9 @@ class _HomePageState extends State<HomePage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(data['name'] ?? ''),
-                Text("MK ${data['price'] ?? 0}"),
+                Text(
+                  "MK ${data['price'] ?? 0} / ${data['quantity'] ?? ''}",
+                ),
               ],
             ),
           )
