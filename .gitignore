@@ -43,17 +43,3 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
-.gradle/
-.gradle-user-home/
-android/.gradle/
-
-# Platform generated files (Flutter)
-linux/flutter/
-windows/flutter/
-macos/Flutter/
-
-# Node (you have it in your project)
-node_modules/
-
-# Extra safety
-#*.lock
