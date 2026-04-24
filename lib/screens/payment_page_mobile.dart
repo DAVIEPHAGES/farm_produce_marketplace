@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../data/cart_data.dart';
 import '../services/paychangu_service.dart';
 
 class PaymentPage extends StatefulWidget {
@@ -75,7 +76,7 @@ class _PaymentPageState extends State<PaymentPage> {
                       .collection('orders')
                       .doc(widget.orderId)
                       .update({
-                        'status': 'paid',
+                        'status': 'Processing',
                         'paymentStatus': 'completed',
                         'paymentTxRef': response['tx_ref'],
                         'paidAt': FieldValue.serverTimestamp(),
@@ -88,6 +89,8 @@ class _PaymentPageState extends State<PaymentPage> {
                         .doc(currentUser.uid)
                         .delete();
                   }
+
+                  cartItems.clear();
 
                   if (mounted) {
                     Navigator.pop(context);

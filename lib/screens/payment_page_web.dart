@@ -213,7 +213,7 @@ class _PaymentPageState extends State<PaymentPage> {
         .collection('orders')
         .doc(widget.orderId)
         .update({
-          'status': 'paid',
+          'status': 'Processing',
           'paymentStatus': 'completed',
           'paymentTxRef': txRef,
           'paidAt': FieldValue.serverTimestamp(),
