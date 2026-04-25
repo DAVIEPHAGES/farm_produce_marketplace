@@ -95,6 +95,31 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
     }
   }
 
+  // ✅ EDIT PRODUCT METHOD
+  Future<void> _editProduct(Map<String, dynamic> product, String productId, int index) async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AddProducePage(
+          isEditing: true,
+          existingProduct: product,
+          productId: productId,
+        ),
+      ),
+    );
+    
+    if (result == true) {
+      _loadData(); // Refresh data after edit
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('✓ Product updated successfully!'),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -411,7 +436,13 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
                               trailing: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  // ✅ DELETE BUTTON ADDED HERE
+                                  // ✅ EDIT BUTTON ADDED
+                                  IconButton(
+                                    icon: const Icon(Icons.edit, color: Colors.blue),
+                                    onPressed: () => _editProduct(product, productId, index),
+                                    tooltip: 'Edit product',
+                                  ),
+                                  // ✅ DELETE BUTTON
                                   IconButton(
                                     icon: const Icon(Icons.delete, color: Colors.red),
                                     onPressed: () => _deleteProduct(productId, index),
@@ -520,7 +551,7 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
     );
   }
 
-  // ✅ IMPROVED DELETE METHOD with confirmation dialog
+  // ✅ DELETE METHOD with confirmation dialog
   Future<void> _deleteProduct(String productId, int index) async {
     // Show confirmation dialog first
     bool? confirm = await showDialog<bool>(
@@ -811,6 +842,27 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
                                     color: Colors.grey,
                                   ),
                                 ),
+                              // ✅ EDIT BUTTON IN DIALOG
+                              IconButton(
+                                icon: const Icon(Icons.edit, color: Colors.blue),
+                                onPressed: () async {
+                                  Navigator.pop(context); // Close dialog first
+                                  final result = await Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => AddProducePage(
+                                        isEditing: true,
+                                        existingProduct: product,
+                                        productId: productId,
+                                      ),
+                                    ),
+                                  );
+                                  if (result == true) {
+                                    _loadData();
+                                  }
+                                },
+                                tooltip: 'Edit product',
+                              ),
                               IconButton(
                                 icon: const Icon(Icons.delete, color: Colors.red),
                                 onPressed: () => _deleteProduct(productId, index),

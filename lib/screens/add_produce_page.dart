@@ -9,7 +9,17 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class AddProducePage extends StatefulWidget {
-  const AddProducePage({super.key});
+  // NEW: Optional parameters for editing mode
+  final Map<String, dynamic>? existingProduct;
+  final String? productId;
+  final bool isEditing;
+  
+  const AddProducePage({
+    super.key,
+    this.existingProduct,
+    this.productId,
+    this.isEditing = false,
+  });
 
   @override
   State<AddProducePage> createState() => _AddProducePageState();
@@ -19,14 +29,43 @@ class _AddProducePageState extends State<AddProducePage> {
   final TextEditingController nameController = TextEditingController();
   final TextEditingController priceController = TextEditingController();
   final TextEditingController quantityController = TextEditingController();
-  final TextEditingController locationController = TextEditingController(); // ADDED
-  final TextEditingController descriptionController = TextEditingController(); // ADDED
+  final TextEditingController locationController = TextEditingController();
+  final TextEditingController descriptionController = TextEditingController();
 
   File? _image;           // Mobile
   Uint8List? _webImage;   // Web
+  String? _existingImageUrl; // Store existing image URL for editing
 
   final ImagePicker _picker = ImagePicker();
   bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // If editing, pre-fill the form with existing product data
+    if (widget.isEditing && widget.existingProduct != null) {
+      _preFillForm();
+    }
+  }
+
+  void _preFillForm() {
+    nameController.text = widget.existingProduct!['name']?.toString() ?? '';
+    priceController.text = widget.existingProduct!['price']?.toString() ?? '';
+    quantityController.text = widget.existingProduct!['quantity']?.toString() ?? '';
+    locationController.text = widget.existingProduct!['location']?.toString() ?? '';
+    descriptionController.text = widget.existingProduct!['description']?.toString() ?? '';
+    _existingImageUrl = widget.existingProduct!['imageUrl']?.toString();
+  }
+
+  @override
+  void dispose() {
+    nameController.dispose();
+    priceController.dispose();
+    quantityController.dispose();
+    locationController.dispose();
+    descriptionController.dispose();
+    super.dispose();
+  }
 
   // ✅ PICK IMAGE (WEB + MOBILE)
   Future<void> pickImage() async {
@@ -43,11 +82,13 @@ class _AddProducePageState extends State<AddProducePage> {
         setState(() {
           _webImage = bytes;
           _image = null;
+          _existingImageUrl = null; // Clear existing image when new one is picked
         });
       } else {
         setState(() {
           _image = File(pickedFile.path);
           _webImage = null;
+          _existingImageUrl = null; // Clear existing image when new one is picked
         });
       }
     } catch (e) {
@@ -97,7 +138,98 @@ class _AddProducePageState extends State<AddProducePage> {
     }
   }
 
-  // ✅ UPLOAD PRODUCE
+  // ✅ UPDATE PRODUCE (EDIT MODE)
+  Future<void> updateProduce() async {
+    // VALIDATE ALL FIELDS
+    if (nameController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter produce name')),
+      );
+      return;
+    }
+    
+    if (priceController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter price')),
+      );
+      return;
+    }
+    
+    if (quantityController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter quantity')),
+      );
+      return;
+    }
+    
+    if (locationController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter location')),
+      );
+      return;
+    }
+
+    double? price = double.tryParse(priceController.text);
+    if (price == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enter a valid price')),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) throw Exception("User not logged in");
+
+      // If user selected a new image, upload it; otherwise keep existing
+      String? imageUrl = _existingImageUrl;
+      if (_image != null || _webImage != null) {
+        imageUrl = await uploadImageToCloudinary();
+        if (imageUrl == null) throw Exception("Image upload failed");
+      }
+
+      // Update the product in Firestore
+      await FirebaseFirestore.instance
+          .collection('products')
+          .doc(widget.productId)
+          .update({
+        'name': nameController.text.trim(),
+        'price': price,
+        'quantity': quantityController.text.trim(),
+        'location': locationController.text.trim(),
+        'description': descriptionController.text.trim(),
+        'imageUrl': imageUrl,
+        'lastUpdated': DateTime.now().toIso8601String(),
+      });
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('✅ Product updated successfully!'),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 2),
+        ),
+      );
+
+      // Return success to dashboard
+      Navigator.pop(context, true);
+
+    } catch (e) {
+      debugPrint("Error: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('❌ Error: ${e.toString()}')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  // ✅ UPLOAD PRODUCE (ADD MODE)
   Future<void> uploadProduce() async {
     // VALIDATE ALL FIELDS
     if (nameController.text.trim().isEmpty) {
@@ -159,23 +291,22 @@ class _AddProducePageState extends State<AddProducePage> {
           .get();
       final userData = userDoc.data() ?? {};
       String farmerName = userData['name'] ?? user.displayName ?? "Farmer";
-      String farmerLocation = userData['location'] ?? locationController.text.trim();
 
-      // 🔥 Upload Image
+      // Upload Image
       final imageUrl = await uploadImageToCloudinary();
       if (imageUrl == null) throw Exception("Image upload failed");
 
-      // 🔥 Save to Firestore with ALL REQUIRED FIELDS
+      // Save to Firestore with ALL REQUIRED FIELDS
       final productData = {
         'name': nameController.text.trim(),
         'price': price,
-        'quantity': quantityController.text.trim(), // Store as string
-        'location': locationController.text.trim(), // ADDED - CRITICAL!
-        'description': descriptionController.text.trim(), // ADDED
+        'quantity': quantityController.text.trim(),
+        'location': locationController.text.trim(),
+        'description': descriptionController.text.trim(),
         'imageUrl': imageUrl,
         'farmerId': user.uid,
         'farmerName': farmerName,
-        'dateAdded': DateTime.now().toIso8601String(), // ADDED for sorting
+        'dateAdded': DateTime.now().toIso8601String(),
         'timestamp': FieldValue.serverTimestamp(),
       };
 
@@ -187,7 +318,7 @@ class _AddProducePageState extends State<AddProducePage> {
         const SnackBar(content: Text('✅ Produce added successfully')),
       );
 
-      // ✅ CLEAR FORM
+      // Clear form
       nameController.clear();
       priceController.clear();
       quantityController.clear();
@@ -196,6 +327,7 @@ class _AddProducePageState extends State<AddProducePage> {
       setState(() {
         _image = null;
         _webImage = null;
+        _existingImageUrl = null;
       });
 
       // Return success to dashboard
@@ -214,23 +346,13 @@ class _AddProducePageState extends State<AddProducePage> {
   }
 
   @override
-  void dispose() {
-    nameController.dispose();
-    priceController.dispose();
-    quantityController.dispose();
-    locationController.dispose();
-    descriptionController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white, // Changed to white
+      backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.green[700],
         elevation: 0,
-        title: const Text("Add Produce"),
+        title: Text(widget.isEditing ? "Edit Produce" : "Add Produce"),
         centerTitle: true,
         foregroundColor: Colors.white,
       ),
@@ -238,7 +360,7 @@ class _AddProducePageState extends State<AddProducePage> {
         margin: const EdgeInsets.all(12),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white, // Changed to white
+          color: Colors.white,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: Colors.grey[200]!),
         ),
@@ -326,7 +448,7 @@ class _AddProducePageState extends State<AddProducePage> {
 
               const SizedBox(height: 10),
 
-              // ✅ IMAGE PREVIEW
+              // IMAGE PREVIEW (New image OR existing image)
               if (_webImage != null)
                 Center(
                   child: ClipRRect(
@@ -340,13 +462,35 @@ class _AddProducePageState extends State<AddProducePage> {
                     borderRadius: BorderRadius.circular(10),
                     child: Image.file(_image!, height: 120, fit: BoxFit.cover),
                   ),
+                )
+              else if (_existingImageUrl != null && _existingImageUrl!.isNotEmpty)
+                Center(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: Image.network(
+                      _existingImageUrl!,
+                      height: 120,
+                      width: 120,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          height: 120,
+                          width: 120,
+                          color: Colors.grey[200],
+                          child: const Icon(Icons.broken_image, size: 50, color: Colors.grey),
+                        );
+                      },
+                    ),
+                  ),
                 ),
 
               const SizedBox(height: 20),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: _isLoading ? null : uploadProduce,
+                  onPressed: _isLoading 
+                      ? null 
+                      : (widget.isEditing ? updateProduce : uploadProduce),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.green[700],
                     foregroundColor: Colors.white,
@@ -357,9 +501,9 @@ class _AddProducePageState extends State<AddProducePage> {
                   ),
                   child: _isLoading
                       ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text(
-                          "Add Produce",
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      : Text(
+                          widget.isEditing ? "Update Produce" : "Add Produce",
+                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                         ),
                 ),
               ),
