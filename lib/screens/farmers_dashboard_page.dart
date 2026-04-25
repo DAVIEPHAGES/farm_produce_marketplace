@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'add_produce_page.dart';
-import 'farmer_orders_page.dart';
+
 class FarmersDashboardPage extends StatefulWidget {
   const FarmersDashboardPage({super.key});
 
@@ -299,12 +299,15 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
                       style: const TextStyle(fontSize: 16, color: Colors.grey),
                     ),
                     const SizedBox(height: 32),
+                    
+                    // CHANGED: 2x2 Grid Layout (2 cards per row)
                     GridView.count(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
-                      crossAxisCount: 4,
+                      crossAxisCount: 2, // Changed from 4 to 2 for 2 cards per row
                       mainAxisSpacing: 16,
                       crossAxisSpacing: 16,
+                      childAspectRatio: 1.1, // Slightly taller cards for better appearance
                       children: [
                         _buildDashboardCard(
                           'Total Earnings',
@@ -356,6 +359,7 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
                         ),
                       ],
                     ),
+                    
                     if (farmerProfile['products'].isNotEmpty) ...[
                       const SizedBox(height: 32),
                       const Text(
@@ -480,13 +484,13 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
                   color: color.withOpacity(0.1),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(icon, size: 32, color: color),
+                child: Icon(icon, size: 40, color: color), // Increased icon size from 32 to 40
               ),
               const SizedBox(height: 12),
               Text(
                 value,
                 style: TextStyle(
-                  fontSize: 16,
+                  fontSize: 18, // Increased font size from 16 to 18
                   fontWeight: FontWeight.bold,
                   color: color,
                 ),
@@ -497,7 +501,7 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
               const SizedBox(height: 4),
               Text(
                 title,
-                style: const TextStyle(fontSize: 12, color: Colors.grey),
+                style: const TextStyle(fontSize: 13, color: Colors.grey), // Increased from 12 to 13
                 textAlign: TextAlign.center,
               ),
             ],
@@ -586,13 +590,15 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
             TextButton(
               onPressed: () => Navigator.pop(context),
               child: const Text('Close'),
-            ),            TextButton(
+            ),
+            TextButton(
               onPressed: () {
                 Navigator.pop(context);
                 Navigator.pushReplacementNamed(context, '/signin');
               },
               child: const Text('Logout', style: TextStyle(color: Colors.red)),
-            ),          ],
+            ),
+          ],
         );
       },
     );
