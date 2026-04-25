@@ -98,10 +98,14 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const Scaffold(
+        backgroundColor: Colors.white, // Changed to white
+        body: Center(child: CircularProgressIndicator()),
+      );
     }
 
     return Scaffold(
+      backgroundColor: Colors.white, // Added white background
       appBar: AppBar(
         title: const Text(
           'FARMER DASHBOARD',
@@ -148,18 +152,14 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
       ),
       drawer: Drawer(
         child: Container(
-          color: Colors.green[50],
+          color: Colors.white, // Changed to white background
           child: ListView(
             padding: EdgeInsets.zero,
             children: [
               Container(
                 height: 200,
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [Colors.green[700]!, Colors.green[800]!],
-                  ),
+                  color: Colors.green[700], // Changed from gradient to solid color
                 ),
                 child: Center(
                   child: Column(
@@ -270,13 +270,7 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
         ),
       ),
       body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Colors.green[50]!, Colors.white],
-          ),
-        ),
+        color: Colors.white, // Changed to solid white background
         child: SingleChildScrollView(
           child: Column(
             children: [
@@ -300,14 +294,14 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
                     ),
                     const SizedBox(height: 32),
                     
-                    // CHANGED: 2x2 Grid Layout (2 cards per row)
+                    // 2x2 Grid Layout (2 cards per row)
                     GridView.count(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
-                      crossAxisCount: 2, // Changed from 4 to 2 for 2 cards per row
+                      crossAxisCount: 2,
                       mainAxisSpacing: 16,
                       crossAxisSpacing: 16,
-                      childAspectRatio: 1.1, // Slightly taller cards for better appearance
+                      childAspectRatio: 1.1,
                       children: [
                         _buildDashboardCard(
                           'Total Earnings',
@@ -469,11 +463,7 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [color.withOpacity(0.1), Colors.white],
-            ),
+            color: Colors.white, // Changed to solid white background for cards
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -484,13 +474,13 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
                   color: color.withOpacity(0.1),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(icon, size: 40, color: color), // Increased icon size from 32 to 40
+                child: Icon(icon, size: 40, color: color),
               ),
               const SizedBox(height: 12),
               Text(
                 value,
                 style: TextStyle(
-                  fontSize: 18, // Increased font size from 16 to 18
+                  fontSize: 18,
                   fontWeight: FontWeight.bold,
                   color: color,
                 ),
@@ -501,7 +491,7 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
               const SizedBox(height: 4),
               Text(
                 title,
-                style: const TextStyle(fontSize: 13, color: Colors.grey), // Increased from 12 to 13
+                style: const TextStyle(fontSize: 13, color: Colors.grey),
                 textAlign: TextAlign.center,
               ),
             ],
@@ -516,6 +506,7 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
+          backgroundColor: Colors.white, // Added white background
           title: Row(
             children: [
               Container(
@@ -635,6 +626,7 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
+          backgroundColor: Colors.white, // Added white background
           title: const Text('Total Earnings'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
@@ -684,6 +676,7 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
+          backgroundColor: Colors.white, // Added white background
           title: const Text('My Produce'),
           content: Container(
             width: double.maxFinite,
@@ -764,6 +757,7 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
+          backgroundColor: Colors.white, // Added white background
           title: const Text('New Orders'),
           content: Container(
             width: double.maxFinite,
