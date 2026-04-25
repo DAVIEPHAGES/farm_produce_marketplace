@@ -19,7 +19,8 @@ class _AddProducePageState extends State<AddProducePage> {
   final TextEditingController nameController = TextEditingController();
   final TextEditingController priceController = TextEditingController();
   final TextEditingController quantityController = TextEditingController();
-  final TextEditingController unitController = TextEditingController();
+  final TextEditingController locationController = TextEditingController(); // ADDED
+  final TextEditingController descriptionController = TextEditingController(); // ADDED
 
   File? _image;           // Mobile
   Uint8List? _webImage;   // Web
@@ -98,13 +99,38 @@ class _AddProducePageState extends State<AddProducePage> {
 
   // ✅ UPLOAD PRODUCE
   Future<void> uploadProduce() async {
-    if (nameController.text.trim().isEmpty ||
-        priceController.text.trim().isEmpty ||
-        quantityController.text.trim().isEmpty ||
-        unitController.text.trim().isEmpty ||
-        (_image == null && _webImage == null)) {
+    // VALIDATE ALL FIELDS
+    if (nameController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please fill all fields and select an image')),
+        const SnackBar(content: Text('Please enter produce name')),
+      );
+      return;
+    }
+    
+    if (priceController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter price')),
+      );
+      return;
+    }
+    
+    if (quantityController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter quantity')),
+      );
+      return;
+    }
+    
+    if (locationController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter location')),
+      );
+      return;
+    }
+    
+    if (_image == null && _webImage == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select an image')),
       );
       return;
     }
@@ -126,20 +152,34 @@ class _AddProducePageState extends State<AddProducePage> {
         throw Exception("User not logged in");
       }
 
+      // Get farmer name and location from user profile
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+      final userData = userDoc.data() ?? {};
+      String farmerName = userData['name'] ?? user.displayName ?? "Farmer";
+      String farmerLocation = userData['location'] ?? locationController.text.trim();
+
       // 🔥 Upload Image
       final imageUrl = await uploadImageToCloudinary();
       if (imageUrl == null) throw Exception("Image upload failed");
 
-      // 🔥 Save to Firestore
-      await FirebaseFirestore.instance.collection('products').add({
+      // 🔥 Save to Firestore with ALL REQUIRED FIELDS
+      final productData = {
         'name': nameController.text.trim(),
         'price': price,
-        'quantity': '${quantityController.text.trim()} ${unitController.text.trim()}',
+        'quantity': quantityController.text.trim(), // Store as string
+        'location': locationController.text.trim(), // ADDED - CRITICAL!
+        'description': descriptionController.text.trim(), // ADDED
         'imageUrl': imageUrl,
         'farmerId': user.uid,
-        'farmerName': user.displayName ?? "Farmer",
+        'farmerName': farmerName,
+        'dateAdded': DateTime.now().toIso8601String(), // ADDED for sorting
         'timestamp': FieldValue.serverTimestamp(),
-      });
+      };
+
+      await FirebaseFirestore.instance.collection('products').add(productData);
 
       if (!mounted) return;
 
@@ -151,17 +191,21 @@ class _AddProducePageState extends State<AddProducePage> {
       nameController.clear();
       priceController.clear();
       quantityController.clear();
-      unitController.clear();
+      locationController.clear();
+      descriptionController.clear();
       setState(() {
         _image = null;
         _webImage = null;
       });
 
+      // Return success to dashboard
+      Navigator.pop(context, true);
+
     } catch (e) {
       debugPrint("Error: $e");
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('❌ Error: $e')),
+          SnackBar(content: Text('❌ Error: ${e.toString()}')),
         );
       }
     } finally {
@@ -174,66 +218,95 @@ class _AddProducePageState extends State<AddProducePage> {
     nameController.dispose();
     priceController.dispose();
     quantityController.dispose();
-    unitController.dispose();
+    locationController.dispose();
+    descriptionController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.green.shade700,
+      backgroundColor: Colors.white, // Changed to white
       appBar: AppBar(
-        backgroundColor: Colors.green.shade700,
+        backgroundColor: Colors.green[700],
         elevation: 0,
         title: const Text("Add Produce"),
         centerTitle: true,
+        foregroundColor: Colors.white,
       ),
       body: Container(
         margin: const EdgeInsets.all(12),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.grey.shade200,
+          color: Colors.white, // Changed to white
           borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.grey[200]!),
         ),
         child: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text("Produce Name"),
+              const Text(
+                "Produce Name",
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
               const SizedBox(height: 5),
               TextField(
                 controller: nameController,
-                decoration: _inputDecoration("e.g Maize"),
+                decoration: _inputDecoration("e.g., Maize, Tomatoes, Cabbage"),
               ),
 
               const SizedBox(height: 15),
-              const Text("Price (MWK)"),
+              const Text(
+                "Price (MWK)",
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
               const SizedBox(height: 5),
               TextField(
                 controller: priceController,
                 keyboardType: TextInputType.number,
-                decoration: _inputDecoration("Enter price"),
+                decoration: _inputDecoration("Enter price in Malawi Kwacha"),
               ),
 
               const SizedBox(height: 15),
-              const Text("Quantity"),
+              const Text(
+                "Quantity",
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
               const SizedBox(height: 5),
               TextField(
                 controller: quantityController,
-                keyboardType: TextInputType.number,
-                decoration: _inputDecoration("e.g. 50"),
+                decoration: _inputDecoration("e.g., 50 kg, 100 pieces, 20 bunches"),
               ),
 
               const SizedBox(height: 15),
-              const Text("Selling Unit"),
+              const Text(
+                "Location",
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
               const SizedBox(height: 5),
               TextField(
-                controller: unitController,
-                decoration: _inputDecoration("e.g. kg, pieces, bunches"),
+                controller: locationController,
+                decoration: _inputDecoration("e.g., Lilongwe, Mzuzu, Blantyre"),
               ),
 
               const SizedBox(height: 15),
-              const Text("Upload Produce Image"),
+              const Text(
+                "Description (Optional)",
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 5),
+              TextField(
+                controller: descriptionController,
+                decoration: _inputDecoration("Describe your produce..."),
+                maxLines: 2,
+              ),
+
+              const SizedBox(height: 15),
+              const Text(
+                "Upload Produce Image",
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
               const SizedBox(height: 5),
               GestureDetector(
                 onTap: pickImage,
@@ -243,9 +316,9 @@ class _AddProducePageState extends State<AddProducePage> {
                   child: const Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.camera_alt),
+                      Icon(Icons.camera_alt, color: Colors.green),
                       SizedBox(width: 8),
-                      Text("Tap to upload")
+                      Text("Tap to upload image"),
                     ],
                   ),
                 ),
@@ -253,19 +326,19 @@ class _AddProducePageState extends State<AddProducePage> {
 
               const SizedBox(height: 10),
 
-              // ✅ FIXED IMAGE PREVIEW
+              // ✅ IMAGE PREVIEW
               if (_webImage != null)
                 Center(
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(10),
-                    child: Image.memory(_webImage!, height: 120),
+                    child: Image.memory(_webImage!, height: 120, fit: BoxFit.cover),
                   ),
                 )
               else if (_image != null)
                 Center(
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(10),
-                    child: Image.file(_image!, height: 120),
+                    child: Image.file(_image!, height: 120, fit: BoxFit.cover),
                   ),
                 ),
 
@@ -275,7 +348,8 @@ class _AddProducePageState extends State<AddProducePage> {
                 child: ElevatedButton(
                   onPressed: _isLoading ? null : uploadProduce,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green.shade800,
+                    backgroundColor: Colors.green[700],
+                    foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 15),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(20),
@@ -283,7 +357,10 @@ class _AddProducePageState extends State<AddProducePage> {
                   ),
                   child: _isLoading
                       ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text("Add Produce"),
+                      : const Text(
+                          "Add Produce",
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
                 ),
               ),
             ],
@@ -297,18 +374,27 @@ class _AddProducePageState extends State<AddProducePage> {
     return InputDecoration(
       hintText: hint,
       filled: true,
-      fillColor: Colors.grey.shade300,
+      fillColor: Colors.grey[50],
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(20),
         borderSide: BorderSide.none,
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(20),
+        borderSide: BorderSide(color: Colors.grey[300]!),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(20),
+        borderSide: const BorderSide(color: Colors.green),
       ),
     );
   }
 
   BoxDecoration _boxDecoration() {
     return BoxDecoration(
-      color: Colors.grey.shade300,
+      color: Colors.grey[50],
       borderRadius: BorderRadius.circular(20),
+      border: Border.all(color: Colors.grey[300]!),
     );
   }
 }

@@ -99,13 +99,13 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
   Widget build(BuildContext context) {
     if (_isLoading) {
       return const Scaffold(
-        backgroundColor: Colors.white, // Changed to white
+        backgroundColor: Colors.white,
         body: Center(child: CircularProgressIndicator()),
       );
     }
 
     return Scaffold(
-      backgroundColor: Colors.white, // Added white background
+      backgroundColor: Colors.white,
       appBar: AppBar(
         title: const Text(
           'FARMER DASHBOARD',
@@ -152,14 +152,14 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
       ),
       drawer: Drawer(
         child: Container(
-          color: Colors.white, // Changed to white background
+          color: Colors.white,
           child: ListView(
             padding: EdgeInsets.zero,
             children: [
               Container(
                 height: 200,
                 decoration: BoxDecoration(
-                  color: Colors.green[700], // Changed from gradient to solid color
+                  color: Colors.green[700],
                 ),
                 child: Center(
                   child: Column(
@@ -270,7 +270,7 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
         ),
       ),
       body: Container(
-        color: Colors.white, // Changed to solid white background
+        color: Colors.white,
         child: SingleChildScrollView(
           child: Column(
             children: [
@@ -372,6 +372,14 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
                             : farmerProfile['products'].length,
                         itemBuilder: (context, index) {
                           var product = farmerProfile['products'][index];
+                          
+                          // Safe data extraction
+                          String productName = product['name']?.toString() ?? 'Unnamed Product';
+                          String price = product['price']?.toString() ?? '0';
+                          String quantity = product['quantity']?.toString() ?? '0';
+                          String location = product['location']?.toString() ?? 'Unknown';
+                          String productId = product['id']?.toString() ?? '';
+                          
                           return Card(
                             margin: const EdgeInsets.only(bottom: 10),
                             elevation: 2,
@@ -387,7 +395,7 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
                                 ),
                               ),
                               title: Text(
-                                product['name'],
+                                productName,
                                 style: const TextStyle(
                                   fontWeight: FontWeight.bold,
                                 ),
@@ -395,14 +403,25 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
                               subtitle: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text('MWK ${product['price']}'),
-                                  Text('Quantity: ${product['quantity']}'),
-                                  Text('📍 ${product['location']}'),
+                                  Text('MWK $price'),
+                                  Text('Quantity: $quantity'),
+                                  Text('📍 $location'),
                                 ],
                               ),
-                              trailing: const Icon(
-                                Icons.chevron_right,
-                                color: Colors.green,
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  // ✅ DELETE BUTTON ADDED HERE
+                                  IconButton(
+                                    icon: const Icon(Icons.delete, color: Colors.red),
+                                    onPressed: () => _deleteProduct(productId, index),
+                                    tooltip: 'Delete product',
+                                  ),
+                                  const Icon(
+                                    Icons.chevron_right,
+                                    color: Colors.green,
+                                  ),
+                                ],
                               ),
                               isThreeLine: true,
                             ),
@@ -463,7 +482,7 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
-            color: Colors.white, // Changed to solid white background for cards
+            color: Colors.white,
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -501,12 +520,67 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
     );
   }
 
+  // ✅ IMPROVED DELETE METHOD with confirmation dialog
+  Future<void> _deleteProduct(String productId, int index) async {
+    // Show confirmation dialog first
+    bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Delete Product'),
+          content: const Text('Are you sure you want to delete this product? This action cannot be undone.'),
+          backgroundColor: Colors.white,
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              child: const Text('Delete'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirm != true) return;
+
+    try {
+      await FirebaseFirestore.instance.collection('products').doc(productId).delete();
+      
+      setState(() {
+        farmerProfile['products'].removeAt(index);
+      });
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✓ Product deleted successfully!'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error deleting product: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   void _showProfileDialog(BuildContext context) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          backgroundColor: Colors.white, // Added white background
+          backgroundColor: Colors.white,
           title: Row(
             children: [
               Container(
@@ -626,7 +700,7 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          backgroundColor: Colors.white, // Added white background
+          backgroundColor: Colors.white,
           title: const Text('Total Earnings'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
@@ -676,7 +750,7 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          backgroundColor: Colors.white, // Added white background
+          backgroundColor: Colors.white,
           title: const Text('My Produce'),
           content: Container(
             width: double.maxFinite,
@@ -699,6 +773,14 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
                     itemCount: farmerProfile['products'].length,
                     itemBuilder: (context, index) {
                       var product = farmerProfile['products'][index];
+                      
+                      String productName = product['name']?.toString() ?? 'Unnamed Product';
+                      String price = product['price']?.toString() ?? '0';
+                      String quantity = product['quantity']?.toString() ?? '0';
+                      String location = product['location']?.toString() ?? 'Unknown';
+                      String dateAdded = product['dateAdded']?.toString() ?? '';
+                      String productId = product['id']?.toString() ?? '';
+                      
                       return Card(
                         margin: const EdgeInsets.only(bottom: 8),
                         child: ListTile(
@@ -707,30 +789,31 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
                             color: Colors.green,
                           ),
                           title: Text(
-                            product['name'],
+                            productName,
                             style: const TextStyle(fontWeight: FontWeight.bold),
                           ),
                           subtitle: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('Price: MWK ${product['price']}'),
-                              Text('Quantity: ${product['quantity']}'),
-                              Text('Location: ${product['location']}'),
+                              Text('Price: MWK $price'),
+                              Text('Quantity: $quantity'),
+                              Text('Location: $location'),
                             ],
                           ),
                           trailing: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Text(
-                                _formatDate(product['dateAdded']),
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  color: Colors.grey,
+                              if (dateAdded.isNotEmpty)
+                                Text(
+                                  _formatDate(dateAdded),
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.grey,
+                                  ),
                                 ),
-                              ),
                               IconButton(
                                 icon: const Icon(Icons.delete, color: Colors.red),
-                                onPressed: () => _deleteProduct(product['id'], index),
+                                onPressed: () => _deleteProduct(productId, index),
                                 tooltip: 'Delete product',
                               ),
                             ],
@@ -757,7 +840,7 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          backgroundColor: Colors.white, // Added white background
+          backgroundColor: Colors.white,
           title: const Text('New Orders'),
           content: Container(
             width: double.maxFinite,
@@ -786,9 +869,9 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
                             Icons.shopping_cart,
                             color: Colors.blue,
                           ),
-                          title: Text(order['product']),
+                          title: Text(order['product']?.toString() ?? 'Unknown Product'),
                           subtitle: Text(
-                            'Customer: ${order['customer']}\nQuantity: ${order['quantity']}',
+                            'Customer: ${order['customer']?.toString() ?? "Unknown"}\nQuantity: ${order['quantity']?.toString() ?? "0"}',
                           ),
                           trailing: Container(
                             padding: const EdgeInsets.symmetric(
@@ -800,7 +883,7 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(
-                              order['status'],
+                              order['status']?.toString() ?? 'pending',
                               style: const TextStyle(
                                 color: Colors.orange,
                                 fontSize: 12,
@@ -830,29 +913,6 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
       return '${date.day}/${date.month}/${date.year}';
     } catch (e) {
       return 'Unknown date';
-    }
-  }
-
-  Future<void> _deleteProduct(String productId, int index) async {
-    try {
-      await FirebaseFirestore.instance.collection('products').doc(productId).delete();
-      setState(() {
-        farmerProfile['products'].removeAt(index);
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('✓ Product deleted successfully!'),
-          backgroundColor: Colors.red,
-          duration: Duration(seconds: 2),
-        ),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Error deleting product'),
-          backgroundColor: Colors.red,
-        ),
-      );
     }
   }
 
