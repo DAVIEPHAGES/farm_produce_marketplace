@@ -354,7 +354,7 @@ class _HomePageState extends State<HomePage> {
               children: [
                 Text(data['name'] ?? ''),
                 Text(
-                  "MK ${data['price'] ?? 0} / ${data['quantity'] ?? ''}",
+                  "MK ${data['price'] ?? 0} / ${data['sellingUnit'] ?? data['quantity'] ?? 'unit'}",
                 ),
               ],
             ),

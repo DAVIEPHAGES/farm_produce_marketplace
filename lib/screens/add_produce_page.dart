@@ -29,6 +29,7 @@ class _AddProducePageState extends State<AddProducePage> {
   final TextEditingController nameController = TextEditingController();
   final TextEditingController priceController = TextEditingController();
   final TextEditingController quantityController = TextEditingController();
+  final TextEditingController sellingUnitController = TextEditingController();
   final TextEditingController locationController = TextEditingController();
   final TextEditingController descriptionController = TextEditingController();
 
@@ -52,6 +53,7 @@ class _AddProducePageState extends State<AddProducePage> {
     nameController.text = widget.existingProduct!['name']?.toString() ?? '';
     priceController.text = widget.existingProduct!['price']?.toString() ?? '';
     quantityController.text = widget.existingProduct!['quantity']?.toString() ?? '';
+    sellingUnitController.text = widget.existingProduct!['sellingUnit']?.toString() ?? '';
     locationController.text = widget.existingProduct!['location']?.toString() ?? '';
     descriptionController.text = widget.existingProduct!['description']?.toString() ?? '';
     _existingImageUrl = widget.existingProduct!['imageUrl']?.toString();
@@ -62,6 +64,7 @@ class _AddProducePageState extends State<AddProducePage> {
     nameController.dispose();
     priceController.dispose();
     quantityController.dispose();
+    sellingUnitController.dispose();
     locationController.dispose();
     descriptionController.dispose();
     super.dispose();
@@ -198,6 +201,7 @@ class _AddProducePageState extends State<AddProducePage> {
         'name': nameController.text.trim(),
         'price': price,
         'quantity': quantityController.text.trim(),
+        'sellingUnit': sellingUnitController.text.trim(),
         'location': locationController.text.trim(),
         'description': descriptionController.text.trim(),
         'imageUrl': imageUrl,
@@ -253,6 +257,13 @@ class _AddProducePageState extends State<AddProducePage> {
       return;
     }
     
+    if (sellingUnitController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter selling unit')),
+      );
+      return;
+    }
+    
     if (locationController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter location')),
@@ -301,6 +312,7 @@ class _AddProducePageState extends State<AddProducePage> {
         'name': nameController.text.trim(),
         'price': price,
         'quantity': quantityController.text.trim(),
+        'sellingUnit': sellingUnitController.text.trim(),
         'location': locationController.text.trim(),
         'description': descriptionController.text.trim(),
         'imageUrl': imageUrl,
@@ -322,6 +334,7 @@ class _AddProducePageState extends State<AddProducePage> {
       nameController.clear();
       priceController.clear();
       quantityController.clear();
+      sellingUnitController.clear();
       locationController.clear();
       descriptionController.clear();
       setState(() {
@@ -380,14 +393,14 @@ class _AddProducePageState extends State<AddProducePage> {
 
               const SizedBox(height: 15),
               const Text(
-                "Price (MWK)",
+                "Price per Unit (MWK)",
                 style: TextStyle(fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 5),
               TextField(
                 controller: priceController,
                 keyboardType: TextInputType.number,
-                decoration: _inputDecoration("Enter price in Malawi Kwacha"),
+                decoration: _inputDecoration("e.g., 1500 (per kg, bundle, etc.)"),
               ),
 
               const SizedBox(height: 15),
@@ -399,6 +412,17 @@ class _AddProducePageState extends State<AddProducePage> {
               TextField(
                 controller: quantityController,
                 decoration: _inputDecoration("e.g., 50 kg, 100 pieces, 20 bunches"),
+              ),
+
+              const SizedBox(height: 15),
+              const Text(
+                "Selling Unit",
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 5),
+              TextField(
+                controller: sellingUnitController,
+                decoration: _inputDecoration("e.g., kg, pieces, bunches, bags"),
               ),
 
               const SizedBox(height: 15),

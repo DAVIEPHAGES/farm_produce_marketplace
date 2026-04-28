@@ -100,7 +100,7 @@ class _ProduceDetailsPageState extends State<ProduceDetailsPage> {
                         const SizedBox(height: 8),
 
                         Text(
-                          "MK $price",
+                          "MK $price / ${data['sellingUnit'] ?? 'unit'}",
                           style: const TextStyle(
                             fontSize: 18,
                             color: Colors.green,
