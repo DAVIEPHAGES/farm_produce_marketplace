@@ -317,6 +317,24 @@ class _CartPageState extends State<CartPage> {
                     ],
                   ),
                 ),
+
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green,
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 14),
+                ),
+
+                onPressed: cartItems.isEmpty || _isPlacingOrder
+                    ? null
+                    : () async {
+                        final user =
+                            FirebaseAuth.instance.currentUser;
+                // ✅ MODIFIED: TWO BUTTONS - "Place Order" (existing) and "Pay Now" (new)
                 Padding(
                   padding: const EdgeInsets.all(12),
                   child: Column(
