@@ -86,6 +86,7 @@ class _HomePageState extends State<HomePage> {
             ],
           ),
 
+          // ✅ MODIFIED: Profile icon removed after login
           StreamBuilder<User?>(
             stream: FirebaseAuth.instance.authStateChanges(),
             builder: (context, snapshot) {
@@ -103,15 +104,7 @@ class _HomePageState extends State<HomePage> {
                 );
               }
 
-              return IconButton(
-                icon: const CircleAvatar(
-                  radius: 14,
-                  child: Icon(Icons.person, size: 18),
-                ),
-                onPressed: () {
-                  Navigator.pushNamed(context, "/profile");
-                },
-              );
+              return const SizedBox.shrink();
             },
           )
         ],
@@ -241,6 +234,35 @@ class _HomePageState extends State<HomePage> {
           ),
         ],
       ),
+
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: 0,
+        selectedItemColor: Colors.green,
+        unselectedItemColor: Colors.black,
+        onTap: (index) {
+          if (index == 0) {
+            // Home
+          } else if (index == 1) {
+            Navigator.pushNamed(context, "/orders");
+          } else if (index == 2) {
+            Navigator.pushNamed(context, "/profile");
+          }
+        },
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home),
+            label: "home",
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.shopping_cart_outlined),
+            label: "orders",
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person_outline),
+            label: "profile",
+          ),
+        ],
+      ),
     );
   }
 
@@ -279,7 +301,6 @@ class _HomePageState extends State<HomePage> {
       ),
       child: Column(
         children: [
-          // ✅ FIXED: removed Expanded (this was causing uneven image heights)
           SizedBox(
             height: 140,
             child: Stack(
