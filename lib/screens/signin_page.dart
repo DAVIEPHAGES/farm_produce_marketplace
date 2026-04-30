@@ -52,14 +52,35 @@ class _SignInPageState extends State<SignInPage> {
     });
 
     try {
-      // Sign in with email and password
+      // Sign in with Firebase Auth
       UserCredential userCredential = await FirebaseAuth.instance
           .signInWithEmailAndPassword(
             email: _emailController.text.trim().toLowerCase(),
             password: _passwordController.text,
           );
 
-      // IMPORTANT: Get user role from Firestore
+      print('✅ User signed in: ${userCredential.user!.uid}');
+
+      // Check if user is ADMIN
+      final adminDoc = await FirebaseFirestore.instance
+          .collection('Admins')
+          .doc(userCredential.user!.uid)
+          .get();
+
+      if (adminDoc.exists) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Welcome Administrator!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          Navigator.pushReplacementNamed(context, '/admin-dashboard');
+        }
+        return;
+      }
+
+      // Check regular user
       DocumentSnapshot userDoc = await FirebaseFirestore.instance
           .collection('users')
           .doc(userCredential.user!.uid)
@@ -73,43 +94,62 @@ class _SignInPageState extends State<SignInPage> {
           ),
         );
 
-        // Check user role and navigate accordingly
         if (userDoc.exists) {
           String userType = userDoc.get('userType') ?? 'customer';
-          print('User role: $userType'); // Debug print
-
+          
           if (userType == 'farmer') {
-            // Navigate to Farmer Dashboard
             Navigator.pushReplacementNamed(context, '/farmers-dashboard');
-          } else if (userType == 'admin') {
-            // Navigate to Admin Dashboard
-            Navigator.pushReplacementNamed(context, '/admin-dashboard');
           } else {
-            // Navigate to Customer Home Page
-            Navigator.pushReplacementNamed(
-              context,
-              '/home',
-              arguments: {'userType': 'customer'},
-            );
+            Navigator.pushReplacementNamed(context, '/home');
           }
         } else {
-          // User document doesn't exist - create one as customer
+          // Create user document if it doesn't exist (for existing auth users)
           await FirebaseFirestore.instance
               .collection('users')
               .doc(userCredential.user!.uid)
               .set({
-                'email': _emailController.text.trim().toLowerCase(),
-                'userType': 'customer',
-                'createdAt': FieldValue.serverTimestamp(),
-              });
-          Navigator.pushReplacementNamed(
-            context,
-            '/home',
-            arguments: {'userType': 'customer'},
-          );
+            'uid': userCredential.user!.uid,
+            'email': userCredential.user!.email,
+            'name': _emailController.text.split('@')[0], // Default name from email
+            'userType': 'customer',
+            'createdAt': FieldValue.serverTimestamp(),
+          });
+          Navigator.pushReplacementNamed(context, '/home');
         }
       }
+    } on FirebaseAuthException catch (e) {
+      print('FirebaseAuth Error: ${e.code}');
+      String errorMessage;
+      switch (e.code) {
+        case 'user-not-found':
+          errorMessage = 'No user found with this email. Please sign up first.';
+          break;
+        case 'wrong-password':
+          errorMessage = 'Incorrect password. Please try again.';
+          break;
+        case 'invalid-email':
+          errorMessage = 'Invalid email address.';
+          break;
+        case 'user-disabled':
+          errorMessage = 'This user account has been disabled.';
+          break;
+        case 'too-many-requests':
+          errorMessage = 'Too many failed attempts. Please try again later.';
+          break;
+        default:
+          errorMessage = 'Sign in failed: ${e.message}';
+      }
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMessage),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     } catch (e) {
+      print('General Error: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -140,7 +180,6 @@ class _SignInPageState extends State<SignInPage> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SizedBox(height: 60),
-                // Logo/Title
                 const Text(
                   'Farm Produce\nMarketplace',
                   textAlign: TextAlign.center,
@@ -159,7 +198,6 @@ class _SignInPageState extends State<SignInPage> {
                 ),
                 const SizedBox(height: 40),
 
-                // Email Field
                 TextFormField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
@@ -176,7 +214,6 @@ class _SignInPageState extends State<SignInPage> {
                 ),
                 const SizedBox(height: 16),
 
-                // Password Field
                 TextFormField(
                   controller: _passwordController,
                   obscureText: true,
@@ -193,7 +230,6 @@ class _SignInPageState extends State<SignInPage> {
                 ),
                 const SizedBox(height: 16),
 
-                // Remember Me & Forgot Password Row
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -216,14 +252,7 @@ class _SignInPageState extends State<SignInPage> {
                     ),
                     TextButton(
                       onPressed: () {
-                        // TODO: Implement forgot password functionality
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              'Forgot password feature coming soon!',
-                            ),
-                          ),
-                        );
+                        _showForgotPasswordDialog();
                       },
                       child: const Text(
                         'Forgot Password?',
@@ -237,7 +266,6 @@ class _SignInPageState extends State<SignInPage> {
                 ),
                 const SizedBox(height: 24),
 
-                // Sign In Button
                 ElevatedButton(
                   onPressed: _isLoading ? null : _handleSignIn,
                   style: ElevatedButton.styleFrom(
@@ -270,7 +298,6 @@ class _SignInPageState extends State<SignInPage> {
                 ),
                 const SizedBox(height: 24),
 
-                // Divider
                 Row(
                   children: [
                     Expanded(
@@ -290,10 +317,8 @@ class _SignInPageState extends State<SignInPage> {
                 ),
                 const SizedBox(height: 24),
 
-                // Social Sign In Buttons (placeholders)
                 OutlinedButton.icon(
                   onPressed: () {
-                    // TODO: Implement Google sign in
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text('Google sign in coming soon!'),
@@ -314,7 +339,6 @@ class _SignInPageState extends State<SignInPage> {
 
                 OutlinedButton.icon(
                   onPressed: () {
-                    // TODO: Implement Facebook sign in
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text('Facebook sign in coming soon!'),
@@ -333,7 +357,6 @@ class _SignInPageState extends State<SignInPage> {
                 ),
                 const SizedBox(height: 24),
 
-                // Sign Up Link
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -359,6 +382,67 @@ class _SignInPageState extends State<SignInPage> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  void _showForgotPasswordDialog() {
+    final emailController = TextEditingController();
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Reset Password'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Enter your email to receive a password reset link.'),
+            const SizedBox(height: 16),
+            TextField(
+              controller: emailController,
+              decoration: InputDecoration(
+                hintText: 'Enter your email',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              keyboardType: TextInputType.emailAddress,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              final email = emailController.text.trim();
+              if (email.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Please enter your email')),
+                );
+                return;
+              }
+              
+              try {
+                await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Password reset email sent! Check your inbox.'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+                );
+              }
+            },
+            child: const Text('Send'),
+          ),
+        ],
       ),
     );
   }
