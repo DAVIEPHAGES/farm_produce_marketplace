@@ -4,7 +4,7 @@ import 'paychangu_keys.dart';
 
 class PayChanguService {
   static final PayChangu _paychangu = PayChangu(
-    PayChanguConfig(secretKey: payChanguSecretKey, isTestMode: true),
+    PayChanguConfig(secretKey: payChanguSecretKey, isTestMode: false),
   );
 
   static PayChangu get instance => _paychangu;
