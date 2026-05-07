@@ -196,11 +196,25 @@ class _HomePageState extends State<HomePage> {
                   return matchesSearch && matchesCategory;
                 }).toList();
 
+                // ✅ RESPONSIVE GRID MODIFICATION
+                final screenWidth = MediaQuery.of(context).size.width;
+
+                int crossAxisCount = 2;
+
+                if (screenWidth >= 1200) {
+                  crossAxisCount = 4;
+                } else if (screenWidth >= 800) {
+                  crossAxisCount = 3;
+                } else {
+                  crossAxisCount = 2;
+                }
+
                 return GridView.builder(
                   padding: const EdgeInsets.all(10),
                   itemCount: filtered.length,
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
+                  gridDelegate:
+                      SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: crossAxisCount,
                     crossAxisSpacing: 10,
                     mainAxisSpacing: 10,
                     childAspectRatio: 0.72,
