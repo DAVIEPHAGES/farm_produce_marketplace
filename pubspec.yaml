@@ -20,6 +20,10 @@ dependencies:
   firebase_analytics: ^11.4.4
   firebase_crashlytics: ^4.3.4
   cloud_functions: ^5.1.1  # ✅ ADD THIS - for Firebase Cloud Functions
+
+
+  # Push Notifications
+  flutter_local_notifications: ^17.2.3
   
   # Payment
   paychangu_flutter: ^0.0.3

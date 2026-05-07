@@ -78,20 +78,15 @@ class _SignUpPageState extends State<SignUpPage> {
       return 'Please enter your phone number';
     }
 
-    // Remove any spaces, dashes, or special characters
     String cleanedNumber = value.replaceAll(RegExp(r'[^0-9+]'), '');
     
-    // Check if it starts with 0 (local Malawi format)
     if (cleanedNumber.startsWith('0')) {
-      // Should have exactly 10 digits total (0 + 9 digits)
       if (cleanedNumber.length != 10) {
         return 'Phone number must have exactly 10 digits (e.g., 0999123456)';
       }
       return null;
     } 
-    // Check if it starts with +265 (international format)
     else if (cleanedNumber.startsWith('+265')) {
-      // Should have exactly 12 digits total (+265 + 9 digits)
       if (cleanedNumber.length != 12) {
         return 'Phone number must have exactly 12 digits (e.g., +265999123456)';
       }
@@ -107,7 +102,6 @@ class _SignUpPageState extends State<SignUpPage> {
       return;
     }
     
-    // Additional validation for farmer
     if (_userType == 'farmer') {
       if (_farmNameController.text.trim().isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -155,27 +149,23 @@ class _SignUpPageState extends State<SignUpPage> {
     });
 
     try {
-      // Create user with email and password
       final UserCredential userCredential = await FirebaseAuth.instance
           .createUserWithEmailAndPassword(
             email: _emailController.text.trim().toLowerCase(),
             password: _passwordController.text,
           );
 
-      // Clean phone number before storing (remove spaces, keep format)
       String cleanedPhone = _phoneController.text.trim().replaceAll(RegExp(r'[^0-9+]'), '');
       
-      // Prepare user data
       Map<String, dynamic> userData = {
         'uid': userCredential.user!.uid,
         'name': _nameController.text.trim(),
         'email': _emailController.text.trim().toLowerCase(),
-        'phone': cleanedPhone, // Store cleaned phone number
+        'phone': cleanedPhone,
         'userType': _userType,
         'createdAt': FieldValue.serverTimestamp(),
       };
 
-      // Add farmer-specific data
       if (_userType == 'farmer') {
         userData.addAll({
           'farmName': _farmNameController.text.trim(),
@@ -191,7 +181,6 @@ class _SignUpPageState extends State<SignUpPage> {
         });
       }
 
-      // Store user data in Firestore
       await FirebaseFirestore.instance
           .collection('users')
           .doc(userCredential.user!.uid)
@@ -270,400 +259,398 @@ class _SignUpPageState extends State<SignUpPage> {
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const SizedBox(height: 40),
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24.0),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 400),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const SizedBox(height: 40),
 
-                // Logo/Title
-                const Text(
-                  'Farm Produce\nMarketplace',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF2E7D32),
-                    height: 1.2,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Create your account',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 16, color: Colors.grey),
-                ),
-                const SizedBox(height: 40),
+                    const Text(
+                      'Farm Produce\nMarketplace',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 32,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF2E7D32),
+                        height: 1.2,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Create your account',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 16, color: Colors.grey),
+                    ),
+                    const SizedBox(height: 40),
 
-                // User Type Selection
-                Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: _isLoading ? null : () => setState(() => _userType = 'customer'),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            decoration: BoxDecoration(
-                              color: _userType == 'customer'
-                                  ? const Color(0xFF2E7D32)
-                                  : Colors.transparent,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.person,
-                                  size: 18,
+                    Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: _isLoading ? null : () => setState(() => _userType = 'customer'),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                decoration: BoxDecoration(
                                   color: _userType == 'customer'
-                                      ? Colors.white
-                                      : Colors.grey.shade600,
+                                      ? const Color(0xFF2E7D32)
+                                      : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(8),
                                 ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  'Customer',
-                                  style: TextStyle(
-                                    color: _userType == 'customer'
-                                        ? Colors.white
-                                        : Colors.grey.shade600,
-                                    fontWeight: FontWeight.w500,
-                                    fontSize: 12,
-                                  ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.person,
+                                      size: 18,
+                                      color: _userType == 'customer'
+                                          ? Colors.white
+                                          : Colors.grey.shade600,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      'Customer',
+                                      style: TextStyle(
+                                        color: _userType == 'customer'
+                                            ? Colors.white
+                                            : Colors.grey.shade600,
+                                        fontWeight: FontWeight.w500,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              ],
+                              ),
                             ),
                           ),
-                        ),
-                      ),
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: _isLoading ? null : () => setState(() => _userType = 'farmer'),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            decoration: BoxDecoration(
-                              color: _userType == 'farmer'
-                                  ? const Color(0xFF2E7D32)
-                                  : Colors.transparent,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.agriculture,
-                                  size: 18,
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: _isLoading ? null : () => setState(() => _userType = 'farmer'),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                decoration: BoxDecoration(
                                   color: _userType == 'farmer'
-                                      ? Colors.white
-                                      : Colors.grey.shade600,
+                                      ? const Color(0xFF2E7D32)
+                                      : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(8),
                                 ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  'Farmer',
-                                  style: TextStyle(
-                                    color: _userType == 'farmer'
-                                        ? Colors.white
-                                        : Colors.grey.shade600,
-                                    fontWeight: FontWeight.w500,
-                                    fontSize: 12,
-                                  ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.agriculture,
+                                      size: 18,
+                                      color: _userType == 'farmer'
+                                          ? Colors.white
+                                          : Colors.grey.shade600,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      'Farmer',
+                                      style: TextStyle(
+                                        color: _userType == 'farmer'
+                                            ? Colors.white
+                                            : Colors.grey.shade600,
+                                        fontWeight: FontWeight.w500,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              ],
+                              ),
                             ),
                           ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+
+                    TextFormField(
+                      controller: _nameController,
+                      enabled: !_isLoading,
+                      decoration: InputDecoration(
+                        labelText: 'Full Name',
+                        prefixIcon: const Icon(Icons.person_outline),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        filled: true,
+                        fillColor: Colors.grey.shade50,
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Please enter your full name';
+                        }
+                        if (value.trim().length < 2) {
+                          return 'Name must be at least 2 characters';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+
+                    TextFormField(
+                      controller: _emailController,
+                      enabled: !_isLoading,
+                      keyboardType: TextInputType.emailAddress,
+                      decoration: InputDecoration(
+                        labelText: 'Email',
+                        prefixIcon: const Icon(Icons.email_outlined),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        filled: true,
+                        fillColor: Colors.grey.shade50,
+                      ),
+                      validator: _validateEmail,
+                    ),
+                    const SizedBox(height: 16),
+
+                    TextFormField(
+                      controller: _phoneController,
+                      enabled: !_isLoading,
+                      keyboardType: TextInputType.phone,
+                      decoration: InputDecoration(
+                        labelText: 'Phone Number',
+                        prefixIcon: const Icon(Icons.phone_outlined),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        filled: true,
+                        fillColor: Colors.grey.shade50,
+                        helperText: 'Format: 0999123456 or +265999123456',
+                        hintText: '0999123456 or +265999123456',
+                      ),
+                      validator: _validatePhone,
+                    ),
+                    const SizedBox(height: 16),
+
+                    if (_userType == 'farmer') ...[
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.shade50,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.orange.shade200),
+                        ),
+                        child: const Row(
+                          children: [
+                            Icon(Icons.info, color: Colors.orange),
+                            SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                'Please provide your FARM location details',
+                                style: TextStyle(fontSize: 12),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
+                      const SizedBox(height: 16),
+                      
+                      TextFormField(
+                        controller: _farmNameController,
+                        enabled: !_isLoading,
+                        decoration: InputDecoration(
+                          labelText: 'Farm Name *',
+                          prefixIcon: const Icon(Icons.agriculture),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          filled: true,
+                          fillColor: Colors.grey.shade50,
+                          hintText: 'e.g., Green Valley Farm',
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      TextFormField(
+                        controller: _farmAddressController,
+                        enabled: !_isLoading,
+                        maxLines: 2,
+                        decoration: InputDecoration(
+                          labelText: 'Farm Address/Area *',
+                          prefixIcon: const Icon(Icons.location_on_outlined),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          filled: true,
+                          fillColor: Colors.grey.shade50,
+                          hintText: 'e.g., Village, Road, or Landmark',
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextFormField(
+                              controller: _farmCityController,
+                              enabled: !_isLoading,
+                              decoration: InputDecoration(
+                                labelText: 'City/Town *',
+                                prefixIcon: const Icon(Icons.location_city),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                filled: true,
+                                fillColor: Colors.grey.shade50,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: TextFormField(
+                              controller: _farmDistrictController,
+                              enabled: !_isLoading,
+                              decoration: InputDecoration(
+                                labelText: 'District *',
+                                prefixIcon: const Icon(Icons.map),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                filled: true,
+                                fillColor: Colors.grey.shade50,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+
+                      TextFormField(
+                        controller: _farmDescriptionController,
+                        enabled: !_isLoading,
+                        maxLines: 3,
+                        decoration: InputDecoration(
+                          labelText: 'Farm Description (Optional)',
+                          prefixIcon: const Icon(Icons.description),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          filled: true,
+                          fillColor: Colors.grey.shade50,
+                          hintText: 'Tell customers about your farming practices, products, etc.',
+                        ),
+                      ),
+                      const SizedBox(height: 16),
                     ],
-                  ),
-                ),
-                const SizedBox(height: 24),
 
-                // Common Fields
-                TextFormField(
-                  controller: _nameController,
-                  enabled: !_isLoading,
-                  decoration: InputDecoration(
-                    labelText: 'Full Name',
-                    prefixIcon: const Icon(Icons.person_outline),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
+                    TextFormField(
+                      controller: _passwordController,
+                      enabled: !_isLoading,
+                      obscureText: _obscurePassword,
+                      decoration: InputDecoration(
+                        labelText: 'Password',
+                        prefixIcon: const Icon(Icons.lock_outline),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _obscurePassword = !_obscurePassword;
+                            });
+                          },
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        filled: true,
+                        fillColor: Colors.grey.shade50,
+                        helperText: 'Minimum 6 characters',
+                      ),
+                      validator: _validatePassword,
                     ),
-                    filled: true,
-                    fillColor: Colors.grey.shade50,
-                  ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter your full name';
-                    }
-                    if (value.trim().length < 2) {
-                      return 'Name must be at least 2 characters';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
+                    const SizedBox(height: 16),
 
-                TextFormField(
-                  controller: _emailController,
-                  enabled: !_isLoading,
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: InputDecoration(
-                    labelText: 'Email',
-                    prefixIcon: const Icon(Icons.email_outlined),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
+                    TextFormField(
+                      controller: _confirmPasswordController,
+                      enabled: !_isLoading,
+                      obscureText: _obscureConfirmPassword,
+                      decoration: InputDecoration(
+                        labelText: 'Confirm Password',
+                        prefixIcon: const Icon(Icons.lock_outline),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscureConfirmPassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _obscureConfirmPassword = !_obscureConfirmPassword;
+                            });
+                          },
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        filled: true,
+                        fillColor: Colors.grey.shade50,
+                      ),
+                      validator: _validateConfirmPassword,
                     ),
-                    filled: true,
-                    fillColor: Colors.grey.shade50,
-                  ),
-                  validator: _validateEmail,
-                ),
-                const SizedBox(height: 16),
+                    const SizedBox(height: 24),
 
-                TextFormField(
-                  controller: _phoneController,
-                  enabled: !_isLoading,
-                  keyboardType: TextInputType.phone,
-                  decoration: InputDecoration(
-                    labelText: 'Phone Number',
-                    prefixIcon: const Icon(Icons.phone_outlined),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
+                    SizedBox(
+                      height: 56,
+                      child: ElevatedButton(
+                        onPressed: _isLoading ? null : _handleSignUp,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF2E7D32),
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: _isLoading
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                ),
+                              )
+                            : const Text(
+                                'Create Account',
+                                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                              ),
+                      ),
                     ),
-                    filled: true,
-                    fillColor: Colors.grey.shade50,
-                    helperText: 'Format: 0999123456 or +265999123456',
-                    hintText: '0999123456 or +265999123456',
-                  ),
-                  validator: _validatePhone,
-                ),
-                const SizedBox(height: 16),
+                    const SizedBox(height: 24),
 
-                // Farmer-specific fields
-                if (_userType == 'farmer') ...[
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.orange.shade50,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.orange.shade200),
-                    ),
-                    child: const Row(
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.info, color: Colors.orange),
-                        SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            'Please provide your FARM location details',
-                            style: TextStyle(fontSize: 12),
+                        const Text('Already have an account? ', style: TextStyle(color: Colors.grey)),
+                        GestureDetector(
+                          onTap: _isLoading
+                              ? null
+                              : () => Navigator.pushReplacementNamed(context, '/signin'),
+                          child: const Text(
+                            'Sign In',
+                            style: TextStyle(
+                              color: Color(0xFF2E7D32),
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
                       ],
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  
-                  TextFormField(
-                    controller: _farmNameController,
-                    enabled: !_isLoading,
-                    decoration: InputDecoration(
-                      labelText: 'Farm Name *',
-                      prefixIcon: const Icon(Icons.agriculture),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      filled: true,
-                      fillColor: Colors.grey.shade50,
-                      hintText: 'e.g., Green Valley Farm',
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  TextFormField(
-                    controller: _farmAddressController,
-                    enabled: !_isLoading,
-                    maxLines: 2,
-                    decoration: InputDecoration(
-                      labelText: 'Farm Address/Area *',
-                      prefixIcon: const Icon(Icons.location_on_outlined),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      filled: true,
-                      fillColor: Colors.grey.shade50,
-                      hintText: 'e.g., Village, Road, or Landmark',
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextFormField(
-                          controller: _farmCityController,
-                          enabled: !_isLoading,
-                          decoration: InputDecoration(
-                            labelText: 'City/Town *',
-                            prefixIcon: const Icon(Icons.location_city),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            filled: true,
-                            fillColor: Colors.grey.shade50,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: TextFormField(
-                          controller: _farmDistrictController,
-                          enabled: !_isLoading,
-                          decoration: InputDecoration(
-                            labelText: 'District *',
-                            prefixIcon: const Icon(Icons.map),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            filled: true,
-                            fillColor: Colors.grey.shade50,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-
-                  TextFormField(
-                    controller: _farmDescriptionController,
-                    enabled: !_isLoading,
-                    maxLines: 3,
-                    decoration: InputDecoration(
-                      labelText: 'Farm Description (Optional)',
-                      prefixIcon: const Icon(Icons.description),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      filled: true,
-                      fillColor: Colors.grey.shade50,
-                      hintText: 'Tell customers about your farming practices, products, etc.',
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                ],
-
-                // Password Fields
-                TextFormField(
-                  controller: _passwordController,
-                  enabled: !_isLoading,
-                  obscureText: _obscurePassword,
-                  decoration: InputDecoration(
-                    labelText: 'Password',
-                    prefixIcon: const Icon(Icons.lock_outline),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          _obscurePassword = !_obscurePassword;
-                        });
-                      },
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    filled: true,
-                    fillColor: Colors.grey.shade50,
-                    helperText: 'Minimum 6 characters',
-                  ),
-                  validator: _validatePassword,
-                ),
-                const SizedBox(height: 16),
-
-                TextFormField(
-                  controller: _confirmPasswordController,
-                  enabled: !_isLoading,
-                  obscureText: _obscureConfirmPassword,
-                  decoration: InputDecoration(
-                    labelText: 'Confirm Password',
-                    prefixIcon: const Icon(Icons.lock_outline),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscureConfirmPassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          _obscureConfirmPassword = !_obscureConfirmPassword;
-                        });
-                      },
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    filled: true,
-                    fillColor: Colors.grey.shade50,
-                  ),
-                  validator: _validateConfirmPassword,
-                ),
-                const SizedBox(height: 24),
-
-                // Sign Up Button
-                SizedBox(
-                  height: 56,
-                  child: ElevatedButton(
-                    onPressed: _isLoading ? null : _handleSignUp,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF2E7D32),
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: _isLoading
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                            ),
-                          )
-                        : const Text(
-                            'Create Account',
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                          ),
-                  ),
-                ),
-                const SizedBox(height: 24),
-
-                // Sign In Link
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Text('Already have an account? ', style: TextStyle(color: Colors.grey)),
-                    GestureDetector(
-                      onTap: _isLoading
-                          ? null
-                          : () => Navigator.pushReplacementNamed(context, '/signin'),
-                      child: const Text(
-                        'Sign In',
-                        style: TextStyle(
-                          color: Color(0xFF2E7D32),
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
                   ],
                 ),
-              ],
+              ),
             ),
           ),
         ),

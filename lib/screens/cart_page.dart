@@ -13,7 +13,6 @@ class CartPage extends StatefulWidget {
 }
 
 class _CartPageState extends State<CartPage> {
-  bool _isPlacingOrder = false;
   bool _isProcessingPayment = false;
 
   double getTotal() {
@@ -73,51 +72,6 @@ class _CartPageState extends State<CartPage> {
     }
 
     return orderRef;
-  }
-
-  Future<void> _placeCashOrder() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      Navigator.pushNamed(context, '/signin');
-      return;
-    }
-
-    setState(() {
-      _isPlacingOrder = true;
-    });
-
-    try {
-      final orderRef = await _createOrder(
-        paymentMethod: 'cash',
-        paymentStatus: 'pending',
-      );
-
-      if (orderRef == null) {
-        return;
-      }
-
-      cartItems.clear();
-
-      if (!mounted) {
-        return;
-      }
-
-      setState(() {});
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Order placed successfully')),
-      );
-      Navigator.pushReplacementNamed(context, '/orders');
-    } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error placing order: $e')));
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isPlacingOrder = false;
-        });
-      }
-    }
   }
 
   Future<void> _proceedToPayment() async {
@@ -317,67 +271,37 @@ class _CartPageState extends State<CartPage> {
                     ],
                   ),
                 ),
-                // ✅ CORRECTED: Two buttons properly placed
+                // Pay with PayChangu button - NOT full width
                 Padding(
                   padding: const EdgeInsets.all(12),
-                  child: Column(
-                    children: [
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: cartItems.isEmpty || _isPlacingOrder
-                              ? null
-                              : _placeCashOrder,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                          ),
-                          child: _isPlacingOrder
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white,
-                                  ),
-                                )
-                              : const Text(
-                                  'Place Order (Cash)',
-                                  style: TextStyle(fontSize: 16),
-                                ),
+                  child: Center(
+                    child: ElevatedButton.icon(
+                      onPressed: cartItems.isEmpty || _isProcessingPayment
+                          ? null
+                          : _proceedToPayment,
+                      icon: _isProcessingPayment
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Icon(Icons.payment),
+                      label: const Text(
+                        'Pay with PayChangu',
+                        style: TextStyle(fontSize: 16),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
                         ),
                       ),
-                      const SizedBox(height: 12),
-                      SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton.icon(
-                          onPressed: cartItems.isEmpty || _isProcessingPayment
-                              ? null
-                              : _proceedToPayment,
-                          icon: _isProcessingPayment
-                              ? const SizedBox(
-                                  width: 18,
-                                  height: 18,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : const Icon(Icons.payment),
-                          label: const Text(
-                            'Pay with PayChangu',
-                            style: TextStyle(fontSize: 16),
-                          ),
-                          style: OutlinedButton.styleFrom(
-                            side: const BorderSide(
-                              color: Colors.blue,
-                              width: 2,
-                            ),
-                            foregroundColor: Colors.blue,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                          ),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
               ],
