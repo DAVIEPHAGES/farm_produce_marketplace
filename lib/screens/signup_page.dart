@@ -26,6 +26,20 @@ class _SignUpPageState extends State<SignUpPage> {
   String _userType = 'customer';
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
+  
+  // ✅ Store where to redirect after signup
+  String? _redirectTo;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Get redirect info from route arguments
+    final args = ModalRoute.of(context)?.settings.arguments;
+    if (args is Map<String, dynamic>) {
+      _redirectTo = args['redirectTo'];
+      print('📍 Will redirect to: $_redirectTo after signup');
+    }
+  }
 
   @override
   void dispose() {
@@ -211,8 +225,14 @@ class _SignUpPageState extends State<SignUpPage> {
         );
 
         await Future.delayed(const Duration(milliseconds: 500));
+        
         if (mounted) {
-          Navigator.pushReplacementNamed(context, redirectRoute);
+          // ✅ Redirect to previous page if specified, otherwise default
+          if (_redirectTo != null) {
+            Navigator.pushReplacementNamed(context, _redirectTo!);
+          } else {
+            Navigator.pushReplacementNamed(context, redirectRoute);
+          }
         }
       }
     } on FirebaseAuthException catch (e) {
