@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:url_launcher/url_launcher.dart';
 import 'payment_success_screen.dart';
+import '../services/local_notification_service.dart';  // ✅ ADD THIS
 
 class PaymentProcessingScreen extends StatefulWidget {
   final String orderId;
@@ -148,7 +149,7 @@ class _PaymentProcessingScreenState extends State<PaymentProcessingScreen> {
         .collection('orders')
         .doc(widget.orderId)
         .snapshots()
-        .listen((snapshot) {
+        .listen((snapshot) async {
       if (snapshot.exists) {
         final data = snapshot.data() as Map<String, dynamic>;
         final paymentStatus = data['paymentStatus'];
@@ -156,7 +157,14 @@ class _PaymentProcessingScreenState extends State<PaymentProcessingScreen> {
         print('📢 Payment status: $paymentStatus');
         
         if (paymentStatus == 'completed') {
-          print('🎉 Payment completed! Navigating to success...');
+          print('🎉 Payment completed!');
+          
+          // ✅ SHOW LOCAL NOTIFICATION
+          await LocalNotificationService.showPaymentSuccessNotification(
+            widget.orderId,
+            widget.amount,
+          );
+          
           // Close dialog
           if (mounted) Navigator.pop(context);
           _navigateToSuccess();
