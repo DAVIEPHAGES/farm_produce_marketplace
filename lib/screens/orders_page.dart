@@ -16,7 +16,7 @@ class _OrdersPageState extends State<OrdersPage> {
   String selectedTab = "All";
   String searchQuery = "";
 
-  final tabs = ["All", "Ongoing", "Delivered", "Cancelled"];
+  final tabs = ["All", "Paid", "Pending", "Cancelled"];
 
   String formatDate(Timestamp? timestamp) {
     if (timestamp == null) return "";
@@ -24,8 +24,21 @@ class _OrdersPageState extends State<OrdersPage> {
     return DateFormat('MMM dd, yyyy • hh:mm a').format(date);
   }
 
+  // ✅ UPDATED: Use paymentStatus instead of status
+  String getOrderStatus(Map<String, dynamic> data) {
+    // Check paymentStatus first (from webhook)
+    if (data['paymentStatus'] == 'completed') {
+      return 'Paid ✓';
+    }
+    // Fallback to old status field
+    return data['status'] ?? 'Pending';
+  }
+
+  // ✅ UPDATED: Color based on paymentStatus
   Color getStatusColor(String status) {
     switch (status) {
+      case 'Paid ✓':
+        return Colors.green;
       case 'Delivered':
         return Colors.green;
       case 'Processing':
@@ -33,32 +46,31 @@ class _OrdersPageState extends State<OrdersPage> {
       case 'Pending':
         return Colors.orange;
       case 'Cancelled':
-        return Colors.grey;
+        return Colors.red;
       default:
         return Colors.orange;
     }
   }
 
+  // ✅ UPDATED: Map to tabs
   String mapStatusToTab(String status) {
-    if (status == "Delivered") return "Delivered";
+    if (status == "Paid ✓") return "Paid";
     if (status == "Cancelled") return "Cancelled";
-    return "Ongoing";
+    if (status == "Pending") return "Pending";
+    return "All";
   }
 
   @override
   Widget build(BuildContext context) {
     if (user == null) {
-      return const Scaffold(
-        body: Center(child: Text("Please sign in")),
-      );
+      return const Scaffold(body: Center(child: Text("Please sign in")));
     }
 
     return Scaffold(
       backgroundColor: Colors.grey.shade100,
       body: Column(
         children: [
-
-          /// 🔥 HERO HEADER
+          /// HERO HEADER
           Stack(
             children: [
               Image.network(
@@ -101,11 +113,11 @@ class _OrdersPageState extends State<OrdersPage> {
                     ),
                   ],
                 ),
-              )
+              ),
             ],
           ),
 
-          /// 🔹 TABS + SEARCH
+          /// TABS + SEARCH
           Container(
             color: Colors.white,
             child: Column(
@@ -137,7 +149,7 @@ class _OrdersPageState extends State<OrdersPage> {
                             color: isSelected
                                 ? Colors.green
                                 : Colors.transparent,
-                          )
+                          ),
                         ],
                       ),
                     );
@@ -165,7 +177,7 @@ class _OrdersPageState extends State<OrdersPage> {
             ),
           ),
 
-          /// 🔹 LIST
+          /// ORDER LIST
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
@@ -174,11 +186,8 @@ class _OrdersPageState extends State<OrdersPage> {
                   .orderBy('timestamp', descending: true)
                   .snapshots(),
               builder: (context, snapshot) {
-
                 if (snapshot.hasError) {
-                  return Center(
-                    child: Text("Error: ${snapshot.error}"),
-                  );
+                  return Center(child: Text("Error: ${snapshot.error}"));
                 }
 
                 if (!snapshot.hasData) {
@@ -189,14 +198,24 @@ class _OrdersPageState extends State<OrdersPage> {
 
                 final filtered = docs.where((doc) {
                   final data = doc.data() as Map<String, dynamic>;
-                  final status = data['status'] ?? 'Pending';
+
+                  // ✅ UPDATED: Use paymentStatus to determine status
+                  String status;
+                  if (data['paymentStatus'] == 'completed') {
+                    status = 'Paid ✓';
+                  } else if (data['orderStatus'] == 'cancelled') {
+                    status = 'Cancelled';
+                  } else {
+                    status = 'Pending';
+                  }
 
                   final matchesTab = selectedTab == "All"
                       ? true
                       : mapStatusToTab(status) == selectedTab;
 
-                  final matchesSearch =
-                      doc.id.toLowerCase().contains(searchQuery);
+                  final matchesSearch = doc.id.toLowerCase().contains(
+                    searchQuery,
+                  );
 
                   return matchesTab && matchesSearch;
                 }).toList();
@@ -211,7 +230,21 @@ class _OrdersPageState extends State<OrdersPage> {
                   itemBuilder: (context, index) {
                     final doc = filtered[index];
                     final data = doc.data() as Map<String, dynamic>;
-                    final status = data['status'] ?? 'Pending';
+
+                    // ✅ UPDATED: Determine display status
+                    String displayStatus;
+                    if (data['paymentStatus'] == 'completed') {
+                      displayStatus = 'Paid ✓';
+                    } else if (data['orderStatus'] == 'cancelled') {
+                      displayStatus = 'Cancelled';
+                    } else {
+                      displayStatus = 'Pending';
+                    }
+
+                    final totalAmount =
+                        data['totalAmount'] ?? data['totalPrice'] ?? 0;
+                    final imageUrl = data['imageUrl'] ?? '';
+                    final itemsList = data['items'] as List? ?? [];
 
                     return GestureDetector(
                       onTap: () {
@@ -234,14 +267,12 @@ class _OrdersPageState extends State<OrdersPage> {
                         ),
                         child: Column(
                           children: [
-
-                            /// TOP ROW
                             Row(
                               children: [
                                 ClipRRect(
                                   borderRadius: BorderRadius.circular(12),
                                   child: Image.network(
-                                    data['imageUrl'] ?? '',
+                                    imageUrl,
                                     width: 70,
                                     height: 70,
                                     fit: BoxFit.cover,
@@ -249,9 +280,7 @@ class _OrdersPageState extends State<OrdersPage> {
                                         const Icon(Icons.image),
                                   ),
                                 ),
-
                                 const SizedBox(width: 12),
-
                                 Expanded(
                                   child: Column(
                                     crossAxisAlignment:
@@ -260,32 +289,37 @@ class _OrdersPageState extends State<OrdersPage> {
                                       Text(
                                         "Order #${doc.id.substring(0, 6)}",
                                         style: const TextStyle(
-                                            fontWeight: FontWeight.bold),
+                                          fontWeight: FontWeight.bold,
+                                        ),
                                       ),
                                       const SizedBox(height: 4),
                                       Text(
                                         formatDate(data['timestamp']),
                                         style: const TextStyle(
-                                            color: Colors.grey,
-                                            fontSize: 12),
+                                          color: Colors.grey,
+                                          fontSize: 12,
+                                        ),
                                       ),
                                       const SizedBox(height: 6),
-
                                       Container(
-                                        padding:
-                                            const EdgeInsets.symmetric(
-                                                horizontal: 8, vertical: 4),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 4,
+                                        ),
                                         decoration: BoxDecoration(
-                                          color: getStatusColor(status)
-                                              .withOpacity(0.1),
-                                          borderRadius:
-                                              BorderRadius.circular(6),
+                                          color: getStatusColor(
+                                            displayStatus,
+                                          ).withOpacity(0.1),
+                                          borderRadius: BorderRadius.circular(
+                                            6,
+                                          ),
                                         ),
                                         child: Text(
-                                          status,
+                                          displayStatus,
                                           style: TextStyle(
-                                            color:
-                                                getStatusColor(status),
+                                            color: getStatusColor(
+                                              displayStatus,
+                                            ),
                                             fontSize: 12,
                                           ),
                                         ),
@@ -293,92 +327,61 @@ class _OrdersPageState extends State<OrdersPage> {
                                     ],
                                   ),
                                 ),
-
                                 Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.end,
+                                  crossAxisAlignment: CrossAxisAlignment.end,
                                   children: [
                                     Text(
-                                      "MK ${data['totalPrice']}",
+                                      "MK ${totalAmount.toStringAsFixed(2)}",
                                       style: const TextStyle(
                                         fontWeight: FontWeight.bold,
                                         color: Colors.green,
                                       ),
                                     ),
                                     const SizedBox(height: 6),
-                                    const Icon(Icons.arrow_forward_ios,
-                                        size: 14),
+                                    const Icon(
+                                      Icons.arrow_forward_ios,
+                                      size: 14,
+                                    ),
                                   ],
-                                )
+                                ),
                               ],
                             ),
-
                             const SizedBox(height: 10),
-
-                            /// ITEMS PREVIEW
-                            StreamBuilder<QuerySnapshot>(
-                              stream: FirebaseFirestore.instance
-                                  .collection('orders')
-                                  .doc(doc.id)
-                                  .collection('items')
-                                  .snapshots(),
-                              builder: (context, itemSnapshot) {
-
-                                if (itemSnapshot.hasError) {
-                                  return const Text("Error loading items");
-                                }
-
-                                if (!itemSnapshot.hasData) {
-                                  return const SizedBox();
-                                }
-
-                                final items = itemSnapshot.data!.docs;
-
-                                return Row(
-                                  children: [
-                                    ...items.take(3).map((itemDoc) {
-                                      final item = itemDoc.data()
-                                          as Map<String, dynamic>;
-
-                                      return Container(
-                                        margin:
-                                            const EdgeInsets.only(right: 6),
-                                        width: 35,
-                                        height: 35,
-                                        child: ClipRRect(
-                                          borderRadius:
-                                              BorderRadius.circular(6),
-                                          child: Image.network(
-                                            item['imageUrl'] ?? '',
-                                            fit: BoxFit.cover,
-                                            errorBuilder:
-                                                (_, __, ___) =>
-                                                    const Icon(Icons.image),
-                                          ),
-                                        ),
-                                      );
-                                    }).toList(),
-
-                                    if (items.length > 3)
-                                      Container(
-                                        width: 35,
-                                        height: 35,
-                                        alignment: Alignment.center,
-                                        decoration: BoxDecoration(
-                                          color: Colors.grey.shade200,
-                                          borderRadius:
-                                              BorderRadius.circular(6),
-                                        ),
-                                        child: Text(
-                                          "+${items.length - 3}",
-                                          style:
-                                              const TextStyle(fontSize: 12),
-                                        ),
+                            // Items preview
+                            Row(
+                              children: [
+                                ...itemsList.take(3).map((item) {
+                                  return Container(
+                                    margin: const EdgeInsets.only(right: 6),
+                                    width: 35,
+                                    height: 35,
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(6),
+                                      child: Image.network(
+                                        item['imageUrl'] ?? '',
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (_, __, ___) =>
+                                            const Icon(Icons.image),
                                       ),
-                                  ],
-                                );
-                              },
-                            )
+                                    ),
+                                  );
+                                }).toList(),
+                                if (itemsList.length > 3)
+                                  Container(
+                                    width: 35,
+                                    height: 35,
+                                    alignment: Alignment.center,
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey.shade200,
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(
+                                      "+${itemsList.length - 3}",
+                                      style: const TextStyle(fontSize: 12),
+                                    ),
+                                  ),
+                              ],
+                            ),
                           ],
                         ),
                       ),
@@ -394,8 +397,7 @@ class _OrdersPageState extends State<OrdersPage> {
   }
 }
 
-/// ================= ORDER DETAILS PAGE =================
-
+/// ORDER DETAILS PAGE
 class OrderDetailsPage extends StatelessWidget {
   final String orderId;
   final Map<String, dynamic> orderData;
@@ -406,8 +408,16 @@ class OrderDetailsPage extends StatelessWidget {
     required this.orderData,
   });
 
+  String getDisplayStatus(Map<String, dynamic> data) {
+    if (data['paymentStatus'] == 'completed') return 'Paid ✓';
+    if (data['orderStatus'] == 'cancelled') return 'Cancelled';
+    return 'Pending';
+  }
+
   Color getStatusColor(String status) {
     switch (status) {
+      case 'Paid ✓':
+        return Colors.green;
       case 'Delivered':
         return Colors.green;
       case 'Processing':
@@ -415,7 +425,7 @@ class OrderDetailsPage extends StatelessWidget {
       case 'Pending':
         return Colors.orange;
       case 'Cancelled':
-        return Colors.grey;
+        return Colors.red;
       default:
         return Colors.orange;
     }
@@ -423,133 +433,66 @@ class OrderDetailsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final status = orderData['status'] ?? 'Pending';
+    final displayStatus = getDisplayStatus(orderData);
+    final totalAmount =
+        orderData['totalAmount'] ?? orderData['totalPrice'] ?? 0;
+    final itemsList = orderData['items'] as List? ?? [];
 
     return Scaffold(
-      appBar: AppBar(title: const Text("Order Details")),
+      appBar: AppBar(
+        title: const Text("Order Details"),
+        backgroundColor: Colors.green,
+        foregroundColor: Colors.white,
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: getStatusColor(status).withOpacity(0.1),
+                color: getStatusColor(displayStatus).withOpacity(0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
-                status,
+                displayStatus,
                 style: TextStyle(
-                  color: getStatusColor(status),
+                  color: getStatusColor(displayStatus),
                   fontWeight: FontWeight.bold,
                 ),
               ),
             ),
-
             const SizedBox(height: 16),
-
             Text(
-              "Total: MK ${orderData['totalPrice']}",
+              "Total: MK ${totalAmount.toStringAsFixed(2)}",
               style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
                 color: Colors.green,
               ),
             ),
-
             const SizedBox(height: 16),
-
-            const Text("Items",
-                style: TextStyle(fontWeight: FontWeight.bold)),
-
+            const Text("Items", style: TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 10),
-
             Expanded(
-              child: StreamBuilder<QuerySnapshot>(
-                stream: FirebaseFirestore.instance
-                    .collection('orders')
-                    .doc(orderId)
-                    .collection('items')
-                    .snapshots(),
-                builder: (context, snapshot) {
-                  if (!snapshot.hasData) {
-                    return const CircularProgressIndicator();
-                  }
-
-                  final items = snapshot.data!.docs;
-
-                  return ListView.builder(
-                    itemCount: items.length,
-                    itemBuilder: (context, index) {
-                      final item =
-                          items[index].data() as Map<String, dynamic>;
-
-                      return ListTile(
-                        leading: Image.network(
-                          item['imageUrl'] ?? '',
-                          width: 40,
-                          errorBuilder: (_, __, ___) =>
-                              const Icon(Icons.image),
-                        ),
-                        title: Text(item['name'] ?? ''),
-                        subtitle: Text("Qty: ${item['quantity']}"),
-                      );
-                    },
-                  );
-                },
-              ),
-            ),
-
-            if (status == "Processing")
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () async {
-                    await FirebaseFirestore.instance
-                        .collection('orders')
-                        .doc(orderId)
-                        .update({'status': 'Cancelled'});
-
-                    Navigator.pop(context);
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red,
-                  ),
-                  child: const Text("Cancel Order"),
-                ),
-              ),
-
-            const SizedBox(height: 10),
-
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text("Reorder coming soon"),
+              child: ListView.builder(
+                itemCount: itemsList.length,
+                itemBuilder: (context, index) {
+                  final item = itemsList[index];
+                  return ListTile(
+                    leading: Image.network(
+                      item['imageUrl'] ?? '',
+                      width: 40,
+                      errorBuilder: (_, __, ___) => const Icon(Icons.image),
+                    ),
+                    title: Text(item['name'] ?? ''),
+                    subtitle: Text("Qty: ${item['quantity']}"),
+                    trailing: Text(
+                      "MWK ${(item['price'] * item['quantity']).toStringAsFixed(2)}",
                     ),
                   );
                 },
-                child: const Text("Reorder"),
-              ),
-            ),
-
-            const SizedBox(height: 10),
-
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton(
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text("Contact support"),
-                    ),
-                  );
-                },
-                child: const Text("Contact"),
               ),
             ),
           ],
