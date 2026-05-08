@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../data/cart_data.dart';
 import 'payment_page.dart';
+import '../services/local_notification_service.dart';  // ✅ ADD THIS
 
 class CartPage extends StatefulWidget {
   const CartPage({super.key});
@@ -70,6 +71,13 @@ class _CartPageState extends State<CartPage> {
         'farmerId': item.farmer,
       });
     }
+
+    // ✅ Show local notification for new order
+    final customerName = userDoc.data()?['name'] ?? 'Customer';
+    await LocalNotificationService.showNewOrderNotification(
+      customerName,
+      orderRef.id,
+    );
 
     return orderRef;
   }
