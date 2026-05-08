@@ -27,6 +27,69 @@ class _HomePageState extends State<HomePage> {
     'vegetables',
   ];
 
+  // Check if search query is a price search (starts with number or contains price operators)
+  bool _isPriceSearch(String query) {
+    final trimmed = query.trim();
+    if (trimmed.isEmpty) return false;
+    
+    // Check if it starts with a number (for partial price search)
+    if (RegExp(r'^\d').hasMatch(trimmed)) return true;
+    
+    // Check for price range (contains dash)
+    if (trimmed.contains('-')) return true;
+    
+    // Check for "under X" or "below X"
+    if (trimmed.startsWith('under') || trimmed.startsWith('below')) return true;
+    
+    // Check for "above X" or "over X"
+    if (trimmed.startsWith('above') || trimmed.startsWith('over')) return true;
+    
+    return false;
+  }
+
+  // Parse price search query for filtering
+  (double? minPrice, double? maxPrice, String? priceStartsWith) _parsePriceQuery(String query) {
+    final trimmed = query.trim().toLowerCase();
+    
+    // Check if it's a partial price (starts with digits only)
+    if (RegExp(r'^\d+$').hasMatch(trimmed)) {
+      // Single digit or number - search for prices starting with these digits
+      return (null, null, trimmed);
+    }
+    
+    // Price range with dash (e.g., "1000-5000")
+    if (trimmed.contains('-')) {
+      final parts = trimmed.split('-');
+      if (parts.length == 2) {
+        final min = double.tryParse(parts[0].trim());
+        final max = double.tryParse(parts[1].trim());
+        if (min != null && max != null) {
+          return (min, max, null);
+        }
+      }
+    }
+    
+    // Under/Below (e.g., "under 1000" or "below 500")
+    final underMatch = RegExp(r'(?:under|below)\s*(\d+(?:\.\d+)?)').firstMatch(trimmed);
+    if (underMatch != null) {
+      final max = double.tryParse(underMatch.group(1)!);
+      if (max != null) {
+        return (null, max, null);
+      }
+    }
+    
+    // Above/Over (e.g., "above 1000" or "over 5000")
+    final aboveMatch = RegExp(r'(?:above|over)\s*(\d+(?:\.\d+)?)').firstMatch(trimmed);
+    if (aboveMatch != null) {
+      final min = double.tryParse(aboveMatch.group(1)!);
+      if (min != null) {
+        return (min, null, null);
+      }
+    }
+    
+    return (null, null, null);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -101,24 +164,64 @@ class _HomePageState extends State<HomePage> {
         children: [
           Padding(
             padding: const EdgeInsets.all(10),
-            child: TextField(
-              onChanged: (value) {
-                setState(() {
-                  searchQuery = value.toLowerCase();
-                });
-              },
-              decoration: InputDecoration(
-                hintText: 'Search for maize, beans...',
-                prefixIcon: const Icon(Icons.search),
-                filled: true,
-                fillColor: Colors.grey.shade300,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(20),
-                  borderSide: BorderSide.none,
+            child: Column(
+              children: [
+                TextField(
+                  onChanged: (value) {
+                    setState(() {
+                      searchQuery = value.toLowerCase();
+                    });
+                  },
+                  decoration: InputDecoration(
+                    hintText: 'Search by name (e.g., maize) or price (e.g., 1, 10, 100, 1000-5000)',
+                    prefixIcon: const Icon(Icons.search),
+                    suffixIcon: searchQuery.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear),
+                            onPressed: () {
+                              setState(() {
+                                searchQuery = '';
+                              });
+                            },
+                          )
+                        : null,
+                    filled: true,
+                    fillColor: Colors.grey.shade300,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(20),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
                 ),
-              ),
+                if (searchQuery.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Row(
+                      children: [
+                        Icon(
+                          _isPriceSearch(searchQuery) 
+                              ? Icons.monetization_on 
+                              : Icons.search,
+                          size: 14,
+                          color: Colors.green,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          _isPriceSearch(searchQuery) 
+                              ? 'Searching by price...' 
+                              : 'Searching by name...',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
             ),
           ),
+          const SizedBox(height: 5),
           SizedBox(
             height: 45,
             child: ListView.builder(
@@ -184,17 +287,81 @@ class _HomePageState extends State<HomePage> {
                 }
 
                 final docs = snapshot.data!.docs;
+                
+                final isPriceSearch = _isPriceSearch(searchQuery);
+                final (minPrice, maxPrice, priceStartsWith) = _parsePriceQuery(searchQuery);
+                
                 final filtered = docs.where((doc) {
                   final data = doc.data() as Map<String, dynamic>;
                   final name = (data['name'] ?? '').toString().toLowerCase();
+                  final price = (data['price'] as num?)?.toDouble() ?? 0;
+                  final priceString = price.toString();
 
-                  final matchesSearch = name.contains(searchQuery);
+                  // Search logic
+                  bool matchesSearch = true;
+                  
+                  if (searchQuery.isNotEmpty) {
+                    if (isPriceSearch) {
+                      // Search by price
+                      if (priceStartsWith != null) {
+                        // Partial price search - prices starting with the digits
+                        matchesSearch = priceString.startsWith(priceStartsWith);
+                      } else {
+                        // Range or comparison search
+                        if (minPrice != null && price < minPrice) {
+                          matchesSearch = false;
+                        }
+                        if (maxPrice != null && price > maxPrice) {
+                          matchesSearch = false;
+                        }
+                      }
+                    } else {
+                      // Search by name
+                      matchesSearch = name.contains(searchQuery);
+                    }
+                  }
+                  
+                  // Category filter
                   final matchesCategory = selectedCategory == 'All'
                       ? true
-                      : name.contains(selectedCategory);
+                      : name.contains(selectedCategory.toLowerCase());
 
                   return matchesSearch && matchesCategory;
                 }).toList();
+
+                if (filtered.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.search_off,
+                          size: 64,
+                          color: Colors.grey[400],
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'No products found',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          isPriceSearch
+                              ? 'Try: "1", "10", "100", "500-2000", "under 1000", "above 5000"'
+                              : 'Try typing a produce name like "maize" or "beans"',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[500],
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  );
+                }
 
                 final screenWidth = MediaQuery.of(context).size.width;
 
@@ -255,9 +422,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // ✅ UPDATED: No login required to add to cart
   void addToCart(Map<String, dynamic> data, String id) {
-    // Remove the login check completely
     setState(() {
       final existingIndex = cartItems.indexWhere(
         (item) => item.productId == id,
