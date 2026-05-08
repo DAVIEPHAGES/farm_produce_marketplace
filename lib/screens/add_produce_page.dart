@@ -431,245 +431,281 @@ class _AddProducePageState extends State<AddProducePage> {
         centerTitle: true,
         foregroundColor: Colors.white,
       ),
-      body: Container(
-        margin: const EdgeInsets.all(12),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.grey[200]!),
-        ),
+      body: Center(
         child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                "Produce Name",
-                style: TextStyle(fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 5),
-              TextField(
-                controller: nameController,
-                decoration: _inputDecoration("e.g., Maize, Tomatoes, Cabbage"),
-              ),
-
-              const SizedBox(height: 15),
-              const Text(
-                "Price (MWK)",
-                style: TextStyle(fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 5),
-              TextField(
-                controller: priceController,
-                keyboardType: TextInputType.number,
-                decoration: _inputDecoration("e.g., 1500"),
-              ),
-
-              const SizedBox(height: 15),
-              const Text(
-                "Quantity",
-                style: TextStyle(fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 5),
-              TextField(
-                controller: quantityController,
-                decoration: _inputDecoration("e.g., 50, 100, 20"),
-              ),
-
-              const SizedBox(height: 15),
-              const Text(
-                "Selling Unit",
-                style: TextStyle(fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 5),
-              
-              // Dropdown for selling units
-              Card(
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
-                  side: BorderSide(color: Colors.grey[300]!),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      value: _selectedSellingUnit,
-                      hint: const Text('Select a selling unit'),
-                      isExpanded: true,
-                      icon: const Icon(Icons.arrow_drop_down, color: Colors.green),
-                      iconSize: 30,
-                      items: [
-                        ..._predefinedUnits.map((unit) {
-                          return DropdownMenuItem(
-                            value: unit,
-                            child: Text(unit),
-                          );
-                        }),
-                        const DropdownMenuItem(
-                          value: 'custom',
-                          child: Text(
-                            '+ Add custom unit...',
-                            style: TextStyle(
-                              color: Colors.green,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                      ],
-                      onChanged: (value) {
-                        setState(() {
-                          if (value == 'custom') {
-                            _isCustomUnit = true;
-                            _selectedSellingUnit = null;
-                          } else {
-                            _isCustomUnit = false;
-                            _selectedSellingUnit = value;
-                            sellingUnitController.text = value ?? '';
-                          }
-                        });
-                      },
-                    ),
-                  ),
-                ),
-              ),
-              
-              // Custom unit text field (shown when "Add custom unit" is selected)
-              if (_isCustomUnit) ...[
-                const SizedBox(height: 10),
-                TextField(
-                  controller: _customUnitController,
-                  decoration: _inputDecoration("e.g., Bundle, Sack, Crate, etc."),
-                  onChanged: (value) {
-                    sellingUnitController.text = value;
-                  },
+          child: Container(
+            margin: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(20),
+            width: 400, // Fixed width for smaller form
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(25),
+              border: Border.all(color: Colors.grey[200]!),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withOpacity(0.1),
+                  blurRadius: 10,
+                  offset: const Offset(0, 5),
                 ),
               ],
-              
-              const SizedBox(height: 15),
-              const Text(
-                "Location",
-                style: TextStyle(fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 5),
-              TextField(
-                controller: locationController,
-                decoration: _inputDecoration("e.g., Lilongwe, Mzuzu, Blantyre"),
-              ),
-
-              const SizedBox(height: 15),
-              const Text(
-                "Description (Optional)",
-                style: TextStyle(fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 5),
-              TextField(
-                controller: descriptionController,
-                decoration: _inputDecoration("Describe your produce..."),
-                maxLines: 2,
-              ),
-
-              const SizedBox(height: 15),
-              const Text(
-                "Upload Produce Image",
-                style: TextStyle(fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 5),
-              GestureDetector(
-                onTap: pickImage,
-                child: Container(
-                  height: 50,
-                  decoration: _boxDecoration(),
-                  child: const Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.camera_alt, color: Colors.green),
-                      SizedBox(width: 8),
-                      Text("Tap to upload image"),
-                    ],
-                  ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Produce Name
+                _buildFieldLabel("Produce Name"),
+                _buildSmallTextField(
+                  controller: nameController,
+                  hint: "e.g., Maize, Tomatoes",
                 ),
-              ),
+                const SizedBox(height: 12),
 
-              const SizedBox(height: 10),
-
-              // IMAGE PREVIEW (New image OR existing image)
-              if (_webImage != null)
-                Center(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(10),
-                    child: Image.memory(_webImage!, height: 120, fit: BoxFit.cover),
-                  ),
-                )
-              else if (_image != null)
-                Center(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(10),
-                    child: Image.file(_image!, height: 120, fit: BoxFit.cover),
-                  ),
-                )
-              else if (_existingImageUrl != null && _existingImageUrl!.isNotEmpty)
-                Center(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(10),
-                    child: Image.network(
-                      _existingImageUrl!,
-                      height: 120,
-                      width: 120,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Container(
-                          height: 120,
-                          width: 120,
-                          color: Colors.grey[200],
-                          child: const Icon(Icons.broken_image, size: 50, color: Colors.grey),
-                        );
-                      },
-                    ),
-                  ),
+                // Price
+                _buildFieldLabel("Price (MWK)"),
+                _buildSmallTextField(
+                  controller: priceController,
+                  hint: "e.g., 1500",
+                  isNumber: true,
                 ),
+                const SizedBox(height: 12),
 
-              const SizedBox(height: 30),
-              
-              // Centered smaller button
-              Center(
-                child: SizedBox(
-                  width: 200, // Fixed width for smaller button
-                  child: ElevatedButton(
-                    onPressed: _isLoading 
-                        ? null 
-                        : (widget.isEditing ? updateProduce : uploadProduce),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green[700],
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 20),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(25),
-                      ),
-                    ),
-                    child: _isLoading
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2,
-                            ),
-                          )
-                        : Text(
-                            widget.isEditing ? "Update" : "Add Produce",
-                            style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
+                // Quantity
+                _buildFieldLabel("Quantity"),
+                _buildSmallTextField(
+                  controller: quantityController,
+                  hint: "e.g., 50, 100",
+                ),
+                const SizedBox(height: 12),
+
+                // Selling Unit
+                _buildFieldLabel("Selling Unit"),
+                Card(
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(15),
+                    side: BorderSide(color: Colors.grey[300]!),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: _selectedSellingUnit,
+                        hint: const Text('Select unit'),
+                        isExpanded: true,
+                        icon: const Icon(Icons.arrow_drop_down, color: Colors.green),
+                        iconSize: 24,
+                        items: [
+                          ..._predefinedUnits.map((unit) {
+                            return DropdownMenuItem(
+                              value: unit,
+                              child: Text(unit, style: const TextStyle(fontSize: 13)),
+                            );
+                          }),
+                          const DropdownMenuItem(
+                            value: 'custom',
+                            child: Text(
+                              '+ Add custom',
+                              style: TextStyle(
+                                color: Colors.green,
+                                fontWeight: FontWeight.w500,
+                                fontSize: 13,
+                              ),
                             ),
                           ),
+                        ],
+                        onChanged: (value) {
+                          setState(() {
+                            if (value == 'custom') {
+                              _isCustomUnit = true;
+                              _selectedSellingUnit = null;
+                            } else {
+                              _isCustomUnit = false;
+                              _selectedSellingUnit = value;
+                              sellingUnitController.text = value ?? '';
+                            }
+                          });
+                        },
+                      ),
+                    ),
                   ),
                 ),
-              ),
-              
-              const SizedBox(height: 10),
-            ],
+                
+                // Custom unit text field
+                if (_isCustomUnit) ...[
+                  const SizedBox(height: 8),
+                  _buildSmallTextField(
+                    controller: _customUnitController,
+                    hint: "e.g., Bundle, Sack",
+                    onChanged: (value) {
+                      sellingUnitController.text = value;
+                    },
+                  ),
+                ],
+                const SizedBox(height: 12),
+
+                // Location
+                _buildFieldLabel("Location"),
+                _buildSmallTextField(
+                  controller: locationController,
+                  hint: "e.g., Lilongwe, Mzuzu",
+                ),
+                const SizedBox(height: 12),
+
+                // Description
+                _buildFieldLabel("Description (Optional)"),
+                _buildSmallTextField(
+                  controller: descriptionController,
+                  hint: "Describe your produce...",
+                  maxLines: 2,
+                ),
+                const SizedBox(height: 12),
+
+                // Upload Image
+                _buildFieldLabel("Upload Image"),
+                GestureDetector(
+                  onTap: pickImage,
+                  child: Container(
+                    height: 45,
+                    decoration: _boxDecoration(),
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.camera_alt, color: Colors.green, size: 18),
+                        SizedBox(width: 6),
+                        Text("Tap to upload", style: TextStyle(fontSize: 13)),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+
+                // Image Preview
+                if (_webImage != null)
+                  Center(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.memory(_webImage!, height: 80, fit: BoxFit.cover),
+                    ),
+                  )
+                else if (_image != null)
+                  Center(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.file(_image!, height: 80, fit: BoxFit.cover),
+                    ),
+                  )
+                else if (_existingImageUrl != null && _existingImageUrl!.isNotEmpty)
+                  Center(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.network(
+                        _existingImageUrl!,
+                        height: 80,
+                        width: 80,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            height: 80,
+                            width: 80,
+                            color: Colors.grey[200],
+                            child: const Icon(Icons.broken_image, size: 30, color: Colors.grey),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+
+                const SizedBox(height: 20),
+                
+                // Centered smaller button
+                Center(
+                  child: SizedBox(
+                    width: 160,
+                    child: ElevatedButton(
+                      onPressed: _isLoading 
+                          ? null 
+                          : (widget.isEditing ? updateProduce : uploadProduce),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green[700],
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                      ),
+                      child: _isLoading
+                          ? const SizedBox(
+                              height: 18,
+                              width: 18,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : Text(
+                              widget.isEditing ? "Update" : "Add",
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                    ),
+                  ),
+                ),
+                
+                const SizedBox(height: 10),
+              ],
+            ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFieldLabel(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Text(
+        text,
+        style: const TextStyle(
+          fontWeight: FontWeight.w600,
+          fontSize: 12,
+          color: Colors.black87,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSmallTextField({
+    required TextEditingController controller,
+    required String hint,
+    bool isNumber = false,
+    int maxLines = 1,
+    Function(String)? onChanged,
+  }) {
+    return TextField(
+      controller: controller,
+      keyboardType: isNumber ? TextInputType.number : TextInputType.text,
+      maxLines: maxLines,
+      onChanged: onChanged,
+      style: const TextStyle(fontSize: 13),
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: const TextStyle(fontSize: 12, color: Colors.grey),
+        filled: true,
+        fillColor: Colors.grey[50],
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(15),
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(15),
+          borderSide: BorderSide(color: Colors.grey[300]!),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(15),
+          borderSide: const BorderSide(color: Colors.green),
         ),
       ),
     );
@@ -698,7 +734,7 @@ class _AddProducePageState extends State<AddProducePage> {
   BoxDecoration _boxDecoration() {
     return BoxDecoration(
       color: Colors.grey[50],
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(15),
       border: Border.all(color: Colors.grey[300]!),
     );
   }
