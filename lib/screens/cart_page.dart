@@ -29,8 +29,8 @@ class _CartPageState extends State<CartPage> {
   }) async {
     final user = FirebaseAuth.instance.currentUser;
 
+    // ✅ If not logged in, return null and show login dialog
     if (user == null) {
-      Navigator.pushNamed(context, '/signin');
       return null;
     }
 
@@ -74,10 +74,42 @@ class _CartPageState extends State<CartPage> {
     return orderRef;
   }
 
+  // ✅ Show login dialog when user tries to pay without logging in
+  void _showLoginRequiredDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text('Login Required'),
+        content: const Text('Please login or create an account to complete your payment.'),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+            },
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              Navigator.pushNamed(context, '/signin');
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
+            ),
+            child: const Text('Login'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _proceedToPayment() async {
     final user = FirebaseAuth.instance.currentUser;
+    
+    // ✅ If not logged in, show login dialog instead of redirecting
     if (user == null) {
-      Navigator.pushNamed(context, '/signin');
+      _showLoginRequiredDialog();
       return;
     }
 
@@ -92,6 +124,9 @@ class _CartPageState extends State<CartPage> {
       );
 
       if (orderRef == null || !mounted) {
+        setState(() {
+          _isProcessingPayment = false;
+        });
         return;
       }
 
