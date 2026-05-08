@@ -40,6 +40,32 @@ class _AddProducePageState extends State<AddProducePage> {
   final ImagePicker _picker = ImagePicker();
   bool _isLoading = false;
 
+  // Dropdown variables
+  String? _selectedSellingUnit;
+  bool _isCustomUnit = false;
+  final TextEditingController _customUnitController = TextEditingController();
+
+  // List of predefined selling units
+  final List<String> _predefinedUnits = [
+    'Kilogram (kg)',
+    'Gram (g)',
+    'Litres (L)',
+    'Millilitres (ml)',
+    'Bag (50kg)',
+    'Bag (25kg)',
+    'Bag (10kg)',
+    'Crate',
+    'Bunch',
+    'Piece',
+    'Dozen',
+    'Tray',
+    'Basket',
+    'Bucket',
+    'Sack',
+    'Carton',
+    'Box',
+  ];
+
   @override
   void initState() {
     super.initState();
@@ -53,7 +79,21 @@ class _AddProducePageState extends State<AddProducePage> {
     nameController.text = widget.existingProduct!['name']?.toString() ?? '';
     priceController.text = widget.existingProduct!['price']?.toString() ?? '';
     quantityController.text = widget.existingProduct!['quantity']?.toString() ?? '';
-    sellingUnitController.text = widget.existingProduct!['sellingUnit']?.toString() ?? '';
+    
+    String? existingUnit = widget.existingProduct!['sellingUnit']?.toString();
+    
+    // Check if the existing unit is in the predefined list
+    if (existingUnit != null && _predefinedUnits.contains(existingUnit)) {
+      _selectedSellingUnit = existingUnit;
+      _isCustomUnit = false;
+      sellingUnitController.text = existingUnit;
+    } else if (existingUnit != null && existingUnit.isNotEmpty) {
+      // It's a custom unit
+      _isCustomUnit = true;
+      _customUnitController.text = existingUnit;
+      sellingUnitController.text = existingUnit;
+    }
+    
     locationController.text = widget.existingProduct!['location']?.toString() ?? '';
     descriptionController.text = widget.existingProduct!['description']?.toString() ?? '';
     _existingImageUrl = widget.existingProduct!['imageUrl']?.toString();
@@ -67,7 +107,17 @@ class _AddProducePageState extends State<AddProducePage> {
     sellingUnitController.dispose();
     locationController.dispose();
     descriptionController.dispose();
+    _customUnitController.dispose();
     super.dispose();
+  }
+
+  // Helper method to get the final selling unit value
+  String _getSellingUnit() {
+    if (_isCustomUnit) {
+      return _customUnitController.text.trim();
+    } else {
+      return _selectedSellingUnit ?? '';
+    }
   }
 
   // ✅ PICK IMAGE (WEB + MOBILE)
@@ -172,6 +222,14 @@ class _AddProducePageState extends State<AddProducePage> {
       return;
     }
 
+    String sellingUnit = _getSellingUnit();
+    if (sellingUnit.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select or enter a selling unit')),
+      );
+      return;
+    }
+
     double? price = double.tryParse(priceController.text);
     if (price == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -201,7 +259,7 @@ class _AddProducePageState extends State<AddProducePage> {
         'name': nameController.text.trim(),
         'price': price,
         'quantity': quantityController.text.trim(),
-        'sellingUnit': sellingUnitController.text.trim(),
+        'sellingUnit': sellingUnit,
         'location': locationController.text.trim(),
         'description': descriptionController.text.trim(),
         'imageUrl': imageUrl,
@@ -257,9 +315,10 @@ class _AddProducePageState extends State<AddProducePage> {
       return;
     }
     
-    if (sellingUnitController.text.trim().isEmpty) {
+    String sellingUnit = _getSellingUnit();
+    if (sellingUnit.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter selling unit')),
+        const SnackBar(content: Text('Please select or enter a selling unit')),
       );
       return;
     }
@@ -312,7 +371,7 @@ class _AddProducePageState extends State<AddProducePage> {
         'name': nameController.text.trim(),
         'price': price,
         'quantity': quantityController.text.trim(),
-        'sellingUnit': sellingUnitController.text.trim(),
+        'sellingUnit': sellingUnit,
         'location': locationController.text.trim(),
         'description': descriptionController.text.trim(),
         'imageUrl': imageUrl,
@@ -341,6 +400,9 @@ class _AddProducePageState extends State<AddProducePage> {
         _image = null;
         _webImage = null;
         _existingImageUrl = null;
+        _selectedSellingUnit = null;
+        _isCustomUnit = false;
+        _customUnitController.clear();
       });
 
       // Return success to dashboard
@@ -393,14 +455,14 @@ class _AddProducePageState extends State<AddProducePage> {
 
               const SizedBox(height: 15),
               const Text(
-                "Price per Unit (MWK)",
+                "Price (MWK)",
                 style: TextStyle(fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 5),
               TextField(
                 controller: priceController,
                 keyboardType: TextInputType.number,
-                decoration: _inputDecoration("e.g., 1500 (per kg, bundle, etc.)"),
+                decoration: _inputDecoration("e.g., 1500"),
               ),
 
               const SizedBox(height: 15),
@@ -411,7 +473,7 @@ class _AddProducePageState extends State<AddProducePage> {
               const SizedBox(height: 5),
               TextField(
                 controller: quantityController,
-                decoration: _inputDecoration("e.g., 50 kg, 100 pieces, 20 bunches"),
+                decoration: _inputDecoration("e.g., 50, 100, 20"),
               ),
 
               const SizedBox(height: 15),
@@ -420,11 +482,70 @@ class _AddProducePageState extends State<AddProducePage> {
                 style: TextStyle(fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 5),
-              TextField(
-                controller: sellingUnitController,
-                decoration: _inputDecoration("e.g., kg, pieces, bunches, bags"),
+              
+              // Dropdown for selling units
+              Card(
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                  side: BorderSide(color: Colors.grey[300]!),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: _selectedSellingUnit,
+                      hint: const Text('Select a selling unit'),
+                      isExpanded: true,
+                      icon: const Icon(Icons.arrow_drop_down, color: Colors.green),
+                      iconSize: 30,
+                      items: [
+                        ..._predefinedUnits.map((unit) {
+                          return DropdownMenuItem(
+                            value: unit,
+                            child: Text(unit),
+                          );
+                        }),
+                        const DropdownMenuItem(
+                          value: 'custom',
+                          child: Text(
+                            '+ Add custom unit...',
+                            style: TextStyle(
+                              color: Colors.green,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
+                      onChanged: (value) {
+                        setState(() {
+                          if (value == 'custom') {
+                            _isCustomUnit = true;
+                            _selectedSellingUnit = null;
+                          } else {
+                            _isCustomUnit = false;
+                            _selectedSellingUnit = value;
+                            sellingUnitController.text = value ?? '';
+                          }
+                        });
+                      },
+                    ),
+                  ),
+                ),
               ),
-
+              
+              // Custom unit text field (shown when "Add custom unit" is selected)
+              if (_isCustomUnit) ...[
+                const SizedBox(height: 10),
+                TextField(
+                  controller: _customUnitController,
+                  decoration: _inputDecoration("e.g., Bundle, Sack, Crate, etc."),
+                  onChanged: (value) {
+                    sellingUnitController.text = value;
+                  },
+                ),
+              ],
+              
               const SizedBox(height: 15),
               const Text(
                 "Location",
