@@ -786,6 +786,7 @@ class _HomePageState extends State<HomePage> {
     ).showSnackBar(const SnackBar(content: Text('Added to cart')));
   }
 
+  // UPDATED _buildCard method - Now shows price per selling unit instead of quantity
   Widget _buildCard(
     Map<String, dynamic> data,
     String id,
@@ -857,7 +858,8 @@ class _HomePageState extends State<HomePage> {
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 4),
-                Text('MK ${data['price'] ?? 0} / ${data['quantity'] ?? ''}'),
+                // CHANGED: Now shows price per selling unit instead of quantity
+                Text('MK ${data['price'] ?? 0} / ${data['sellingUnit'] ?? ''}'),
                 const SizedBox(height: 8),
                 SizedBox(
                   width: double.infinity,

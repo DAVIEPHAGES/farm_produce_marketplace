@@ -366,12 +366,16 @@ class _AddProducePageState extends State<AddProducePage> {
       final imageUrl = await uploadImageToCloudinary();
       if (imageUrl == null) throw Exception("Image upload failed");
 
+      // Create display text for price (price + selling unit)
+      String priceDisplay = '$price per $sellingUnit';
+
       // Save to Firestore with ALL REQUIRED FIELDS
       final productData = {
         'name': nameController.text.trim(),
         'price': price,
         'quantity': quantityController.text.trim(),
         'sellingUnit': sellingUnit,
+        'priceDisplay': priceDisplay, // NEW: Combined price and unit for display
         'location': locationController.text.trim(),
         'description': descriptionController.text.trim(),
         'imageUrl': imageUrl,
@@ -469,8 +473,8 @@ class _AddProducePageState extends State<AddProducePage> {
                 ),
                 const SizedBox(height: 12),
 
-                // Quantity
-                _buildFieldLabel("Quantity"),
+                // Quantity Available
+                _buildFieldLabel("Quantity Available"),
                 _buildSmallTextField(
                   controller: quantityController,
                   hint: "e.g., 50, 100",
@@ -478,7 +482,7 @@ class _AddProducePageState extends State<AddProducePage> {
                 const SizedBox(height: 12),
 
                 // Selling Unit
-                _buildFieldLabel("Selling Unit"),
+                _buildFieldLabel("Selling Unit (per unit)"),
                 Card(
                   elevation: 0,
                   shape: RoundedRectangleBorder(
@@ -612,6 +616,30 @@ class _AddProducePageState extends State<AddProducePage> {
                           );
                         },
                       ),
+                    ),
+                  ),
+
+                // Preview of how price will be displayed
+                if (priceController.text.isNotEmpty && _getSellingUnit().isNotEmpty)
+                  Container(
+                    margin: const EdgeInsets.only(top: 12),
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.green.shade50,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.green.shade200),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.preview, size: 16, color: Colors.green),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Preview: MK ${priceController.text} per ${_getSellingUnit()}',
+                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
 
