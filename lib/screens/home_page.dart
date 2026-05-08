@@ -19,6 +19,8 @@ class _HomePageState extends State<HomePage> {
   String searchQuery = '';
   String selectedCategory = 'All';
   bool _showRefundPolicy = false;
+  int _visibleProductsCount = 0;
+  int _totalProductsCount = 0;
 
   final List<String> categories = const [
     'All',
@@ -27,6 +29,24 @@ class _HomePageState extends State<HomePage> {
     'fruits',
     'vegetables',
   ];
+
+  // Calculate how many products to show based on screen size
+  int _getProductsPerPage(BuildContext context) {
+    final screenHeight = MediaQuery.of(context).size.height;
+    final screenWidth = MediaQuery.of(context).size.width;
+    
+    // Calculate based on screen size
+    if (screenWidth >= 1200) {
+      // Desktop - 4 columns
+      return 8; // 2 rows of 4
+    } else if (screenWidth >= 800) {
+      // Tablet - 3 columns
+      return 6; // 2 rows of 3
+    } else {
+      // Mobile - 2 columns
+      return 4; // 2 rows of 2
+    }
+  }
 
   // Check if search query is a price search (starts with number or contains price operators)
   bool _isPriceSearch(String query) {
@@ -54,7 +74,6 @@ class _HomePageState extends State<HomePage> {
     
     // Check if it's a partial price (starts with digits only)
     if (RegExp(r'^\d+$').hasMatch(trimmed)) {
-      // Single digit or number - search for prices starting with these digits
       return (null, null, trimmed);
     }
     
@@ -93,6 +112,8 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
+    final productsPerPage = _getProductsPerPage(context);
+    
     return Scaffold(
       drawer: const CustomerDrawer(),
       backgroundColor: Colors.grey.shade200,
@@ -171,6 +192,7 @@ class _HomePageState extends State<HomePage> {
                   onChanged: (value) {
                     setState(() {
                       searchQuery = value.toLowerCase();
+                      _visibleProductsCount = productsPerPage; // Reset visible count on search
                     });
                   },
                   decoration: InputDecoration(
@@ -182,6 +204,7 @@ class _HomePageState extends State<HomePage> {
                             onPressed: () {
                               setState(() {
                                 searchQuery = '';
+                                _visibleProductsCount = productsPerPage;
                               });
                             },
                           )
@@ -236,6 +259,7 @@ class _HomePageState extends State<HomePage> {
                   onTap: () {
                     setState(() {
                       selectedCategory = category;
+                      _visibleProductsCount = productsPerPage;
                     });
                   },
                   child: Container(
@@ -298,17 +322,13 @@ class _HomePageState extends State<HomePage> {
                   final price = (data['price'] as num?)?.toDouble() ?? 0;
                   final priceString = price.toString();
 
-                  // Search logic
                   bool matchesSearch = true;
                   
                   if (searchQuery.isNotEmpty) {
                     if (isPriceSearch) {
-                      // Search by price
                       if (priceStartsWith != null) {
-                        // Partial price search - prices starting with the digits
                         matchesSearch = priceString.startsWith(priceStartsWith);
                       } else {
-                        // Range or comparison search
                         if (minPrice != null && price < minPrice) {
                           matchesSearch = false;
                         }
@@ -317,18 +337,26 @@ class _HomePageState extends State<HomePage> {
                         }
                       }
                     } else {
-                      // Search by name
                       matchesSearch = name.contains(searchQuery);
                     }
                   }
                   
-                  // Category filter
                   final matchesCategory = selectedCategory == 'All'
                       ? true
                       : name.contains(selectedCategory.toLowerCase());
 
                   return matchesSearch && matchesCategory;
                 }).toList();
+
+                _totalProductsCount = filtered.length;
+                
+                // Initialize visible count if not set
+                if (_visibleProductsCount == 0 || _visibleProductsCount > _totalProductsCount) {
+                  _visibleProductsCount = productsPerPage;
+                }
+                
+                final visibleProducts = filtered.take(_visibleProductsCount).toList();
+                final hasMore = _visibleProductsCount < _totalProductsCount;
 
                 if (filtered.isEmpty) {
                   return Center(
@@ -382,7 +410,7 @@ class _HomePageState extends State<HomePage> {
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
                       padding: const EdgeInsets.all(10),
-                      itemCount: filtered.length,
+                      itemCount: visibleProducts.length,
                       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                         crossAxisCount: crossAxisCount,
                         crossAxisSpacing: 10,
@@ -390,12 +418,53 @@ class _HomePageState extends State<HomePage> {
                         childAspectRatio: 0.72,
                       ),
                       itemBuilder: (context, index) {
-                        final doc = filtered[index];
+                        final doc = visibleProducts[index];
                         final data = doc.data() as Map<String, dynamic>;
 
                         return _buildCard(data, doc.id, doc);
                       },
                     ),
+                    
+                    // View More Button
+                    if (hasMore)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            setState(() {
+                              _visibleProductsCount += productsPerPage;
+                            });
+                          },
+                          icon: const Icon(Icons.expand_more),
+                          label: Text(
+                            'View More (${_totalProductsCount - _visibleProductsCount} remaining)',
+                            style: const TextStyle(fontSize: 14),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green.shade100,
+                            foregroundColor: Colors.green.shade800,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(25),
+                            ),
+                          ),
+                        ),
+                      ),
+                    
+                    // Show all button when all products are visible
+                    if (!hasMore && _totalProductsCount > productsPerPage)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                        child: Text(
+                          'Showing all ${_totalProductsCount} products',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ),
+                    
                     // Refund Policy Section
                     _buildRefundPolicySection(),
                   ],
