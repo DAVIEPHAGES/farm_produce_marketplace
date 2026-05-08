@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../data/cart_data.dart';
 import 'payment_page.dart';
-import '../services/local_notification_service.dart';  // ✅ ADD THIS
+import '../services/local_notification_service.dart';
 
 class CartPage extends StatefulWidget {
   const CartPage({super.key});
@@ -15,6 +15,20 @@ class CartPage extends StatefulWidget {
 
 class _CartPageState extends State<CartPage> {
   bool _isProcessingPayment = false;
+  bool _hasAutoProceed = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // ✅ Auto proceed to payment after login if cart has items
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null && cartItems.isNotEmpty && !_hasAutoProceed && !_isProcessingPayment) {
+      _hasAutoProceed = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _proceedToPayment();
+      });
+    }
+  }
 
   double getTotal() {
     double total = 0;
@@ -30,7 +44,6 @@ class _CartPageState extends State<CartPage> {
   }) async {
     final user = FirebaseAuth.instance.currentUser;
 
-    // ✅ If not logged in, return null and show login dialog
     if (user == null) {
       return null;
     }
@@ -72,7 +85,7 @@ class _CartPageState extends State<CartPage> {
       });
     }
 
-    // ✅ Show local notification for new order
+    // Show local notification for new order
     final customerName = userDoc.data()?['name'] ?? 'Customer';
     await LocalNotificationService.showNewOrderNotification(
       customerName,
@@ -82,7 +95,7 @@ class _CartPageState extends State<CartPage> {
     return orderRef;
   }
 
-  // ✅ Show login dialog when user tries to pay without logging in
+  // ✅ Show login dialog with redirect info
   void _showLoginRequiredDialog() {
     showDialog(
       context: context,
@@ -100,7 +113,12 @@ class _CartPageState extends State<CartPage> {
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
-              Navigator.pushNamed(context, '/signin');
+              // ✅ Pass redirect info to signin page
+              Navigator.pushNamed(
+                context, 
+                '/signin',
+                arguments: {'redirectTo': '/cart'},
+              );
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.green,
@@ -115,11 +133,14 @@ class _CartPageState extends State<CartPage> {
   Future<void> _proceedToPayment() async {
     final user = FirebaseAuth.instance.currentUser;
     
-    // ✅ If not logged in, show login dialog instead of redirecting
+    // ✅ If not logged in, show login dialog
     if (user == null) {
       _showLoginRequiredDialog();
       return;
     }
+
+    // Reset auto proceed flag
+    _hasAutoProceed = true;
 
     setState(() {
       _isProcessingPayment = true;
@@ -314,7 +335,6 @@ class _CartPageState extends State<CartPage> {
                     ],
                   ),
                 ),
-                // Pay with PayChangu button - NOT full width
                 Padding(
                   padding: const EdgeInsets.all(12),
                   child: Center(
