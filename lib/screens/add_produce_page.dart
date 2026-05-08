@@ -629,29 +629,45 @@ class _AddProducePageState extends State<AddProducePage> {
                   ),
                 ),
 
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _isLoading 
-                      ? null 
-                      : (widget.isEditing ? updateProduce : uploadProduce),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green[700],
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 15),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
+              const SizedBox(height: 30),
+              
+              // Centered smaller button
+              Center(
+                child: SizedBox(
+                  width: 200, // Fixed width for smaller button
+                  child: ElevatedButton(
+                    onPressed: _isLoading 
+                        ? null 
+                        : (widget.isEditing ? updateProduce : uploadProduce),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green[700],
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 20),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(25),
+                      ),
                     ),
+                    child: _isLoading
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : Text(
+                            widget.isEditing ? "Update" : "Add Produce",
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                   ),
-                  child: _isLoading
-                      ? const CircularProgressIndicator(color: Colors.white)
-                      : Text(
-                          widget.isEditing ? "Update Produce" : "Add Produce",
-                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                        ),
                 ),
               ),
+              
+              const SizedBox(height: 10),
             ],
           ),
         ),
