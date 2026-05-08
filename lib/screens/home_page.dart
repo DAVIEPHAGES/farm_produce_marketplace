@@ -18,6 +18,7 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   String searchQuery = '';
   String selectedCategory = 'All';
+  bool _showRefundPolicy = false;
 
   final List<String> categories = const [
     'All',
@@ -375,21 +376,29 @@ class _HomePageState extends State<HomePage> {
                   crossAxisCount = 2;
                 }
 
-                return GridView.builder(
-                  padding: const EdgeInsets.all(10),
-                  itemCount: filtered.length,
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: crossAxisCount,
-                    crossAxisSpacing: 10,
-                    mainAxisSpacing: 10,
-                    childAspectRatio: 0.72,
-                  ),
-                  itemBuilder: (context, index) {
-                    final doc = filtered[index];
-                    final data = doc.data() as Map<String, dynamic>;
+                return ListView(
+                  children: [
+                    GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      padding: const EdgeInsets.all(10),
+                      itemCount: filtered.length,
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: crossAxisCount,
+                        crossAxisSpacing: 10,
+                        mainAxisSpacing: 10,
+                        childAspectRatio: 0.72,
+                      ),
+                      itemBuilder: (context, index) {
+                        final doc = filtered[index];
+                        final data = doc.data() as Map<String, dynamic>;
 
-                    return _buildCard(data, doc.id, doc);
-                  },
+                        return _buildCard(data, doc.id, doc);
+                      },
+                    ),
+                    // Refund Policy Section
+                    _buildRefundPolicySection(),
+                  ],
                 );
               },
             ),
@@ -416,6 +425,201 @@ class _HomePageState extends State<HomePage> {
           BottomNavigationBarItem(
             icon: Icon(Icons.person_outline),
             label: 'profile',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRefundPolicySection() {
+    return Container(
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header with icon and title
+          GestureDetector(
+            onTap: () {
+              setState(() {
+                _showRefundPolicy = !_showRefundPolicy;
+              });
+            },
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade100,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    Icons.security,
+                    color: Colors.green.shade800,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Refund & Payment Protection Policy',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.green.shade800,
+                    ),
+                  ),
+                ),
+                Icon(
+                  _showRefundPolicy ? Icons.expand_less : Icons.expand_more,
+                  color: Colors.green.shade800,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Divider(color: Colors.grey),
+          
+          // Policy content - expandable
+          AnimatedCrossFade(
+            duration: const Duration(milliseconds: 300),
+            crossFadeState: _showRefundPolicy 
+                ? CrossFadeState.showFirst 
+                : CrossFadeState.showSecond,
+            firstChild: Column(
+              children: [
+                const SizedBox(height: 12),
+                _buildPolicyRule(
+                  number: '1',
+                  title: 'Payment Release Confirmation',
+                  description: 'Money will be sent to farmer ONLY if customer confirms that goods ordered have been received.',
+                  icon: Icons.check_circle_outline,
+                ),
+                const SizedBox(height: 12),
+                _buildPolicyRule(
+                  number: '2',
+                  title: '14-Day Confirmation Period',
+                  description: 'If you buy a product, make sure you notify us once you have received your produce. Otherwise, money will be released to the produce owner if we receive no message from customer within 14 days.',
+                  icon: Icons.timer_outlined,
+                ),
+                const SizedBox(height: 12),
+                _buildPolicyRule(
+                  number: '3',
+                  title: 'Transportation Issues',
+                  description: 'Goods not reaching destination due to poor transportation or stealing by transporter will be the farmer\'s responsibility to handle the issue. Money will NOT be released until the issue is solved.',
+                  icon: Icons.local_shipping_outlined,
+                  isLast: true,
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.amber.shade200),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.info_outline, color: Colors.amber.shade800, size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'For any issues regarding payments or deliveries, please contact our support team immediately.',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.amber.shade800,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            secondChild: const SizedBox.shrink(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPolicyRule({
+    required String number,
+    required String title,
+    required String description,
+    required IconData icon,
+    bool isLast = false,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: isLast ? null : Border(bottom: BorderSide(color: Colors.grey.shade200)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 28,
+            height: 28,
+            decoration: BoxDecoration(
+              color: Colors.green.shade100,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Center(
+              child: Text(
+                number,
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.green.shade800,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(icon, size: 16, color: Colors.green.shade700),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        title,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  description,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey.shade700,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
