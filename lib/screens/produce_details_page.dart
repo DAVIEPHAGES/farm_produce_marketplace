@@ -9,21 +9,14 @@ class ProduceDetailsPage extends StatefulWidget {
   const ProduceDetailsPage({super.key, required this.data});
 
   @override
-  State<ProduceDetailsPage> createState() =>
-      _ProduceDetailsPageState();
+  State<ProduceDetailsPage> createState() => _ProduceDetailsPageState();
 }
 
 class _ProduceDetailsPageState extends State<ProduceDetailsPage> {
   int quantity = 1;
 
+  // ✅ Updated: No login required to add to cart
   void addToCart() {
-    final user = FirebaseAuth.instance.currentUser;
-
-    if (user == null) {
-      Navigator.pushNamed(context, "/signin");
-      return;
-    }
-
     final data = widget.data.data() as Map<String, dynamic>;
 
     cartItems.add(
@@ -38,7 +31,10 @@ class _ProduceDetailsPageState extends State<ProduceDetailsPage> {
     );
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Added to cart")),
+      const SnackBar(
+        content: Text("Added to cart"),
+        duration: Duration(seconds: 1),
+      ),
     );
   }
 
@@ -55,23 +51,19 @@ class _ProduceDetailsPageState extends State<ProduceDetailsPage> {
 
     return Scaffold(
       backgroundColor: Colors.white,
-
       appBar: AppBar(
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         elevation: 0,
         title: Text(data['name'] ?? 'Product'),
       ),
-
       body: Column(
         children: [
-
           Expanded(
             child: SingleChildScrollView(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-
                   Image.network(
                     imageUrl,
                     width: double.infinity,
@@ -80,15 +72,12 @@ class _ProduceDetailsPageState extends State<ProduceDetailsPage> {
                     errorBuilder: (_, __, ___) =>
                         const Icon(Icons.image, size: 100),
                   ),
-
                   const SizedBox(height: 15),
-
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-
                         Text(
                           data['name'] ?? '',
                           style: const TextStyle(
@@ -96,9 +85,7 @@ class _ProduceDetailsPageState extends State<ProduceDetailsPage> {
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-
                         const SizedBox(height: 8),
-
                         Text(
                           "MK $price",
                           style: const TextStyle(
@@ -107,20 +94,16 @@ class _ProduceDetailsPageState extends State<ProduceDetailsPage> {
                             fontWeight: FontWeight.w600,
                           ),
                         ),
-
                         const SizedBox(height: 15),
-
                         Container(
                           padding: const EdgeInsets.all(14),
                           decoration: BoxDecoration(
                             color: Colors.grey.shade100,
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                                color: Colors.grey.shade300),
+                            border: Border.all(color: Colors.grey.shade300),
                           ),
                           child: Column(
-                            crossAxisAlignment:
-                                CrossAxisAlignment.start,
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               const Text(
                                 "👨‍🌾 Farmer Details",
@@ -129,9 +112,7 @@ class _ProduceDetailsPageState extends State<ProduceDetailsPage> {
                                   fontSize: 16,
                                 ),
                               ),
-
                               const SizedBox(height: 10),
-
                               Row(
                                 children: [
                                   const Icon(Icons.person, size: 18),
@@ -139,20 +120,15 @@ class _ProduceDetailsPageState extends State<ProduceDetailsPage> {
                                   Text("Name: $farmerName"),
                                 ],
                               ),
-
                               const SizedBox(height: 6),
-
                               Row(
                                 children: [
-                                  const Icon(Icons.location_on,
-                                      size: 18),
+                                  const Icon(Icons.location_on, size: 18),
                                   const SizedBox(width: 8),
                                   Text("Location: $farmerLocation"),
                                 ],
                               ),
-
                               const SizedBox(height: 6),
-
                               Row(
                                 children: [
                                   const Icon(Icons.phone, size: 18),
@@ -163,9 +139,7 @@ class _ProduceDetailsPageState extends State<ProduceDetailsPage> {
                             ],
                           ),
                         ),
-
                         const SizedBox(height: 20),
-
                         Row(
                           children: [
                             const Text(
@@ -173,13 +147,10 @@ class _ProduceDetailsPageState extends State<ProduceDetailsPage> {
                               style: TextStyle(fontSize: 16),
                             ),
                             const SizedBox(width: 20),
-
                             Container(
                               decoration: BoxDecoration(
-                                border: Border.all(
-                                    color: Colors.grey.shade300),
-                                borderRadius:
-                                    BorderRadius.circular(10),
+                                border: Border.all(color: Colors.grey.shade300),
+                                borderRadius: BorderRadius.circular(10),
                               ),
                               child: Row(
                                 children: [
@@ -203,7 +174,6 @@ class _ProduceDetailsPageState extends State<ProduceDetailsPage> {
                             ),
                           ],
                         ),
-
                         const SizedBox(height: 30),
                       ],
                     ),
@@ -212,7 +182,6 @@ class _ProduceDetailsPageState extends State<ProduceDetailsPage> {
               ),
             ),
           ),
-
           Container(
             padding: const EdgeInsets.all(16),
             width: double.infinity,
@@ -220,8 +189,7 @@ class _ProduceDetailsPageState extends State<ProduceDetailsPage> {
               onPressed: addToCart,
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.green,
-                padding:
-                    const EdgeInsets.symmetric(vertical: 16),
+                padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
