@@ -196,7 +196,6 @@ class _HomePageState extends State<HomePage> {
                   return matchesSearch && matchesCategory;
                 }).toList();
 
-                // ✅ RESPONSIVE GRID MODIFICATION
                 final screenWidth = MediaQuery.of(context).size.width;
 
                 int crossAxisCount = 2;
@@ -212,8 +211,7 @@ class _HomePageState extends State<HomePage> {
                 return GridView.builder(
                   padding: const EdgeInsets.all(10),
                   itemCount: filtered.length,
-                  gridDelegate:
-                      SliverGridDelegateWithFixedCrossAxisCount(
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: crossAxisCount,
                     crossAxisSpacing: 10,
                     mainAxisSpacing: 10,
@@ -257,14 +255,9 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  // ✅ UPDATED: No login required to add to cart
   void addToCart(Map<String, dynamic> data, String id) {
-    final user = FirebaseAuth.instance.currentUser;
-
-    if (user == null) {
-      Navigator.pushNamed(context, '/signin');
-      return;
-    }
-
+    // Remove the login check completely
     setState(() {
       final existingIndex = cartItems.indexWhere(
         (item) => item.productId == id,
