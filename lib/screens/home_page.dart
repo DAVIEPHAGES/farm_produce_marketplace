@@ -456,7 +456,7 @@ class _HomePageState extends State<HomePage> {
                       },
                     ),
                     
-                    // View More / View Less Button
+                    // View More / View Less Button (Same as Add to Cart button)
                     if (hasMore || hasLess)
                       Center(
                         child: Padding(
@@ -466,36 +466,20 @@ class _HomePageState extends State<HomePage> {
                             children: [
                               // View Less button (only show if viewing more than initial)
                               if (hasLess)
-                                GestureDetector(
-                                  onTap: () => _showLessProducts(productsPerPage),
-                                  child: Container(
+                                ElevatedButton.icon(
+                                  onPressed: () => _showLessProducts(productsPerPage),
+                                  icon: const Icon(Icons.expand_less, size: 16),
+                                  label: const Text('View Less'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.green,
+                                    foregroundColor: Colors.white,
                                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                    decoration: BoxDecoration(
-                                      color: Colors.orange.shade100,
+                                    shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(20),
-                                      border: Border.all(
-                                        color: Colors.orange.shade300,
-                                        width: 0.5,
-                                      ),
                                     ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(
-                                          Icons.expand_less,
-                                          size: 16,
-                                          color: Colors.orange.shade800,
-                                        ),
-                                        const SizedBox(width: 6),
-                                        Text(
-                                          'View Less',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w500,
-                                            color: Colors.orange.shade800,
-                                          ),
-                                        ),
-                                      ],
+                                    textStyle: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
                                     ),
                                   ),
                                 ),
@@ -506,36 +490,20 @@ class _HomePageState extends State<HomePage> {
                               
                               // View More button (only show if more products available)
                               if (hasMore)
-                                GestureDetector(
-                                  onTap: () => _loadMoreProducts(productsPerPage, _totalProductsCount),
-                                  child: Container(
+                                ElevatedButton.icon(
+                                  onPressed: () => _loadMoreProducts(productsPerPage, _totalProductsCount),
+                                  icon: const Icon(Icons.expand_more, size: 16),
+                                  label: Text('View More (${_totalProductsCount - _visibleProductsCount})'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.green,
+                                    foregroundColor: Colors.white,
                                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                    decoration: BoxDecoration(
-                                      color: Colors.green.shade100,
+                                    shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(20),
-                                      border: Border.all(
-                                        color: Colors.green.shade300,
-                                        width: 0.5,
-                                      ),
                                     ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(
-                                          Icons.expand_more,
-                                          size: 16,
-                                          color: Colors.green.shade800,
-                                        ),
-                                        const SizedBox(width: 6),
-                                        Text(
-                                          'View More (${_totalProductsCount - _visibleProductsCount})',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w500,
-                                            color: Colors.green.shade800,
-                                          ),
-                                        ),
-                                      ],
+                                    textStyle: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
                                     ),
                                   ),
                                 ),
