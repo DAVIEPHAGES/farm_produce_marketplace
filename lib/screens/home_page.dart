@@ -21,6 +21,7 @@ class _HomePageState extends State<HomePage> {
   bool _showRefundPolicy = false;
   int _visibleProductsCount = 0;
   int _totalProductsCount = 0;
+  bool _isShowingAll = false;
 
   final List<String> categories = const [
     'All',
@@ -46,6 +47,34 @@ class _HomePageState extends State<HomePage> {
       // Mobile - 2 columns
       return 4; // 2 rows of 2
     }
+  }
+
+  // Reset to initial view
+  void _resetToInitialView(int productsPerPage) {
+    setState(() {
+      _visibleProductsCount = productsPerPage;
+      _isShowingAll = false;
+    });
+  }
+
+  // Load more products
+  void _loadMoreProducts(int productsPerPage, int totalProducts) {
+    setState(() {
+      if (_visibleProductsCount + productsPerPage >= totalProducts) {
+        _visibleProductsCount = totalProducts;
+        _isShowingAll = true;
+      } else {
+        _visibleProductsCount += productsPerPage;
+      }
+    });
+  }
+
+  // Show less products (back to initial)
+  void _showLessProducts(int productsPerPage) {
+    setState(() {
+      _visibleProductsCount = productsPerPage;
+      _isShowingAll = false;
+    });
   }
 
   // Check if search query is a price search (starts with number or contains price operators)
@@ -192,7 +221,7 @@ class _HomePageState extends State<HomePage> {
                   onChanged: (value) {
                     setState(() {
                       searchQuery = value.toLowerCase();
-                      _visibleProductsCount = productsPerPage; // Reset visible count on search
+                      _resetToInitialView(productsPerPage);
                     });
                   },
                   decoration: InputDecoration(
@@ -204,7 +233,7 @@ class _HomePageState extends State<HomePage> {
                             onPressed: () {
                               setState(() {
                                 searchQuery = '';
-                                _visibleProductsCount = productsPerPage;
+                                _resetToInitialView(productsPerPage);
                               });
                             },
                           )
@@ -259,7 +288,7 @@ class _HomePageState extends State<HomePage> {
                   onTap: () {
                     setState(() {
                       selectedCategory = category;
-                      _visibleProductsCount = productsPerPage;
+                      _resetToInitialView(productsPerPage);
                     });
                   },
                   child: Container(
@@ -353,10 +382,12 @@ class _HomePageState extends State<HomePage> {
                 // Initialize visible count if not set
                 if (_visibleProductsCount == 0 || _visibleProductsCount > _totalProductsCount) {
                   _visibleProductsCount = productsPerPage;
+                  _isShowingAll = false;
                 }
                 
                 final visibleProducts = filtered.take(_visibleProductsCount).toList();
                 final hasMore = _visibleProductsCount < _totalProductsCount;
+                final hasLess = _visibleProductsCount > productsPerPage;
 
                 if (filtered.isEmpty) {
                   return Center(
@@ -425,45 +456,110 @@ class _HomePageState extends State<HomePage> {
                       },
                     ),
                     
-                    // View More Button
-                    if (hasMore)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                        child: ElevatedButton.icon(
-                          onPressed: () {
-                            setState(() {
-                              _visibleProductsCount += productsPerPage;
-                            });
-                          },
-                          icon: const Icon(Icons.expand_more),
-                          label: Text(
-                            'View More (${_totalProductsCount - _visibleProductsCount} remaining)',
-                            style: const TextStyle(fontSize: 14),
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green.shade100,
-                            foregroundColor: Colors.green.shade800,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(25),
-                            ),
+                    // View More / View Less Button
+                    if (hasMore || hasLess)
+                      Center(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              // View Less button (only show if viewing more than initial)
+                              if (hasLess)
+                                GestureDetector(
+                                  onTap: () => _showLessProducts(productsPerPage),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                    decoration: BoxDecoration(
+                                      color: Colors.orange.shade100,
+                                      borderRadius: BorderRadius.circular(20),
+                                      border: Border.all(
+                                        color: Colors.orange.shade300,
+                                        width: 0.5,
+                                      ),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          Icons.expand_less,
+                                          size: 16,
+                                          color: Colors.orange.shade800,
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          'View Less',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w500,
+                                            color: Colors.orange.shade800,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              
+                              // Spacing between buttons
+                              if (hasMore && hasLess)
+                                const SizedBox(width: 12),
+                              
+                              // View More button (only show if more products available)
+                              if (hasMore)
+                                GestureDetector(
+                                  onTap: () => _loadMoreProducts(productsPerPage, _totalProductsCount),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                    decoration: BoxDecoration(
+                                      color: Colors.green.shade100,
+                                      borderRadius: BorderRadius.circular(20),
+                                      border: Border.all(
+                                        color: Colors.green.shade300,
+                                        width: 0.5,
+                                      ),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          Icons.expand_more,
+                                          size: 16,
+                                          color: Colors.green.shade800,
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          'View More (${_totalProductsCount - _visibleProductsCount})',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w500,
+                                            color: Colors.green.shade800,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                            ],
                           ),
                         ),
                       ),
                     
-                    // Show all button when all products are visible
-                    if (!hasMore && _totalProductsCount > productsPerPage)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    // Showing info text
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                      child: Center(
                         child: Text(
-                          'Showing all ${_totalProductsCount} products',
+                          _isShowingAll 
+                              ? 'Showing all $_totalProductsCount products'
+                              : 'Showing ${_visibleProductsCount} of $_totalProductsCount products',
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey[600],
+                            fontSize: 11,
+                            color: Colors.grey[500],
                           ),
                         ),
                       ),
+                    ),
                     
                     // Refund Policy Section
                     _buildRefundPolicySection(),
