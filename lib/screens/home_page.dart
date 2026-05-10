@@ -18,6 +18,10 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   String searchQuery = '';
   String selectedCategory = 'All';
+  bool _showRefundPolicy = false;
+  int _visibleProductsCount = 0;
+  int _totalProductsCount = 0;
+  bool _isShowingAll = false;
 
   final List<String> categories = const [
     'All',
@@ -27,8 +31,118 @@ class _HomePageState extends State<HomePage> {
     'vegetables',
   ];
 
+  // Calculate how many products to show based on screen size
+  int _getProductsPerPage(BuildContext context) {
+    final screenHeight = MediaQuery.of(context).size.height;
+    final screenWidth = MediaQuery.of(context).size.width;
+    
+    // Calculate based on screen size
+    if (screenWidth >= 1200) {
+      // Desktop - 4 columns
+      return 8; // 2 rows of 4
+    } else if (screenWidth >= 800) {
+      // Tablet - 3 columns
+      return 6; // 2 rows of 3
+    } else {
+      // Mobile - 2 columns
+      return 4; // 2 rows of 2
+    }
+  }
+
+  // Reset to initial view
+  void _resetToInitialView(int productsPerPage) {
+    setState(() {
+      _visibleProductsCount = productsPerPage;
+      _isShowingAll = false;
+    });
+  }
+
+  // Load more products
+  void _loadMoreProducts(int productsPerPage, int totalProducts) {
+    setState(() {
+      if (_visibleProductsCount + productsPerPage >= totalProducts) {
+        _visibleProductsCount = totalProducts;
+        _isShowingAll = true;
+      } else {
+        _visibleProductsCount += productsPerPage;
+      }
+    });
+  }
+
+  // Show less products (back to initial)
+  void _showLessProducts(int productsPerPage) {
+    setState(() {
+      _visibleProductsCount = productsPerPage;
+      _isShowingAll = false;
+    });
+  }
+
+  // Check if search query is a price search (starts with number or contains price operators)
+  bool _isPriceSearch(String query) {
+    final trimmed = query.trim();
+    if (trimmed.isEmpty) return false;
+    
+    // Check if it starts with a number (for partial price search)
+    if (RegExp(r'^\d').hasMatch(trimmed)) return true;
+    
+    // Check for price range (contains dash)
+    if (trimmed.contains('-')) return true;
+    
+    // Check for "under X" or "below X"
+    if (trimmed.startsWith('under') || trimmed.startsWith('below')) return true;
+    
+    // Check for "above X" or "over X"
+    if (trimmed.startsWith('above') || trimmed.startsWith('over')) return true;
+    
+    return false;
+  }
+
+  // Parse price search query for filtering
+  (double? minPrice, double? maxPrice, String? priceStartsWith) _parsePriceQuery(String query) {
+    final trimmed = query.trim().toLowerCase();
+    
+    // Check if it's a partial price (starts with digits only)
+    if (RegExp(r'^\d+$').hasMatch(trimmed)) {
+      return (null, null, trimmed);
+    }
+    
+    // Price range with dash (e.g., "1000-5000")
+    if (trimmed.contains('-')) {
+      final parts = trimmed.split('-');
+      if (parts.length == 2) {
+        final min = double.tryParse(parts[0].trim());
+        final max = double.tryParse(parts[1].trim());
+        if (min != null && max != null) {
+          return (min, max, null);
+        }
+      }
+    }
+    
+    // Under/Below (e.g., "under 1000" or "below 500")
+    final underMatch = RegExp(r'(?:under|below)\s*(\d+(?:\.\d+)?)').firstMatch(trimmed);
+    if (underMatch != null) {
+      final max = double.tryParse(underMatch.group(1)!);
+      if (max != null) {
+        return (null, max, null);
+      }
+    }
+    
+    // Above/Over (e.g., "above 1000" or "over 5000")
+    final aboveMatch = RegExp(r'(?:above|over)\s*(\d+(?:\.\d+)?)').firstMatch(trimmed);
+    if (aboveMatch != null) {
+      final min = double.tryParse(aboveMatch.group(1)!);
+      if (min != null) {
+        return (min, null, null);
+      }
+    }
+    
+    return (null, null, null);
+  }
+
   @override
   Widget build(BuildContext context) {
+    final productsPerPage = _getProductsPerPage(context);
+    
     return Scaffold(
       drawer: const CustomerDrawer(),
       backgroundColor: Colors.grey.shade200,
@@ -101,24 +215,66 @@ class _HomePageState extends State<HomePage> {
         children: [
           Padding(
             padding: const EdgeInsets.all(10),
-            child: TextField(
-              onChanged: (value) {
-                setState(() {
-                  searchQuery = value.toLowerCase();
-                });
-              },
-              decoration: InputDecoration(
-                hintText: 'Search for maize, beans...',
-                prefixIcon: const Icon(Icons.search),
-                filled: true,
-                fillColor: Colors.grey.shade300,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(20),
-                  borderSide: BorderSide.none,
+            child: Column(
+              children: [
+                TextField(
+                  onChanged: (value) {
+                    setState(() {
+                      searchQuery = value.toLowerCase();
+                      _resetToInitialView(productsPerPage);
+                    });
+                  },
+                  decoration: InputDecoration(
+                    hintText: 'Search by name (e.g., maize) or price (e.g., 1, 10, 100, 1000-5000)',
+                    prefixIcon: const Icon(Icons.search),
+                    suffixIcon: searchQuery.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear),
+                            onPressed: () {
+                              setState(() {
+                                searchQuery = '';
+                                _resetToInitialView(productsPerPage);
+                              });
+                            },
+                          )
+                        : null,
+                    filled: true,
+                    fillColor: Colors.grey.shade300,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(20),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
                 ),
-              ),
+                if (searchQuery.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Row(
+                      children: [
+                        Icon(
+                          _isPriceSearch(searchQuery) 
+                              ? Icons.monetization_on 
+                              : Icons.search,
+                          size: 14,
+                          color: Colors.green,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          _isPriceSearch(searchQuery) 
+                              ? 'Searching by price...' 
+                              : 'Searching by name...',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
             ),
           ),
+          const SizedBox(height: 5),
           SizedBox(
             height: 45,
             child: ListView.builder(
@@ -132,6 +288,7 @@ class _HomePageState extends State<HomePage> {
                   onTap: () {
                     setState(() {
                       selectedCategory = category;
+                      _resetToInitialView(productsPerPage);
                     });
                   },
                   child: Container(
@@ -184,17 +341,87 @@ class _HomePageState extends State<HomePage> {
                 }
 
                 final docs = snapshot.data!.docs;
+                
+                final isPriceSearch = _isPriceSearch(searchQuery);
+                final (minPrice, maxPrice, priceStartsWith) = _parsePriceQuery(searchQuery);
+                
                 final filtered = docs.where((doc) {
                   final data = doc.data() as Map<String, dynamic>;
                   final name = (data['name'] ?? '').toString().toLowerCase();
+                  final price = (data['price'] as num?)?.toDouble() ?? 0;
+                  final priceString = price.toString();
 
-                  final matchesSearch = name.contains(searchQuery);
+                  bool matchesSearch = true;
+                  
+                  if (searchQuery.isNotEmpty) {
+                    if (isPriceSearch) {
+                      if (priceStartsWith != null) {
+                        matchesSearch = priceString.startsWith(priceStartsWith);
+                      } else {
+                        if (minPrice != null && price < minPrice) {
+                          matchesSearch = false;
+                        }
+                        if (maxPrice != null && price > maxPrice) {
+                          matchesSearch = false;
+                        }
+                      }
+                    } else {
+                      matchesSearch = name.contains(searchQuery);
+                    }
+                  }
+                  
                   final matchesCategory = selectedCategory == 'All'
                       ? true
-                      : name.contains(selectedCategory);
+                      : name.contains(selectedCategory.toLowerCase());
 
                   return matchesSearch && matchesCategory;
                 }).toList();
+
+                _totalProductsCount = filtered.length;
+                
+                // Initialize visible count if not set
+                if (_visibleProductsCount == 0 || _visibleProductsCount > _totalProductsCount) {
+                  _visibleProductsCount = productsPerPage;
+                  _isShowingAll = false;
+                }
+                
+                final visibleProducts = filtered.take(_visibleProductsCount).toList();
+                final hasMore = _visibleProductsCount < _totalProductsCount;
+                final hasLess = _visibleProductsCount > productsPerPage;
+
+                if (filtered.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.search_off,
+                          size: 64,
+                          color: Colors.grey[400],
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'No products found',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          isPriceSearch
+                              ? 'Try: "1", "10", "100", "500-2000", "under 1000", "above 5000"'
+                              : 'Try typing a produce name like "maize" or "beans"',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[500],
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  );
+                }
 
                 final screenWidth = MediaQuery.of(context).size.width;
 
@@ -208,21 +435,103 @@ class _HomePageState extends State<HomePage> {
                   crossAxisCount = 2;
                 }
 
-                return GridView.builder(
-                  padding: const EdgeInsets.all(10),
-                  itemCount: filtered.length,
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: crossAxisCount,
-                    crossAxisSpacing: 10,
-                    mainAxisSpacing: 10,
-                    childAspectRatio: 0.72,
-                  ),
-                  itemBuilder: (context, index) {
-                    final doc = filtered[index];
-                    final data = doc.data() as Map<String, dynamic>;
+                return ListView(
+                  children: [
+                    GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      padding: const EdgeInsets.all(10),
+                      itemCount: visibleProducts.length,
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: crossAxisCount,
+                        crossAxisSpacing: 10,
+                        mainAxisSpacing: 10,
+                        childAspectRatio: 0.72,
+                      ),
+                      itemBuilder: (context, index) {
+                        final doc = visibleProducts[index];
+                        final data = doc.data() as Map<String, dynamic>;
 
-                    return _buildCard(data, doc.id, doc);
-                  },
+                        return _buildCard(data, doc.id, doc);
+                      },
+                    ),
+                    
+                    // View More / View Less Button (Same as Add to Cart button)
+                    if (hasMore || hasLess)
+                      Center(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              // View Less button (only show if viewing more than initial)
+                              if (hasLess)
+                                ElevatedButton.icon(
+                                  onPressed: () => _showLessProducts(productsPerPage),
+                                  icon: const Icon(Icons.expand_less, size: 16),
+                                  label: const Text('View Less'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.green,
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    textStyle: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                              
+                              // Spacing between buttons
+                              if (hasMore && hasLess)
+                                const SizedBox(width: 12),
+                              
+                              // View More button (only show if more products available)
+                              if (hasMore)
+                                ElevatedButton.icon(
+                                  onPressed: () => _loadMoreProducts(productsPerPage, _totalProductsCount),
+                                  icon: const Icon(Icons.expand_more, size: 16),
+                                  label: Text('View More (${_totalProductsCount - _visibleProductsCount})'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.green,
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    textStyle: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    
+                    // Showing info text
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                      child: Center(
+                        child: Text(
+                          _isShowingAll 
+                              ? 'Showing all $_totalProductsCount products'
+                              : 'Showing ${_visibleProductsCount} of $_totalProductsCount products',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.grey[500],
+                          ),
+                        ),
+                      ),
+                    ),
+                    
+                    // Refund Policy Section
+                    _buildRefundPolicySection(),
+                  ],
                 );
               },
             ),
@@ -255,9 +564,202 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // ✅ UPDATED: No login required to add to cart
+  Widget _buildRefundPolicySection() {
+    return Container(
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header with icon and title
+          GestureDetector(
+            onTap: () {
+              setState(() {
+                _showRefundPolicy = !_showRefundPolicy;
+              });
+            },
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade100,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    Icons.security,
+                    color: Colors.green.shade800,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Refund & Payment Protection Policy',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.green.shade800,
+                    ),
+                  ),
+                ),
+                Icon(
+                  _showRefundPolicy ? Icons.expand_less : Icons.expand_more,
+                  color: Colors.green.shade800,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Divider(color: Colors.grey),
+          
+          // Policy content - expandable
+          AnimatedCrossFade(
+            duration: const Duration(milliseconds: 300),
+            crossFadeState: _showRefundPolicy 
+                ? CrossFadeState.showFirst 
+                : CrossFadeState.showSecond,
+            firstChild: Column(
+              children: [
+                const SizedBox(height: 12),
+                _buildPolicyRule(
+                  number: '1',
+                  title: 'Payment Release Confirmation',
+                  description: 'Money will be sent to farmer ONLY if customer confirms that goods ordered have been received.',
+                  icon: Icons.check_circle_outline,
+                ),
+                const SizedBox(height: 12),
+                _buildPolicyRule(
+                  number: '2',
+                  title: '14-Day Confirmation Period',
+                  description: 'If you buy a product, make sure you notify us once you have received your produce. Otherwise, money will be released to the produce owner if we receive no message from customer within 14 days.',
+                  icon: Icons.timer_outlined,
+                ),
+                const SizedBox(height: 12),
+                _buildPolicyRule(
+                  number: '3',
+                  title: 'Transportation Issues',
+                  description: 'Goods not reaching destination due to poor transportation or stealing by transporter will be the farmer\'s responsibility to handle the issue. Money will NOT be released until the issue is solved.',
+                  icon: Icons.local_shipping_outlined,
+                  isLast: true,
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.amber.shade200),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.info_outline, color: Colors.amber.shade800, size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'For any issues regarding payments or deliveries, please contact our support team immediately.',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.amber.shade800,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            secondChild: const SizedBox.shrink(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPolicyRule({
+    required String number,
+    required String title,
+    required String description,
+    required IconData icon,
+    bool isLast = false,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: isLast ? null : Border(bottom: BorderSide(color: Colors.grey.shade200)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 28,
+            height: 28,
+            decoration: BoxDecoration(
+              color: Colors.green.shade100,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Center(
+              child: Text(
+                number,
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.green.shade800,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(icon, size: 16, color: Colors.green.shade700),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        title,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  description,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey.shade700,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   void addToCart(Map<String, dynamic> data, String id) {
-    // Remove the login check completely
     setState(() {
       final existingIndex = cartItems.indexWhere(
         (item) => item.productId == id,
@@ -284,6 +786,7 @@ class _HomePageState extends State<HomePage> {
     ).showSnackBar(const SnackBar(content: Text('Added to cart')));
   }
 
+  // UPDATED _buildCard method - Now shows price per selling unit instead of quantity
   Widget _buildCard(
     Map<String, dynamic> data,
     String id,
@@ -355,7 +858,8 @@ class _HomePageState extends State<HomePage> {
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 4),
-                Text('MK ${data['price'] ?? 0} / ${data['quantity'] ?? ''}'),
+                // CHANGED: Now shows price per selling unit instead of quantity
+                Text('MK ${data['price'] ?? 0} / ${data['sellingUnit'] ?? ''}'),
                 const SizedBox(height: 8),
                 SizedBox(
                   width: double.infinity,
