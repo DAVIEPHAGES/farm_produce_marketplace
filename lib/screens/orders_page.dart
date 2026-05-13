@@ -67,7 +67,7 @@ class _OrdersPageState extends State<OrdersPage> {
     }
 
     return Scaffold(
-      backgroundColor: Colors.grey.shade100,
+      backgroundColor: Colors.white,
       body: Column(
         children: [
           /// HERO HEADER
