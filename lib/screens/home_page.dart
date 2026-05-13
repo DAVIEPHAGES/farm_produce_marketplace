@@ -104,9 +104,78 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  // Calculate how many products to show based on screen size
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _handlePayChanguRedirect();
+    });
+  }
+
+  Future<void> _handlePayChanguRedirect() async {
+    final queryParams = Uri.base.queryParameters;
+    if (queryParams['paychangu_callback'] != '1') {
+      return;
+    }
+
+    final status = (queryParams['status'] ?? '').toLowerCase();
+    final txRef = queryParams['tx_ref'] ?? queryParams['txRef'];
+    final orderId = queryParams['orderId'];
+
+    clearQueryParameters();
+
+    final isSuccessCallback =
+        status == 'success' ||
+        (status.isEmpty &&
+            orderId != null &&
+            txRef != null &&
+            txRef.isNotEmpty);
+
+    if (orderId == null || orderId.isEmpty || txRef == null || txRef.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Payment returned, but the order could not be identified.',
+            ),
+            duration: Duration(seconds: 4),
+          ),
+        );
+      }
+      return;
+    }
+
+    if (mounted) {
+      if (isSuccessCallback) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Order placed successfully. You may continue shopping.',
+            ),
+            duration: Duration(seconds: 4),
+          ),
+        );
+
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
+        });
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            status == 'failed' || status == 'cancelled'
+                ? 'Payment was not completed. Please try again.'
+                : 'Payment returned to the app. Please verify your order status.',
+          ),
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    }
+  }
+
   int _getProductsPerPage(BuildContext context) {
-    final screenHeight = MediaQuery.of(context).size.height;
     final screenWidth = MediaQuery.of(context).size.width;
 
     // Calculate based on screen size
@@ -130,7 +199,6 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
-  // Load more products
   void _loadMoreProducts(int productsPerPage, int totalProducts) {
     setState(() {
       if (_visibleProductsCount + productsPerPage >= totalProducts) {
@@ -142,7 +210,6 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
-  // Show less products (back to initial)
   void _showLessProducts(int productsPerPage) {
     setState(() {
       _visibleProductsCount = productsPerPage;
@@ -150,7 +217,6 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
-  // Check if search query is a price search (starts with number or contains price operators)
   bool _isPriceSearch(String query) {
     final trimmed = query.trim();
     if (trimmed.isEmpty) return false;
@@ -186,9 +252,7 @@ class _HomePageState extends State<HomePage> {
       if (parts.length == 2) {
         final min = double.tryParse(parts[0].trim());
         final max = double.tryParse(parts[1].trim());
-        if (min != null && max != null) {
-          return (min, max, null);
-        }
+        if (min != null && max != null) return (min, max, null);
       }
     }
 
@@ -198,9 +262,7 @@ class _HomePageState extends State<HomePage> {
     ).firstMatch(trimmed);
     if (underMatch != null) {
       final max = double.tryParse(underMatch.group(1)!);
-      if (max != null) {
-        return (null, max, null);
-      }
+      if (max != null) return (null, max, null);
     }
 
     // Above/Over (e.g., "above 1000" or "over 5000")
@@ -209,10 +271,9 @@ class _HomePageState extends State<HomePage> {
     ).firstMatch(trimmed);
     if (aboveMatch != null) {
       final min = double.tryParse(aboveMatch.group(1)!);
-      if (min != null) {
-        return (min, null, null);
-      }
+      if (min != null) return (min, null, null);
     }
+
 
     return (null, null, null);
   }
@@ -220,6 +281,7 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     final productsPerPage = _getProductsPerPage(context);
+
 
     return Scaffold(
       drawer: const CustomerDrawer(),
@@ -263,7 +325,8 @@ class _HomePageState extends State<HomePage> {
                     ),
                     child: Text(
                       cartItems.length.toString(),
-                      style: const TextStyle(color: Colors.white, fontSize: 11),
+                      style:
+                          const TextStyle(color: Colors.white, fontSize: 11),
                     ),
                   ),
                 ),
@@ -273,7 +336,6 @@ class _HomePageState extends State<HomePage> {
             stream: FirebaseAuth.instance.authStateChanges(),
             builder: (context, snapshot) {
               final user = snapshot.data;
-
               if (user == null) {
                 return TextButton(
                   onPressed: () => Navigator.pushNamed(context, '/signin'),
@@ -283,7 +345,6 @@ class _HomePageState extends State<HomePage> {
                   ),
                 );
               }
-
               return const SizedBox.shrink();
             },
           ),
@@ -420,7 +481,7 @@ class _HomePageState extends State<HomePage> {
                 }
 
                 final docs = snapshot.data!.docs;
-
+                
                 final isPriceSearch = _isPriceSearch(searchQuery);
                 final (minPrice, maxPrice, priceStartsWith) = _parsePriceQuery(
                   searchQuery,
@@ -428,8 +489,10 @@ class _HomePageState extends State<HomePage> {
 
                 final filtered = docs.where((doc) {
                   final data = doc.data() as Map<String, dynamic>;
-                  final name = (data['name'] ?? '').toString().toLowerCase();
-                  final price = (data['price'] as num?)?.toDouble() ?? 0;
+                  final name =
+                      (data['name'] ?? '').toString().toLowerCase();
+                  final price =
+                      (data['price'] as num?)?.toDouble() ?? 0;
                   final priceString = price.toString();
 
                   bool matchesSearch = true;
@@ -437,7 +500,8 @@ class _HomePageState extends State<HomePage> {
                   if (searchQuery.isNotEmpty) {
                     if (isPriceSearch) {
                       if (priceStartsWith != null) {
-                        matchesSearch = priceString.startsWith(priceStartsWith);
+                        matchesSearch =
+                            priceString.startsWith(priceStartsWith);
                       } else {
                         if (minPrice != null && price < minPrice) {
                           matchesSearch = false;
@@ -478,18 +542,13 @@ class _HomePageState extends State<HomePage> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(
-                          Icons.search_off,
-                          size: 64,
-                          color: Colors.grey[400],
-                        ),
+                        Icon(Icons.search_off,
+                            size: 64, color: Colors.grey[400]),
                         const SizedBox(height: 16),
                         Text(
                           'No products found',
                           style: TextStyle(
-                            fontSize: 16,
-                            color: Colors.grey[600],
-                          ),
+                              fontSize: 16, color: Colors.grey[600]),
                         ),
                         const SizedBox(height: 8),
                         Text(
@@ -497,9 +556,7 @@ class _HomePageState extends State<HomePage> {
                               ? 'Try: "1", "10", "100", "500-2000", "under 1000", "above 5000"'
                               : 'Try typing a produce name like "maize" or "beans"',
                           style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey[500],
-                          ),
+                              fontSize: 12, color: Colors.grey[500]),
                           textAlign: TextAlign.center,
                         ),
                       ],
@@ -508,16 +565,8 @@ class _HomePageState extends State<HomePage> {
                 }
 
                 final screenWidth = MediaQuery.of(context).size.width;
-
-                int crossAxisCount = 2;
-
-                if (screenWidth >= 1200) {
-                  crossAxisCount = 4;
-                } else if (screenWidth >= 800) {
-                  crossAxisCount = 3;
-                } else {
-                  crossAxisCount = 2;
-                }
+                final (crossAxisCount, childAspectRatio) =
+                    _getGridConfig(screenWidth);
 
                 return ListView(
                   children: [
@@ -526,16 +575,18 @@ class _HomePageState extends State<HomePage> {
                       physics: const NeverScrollableScrollPhysics(),
                       padding: const EdgeInsets.all(10),
                       itemCount: visibleProducts.length,
-                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      gridDelegate:
+                          SliverGridDelegateWithFixedCrossAxisCount(
                         crossAxisCount: crossAxisCount,
                         crossAxisSpacing: 10,
                         mainAxisSpacing: 10,
-                        childAspectRatio: 0.72,
+                        // FIX: use breakpoint-aware ratio instead of a single fixed value
+                        childAspectRatio: childAspectRatio,
                       ),
                       itemBuilder: (context, index) {
                         final doc = visibleProducts[index];
-                        final data = doc.data() as Map<String, dynamic>;
-
+                        final data =
+                            doc.data() as Map<String, dynamic>;
                         return _buildCard(data, doc.id, doc);
                       },
                     ),
@@ -551,7 +602,6 @@ class _HomePageState extends State<HomePage> {
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              // View Less button (only show if viewing more than initial)
                               if (hasLess)
                                 ElevatedButton.icon(
                                   onPressed: () =>
@@ -566,7 +616,8 @@ class _HomePageState extends State<HomePage> {
                                       vertical: 8,
                                     ),
                                     shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(20),
+                                      borderRadius:
+                                          BorderRadius.circular(20),
                                     ),
                                     textStyle: const TextStyle(
                                       fontSize: 12,
@@ -597,12 +648,12 @@ class _HomePageState extends State<HomePage> {
                                       vertical: 8,
                                     ),
                                     shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(20),
+                                      borderRadius:
+                                          BorderRadius.circular(20),
                                     ),
                                     textStyle: const TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w500,
-                                    ),
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w500),
                                   ),
                                 ),
                             ],
@@ -619,17 +670,16 @@ class _HomePageState extends State<HomePage> {
                       child: Center(
                         child: Text(
                           _isShowingAll
+                          _isShowingAll
                               ? 'Showing all $_totalProductsCount products'
-                              : 'Showing ${_visibleProductsCount} of $_totalProductsCount products',
+                              : 'Showing $_visibleProductsCount of $_totalProductsCount products',
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                            fontSize: 11,
-                            color: Colors.grey[500],
-                          ),
+                              fontSize: 11, color: Colors.grey[500]),
                         ),
                       ),
                     ),
-
+                    
                     // Refund Policy Section
                     _buildRefundPolicySection(),
                   ],
@@ -644,22 +694,16 @@ class _HomePageState extends State<HomePage> {
         selectedItemColor: Colors.green,
         unselectedItemColor: Colors.black,
         onTap: (index) {
-          if (index == 1) {
-            Navigator.pushNamed(context, '/orders');
-          } else if (index == 2) {
-            Navigator.pushNamed(context, '/profile');
-          }
+          if (index == 1) Navigator.pushNamed(context, '/orders');
+          if (index == 2) Navigator.pushNamed(context, '/profile');
         },
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'home'),
           BottomNavigationBarItem(
-            icon: Icon(Icons.shopping_cart_outlined),
-            label: 'orders',
-          ),
+              icon: Icon(Icons.home), label: 'home'),
           BottomNavigationBarItem(
-            icon: Icon(Icons.person_outline),
-            label: 'profile',
-          ),
+              icon: Icon(Icons.shopping_cart_outlined), label: 'orders'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.person_outline), label: 'profile'),
         ],
       ),
     );
@@ -683,7 +727,6 @@ class _HomePageState extends State<HomePage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header with icon and title
           GestureDetector(
             onTap: () {
               setState(() {
@@ -698,11 +741,8 @@ class _HomePageState extends State<HomePage> {
                     color: Colors.green.shade100,
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Icon(
-                    Icons.security,
-                    color: Colors.green.shade800,
-                    size: 20,
-                  ),
+                  child: Icon(Icons.security,
+                      color: Colors.green.shade800, size: 20),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -716,7 +756,9 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ),
                 Icon(
-                  _showRefundPolicy ? Icons.expand_less : Icons.expand_more,
+                  _showRefundPolicy
+                      ? Icons.expand_less
+                      : Icons.expand_more,
                   color: Colors.green.shade800,
                 ),
               ],
@@ -778,9 +820,8 @@ class _HomePageState extends State<HomePage> {
                         child: Text(
                           'For any issues regarding payments or deliveries, please contact our support team immediately.',
                           style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.amber.shade800,
-                          ),
+                              fontSize: 12,
+                              color: Colors.amber.shade800),
                         ),
                       ),
                     ],
@@ -839,15 +880,15 @@ class _HomePageState extends State<HomePage> {
               children: [
                 Row(
                   children: [
-                    Icon(icon, size: 16, color: Colors.green.shade700),
+                    Icon(icon,
+                        size: 16, color: Colors.green.shade700),
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
                         title,
                         style: const TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13,
-                        ),
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13),
                       ),
                     ),
                   ],
@@ -928,103 +969,112 @@ class _HomePageState extends State<HomePage> {
       );
     });
 
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Added to cart')));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Added to cart')),
+    );
   }
 
-  // UPDATED _buildCard method - Now shows price per selling unit instead of quantity
   Widget _buildCard(
     Map<String, dynamic> data,
     String id,
     QueryDocumentSnapshot doc,
   ) {
-    return Container(
-      decoration: BoxDecoration(
+    return ClipRRect(
+      // FIX: ClipRRect prevents any child from painting outside card bounds
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        children: [
-          SizedBox(
-            height: 140,
-            child: Stack(
-              children: [
-                GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute<void>(
-                        builder: (_) => ProduceDetailsPage(data: doc),
-                      ),
-                    );
-                  },
-                  child: ClipRRect(
-                    borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(16),
-                    ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // FIX: AspectRatio scales the image proportionally instead of
+            //      a hardcoded height that mismatches the grid cell size.
+            AspectRatio(
+              aspectRatio: 1.2, // wider than tall — adjust to taste (1.0–1.4)
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute<void>(
+                          builder: (_) =>
+                              ProduceDetailsPage(data: doc),
+                        ),
+                      );
+                    },
                     child: Image.network(
                       data['imageUrl']?.toString() ?? '',
-                      width: double.infinity,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) =>
-                          const Center(child: Icon(Icons.image)),
-                    ),
-                  ),
-                ),
-                Positioned(
-                  top: 8,
-                  right: 8,
-                  child: GestureDetector(
-                    onTap: () => addToCart(data, id),
-                    child: Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: Colors.green,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Icon(
-                        Icons.add,
-                        color: Colors.white,
-                        size: 18,
+                      errorBuilder: (_, __, ___) => const Center(
+                        child: Icon(Icons.image, size: 40),
                       ),
                     ),
                   ),
-                ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(10),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  data['name']?.toString() ?? '',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 4),
-                // CHANGED: Now shows price per selling unit instead of quantity
-                Text('MK ${data['price'] ?? 0} / ${data['sellingUnit'] ?? ''}'),
-                const SizedBox(height: 8),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: () => addToCart(data, id),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 10),
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: GestureDetector(
+                      onTap: () => addToCart(data, id),
+                      child: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: Colors.green,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(Icons.add,
+                            color: Colors.white, size: 18),
+                      ),
                     ),
-                    icon: const Icon(Icons.shopping_cart, size: 18),
-                    label: const Text('Add to Cart'),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+            // Text + button section grows to fill remaining card space
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      data['name']?.toString() ?? '',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'MK ${data['price'] ?? 0} / ${data['sellingUnit'] ?? ''}',
+                      style: const TextStyle(fontSize: 12),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const Spacer(),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () => addToCart(data, id),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green,
+                          foregroundColor: Colors.white,
+                          padding:
+                              const EdgeInsets.symmetric(vertical: 8),
+                          tapTargetSize:
+                              MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        icon: const Icon(Icons.shopping_cart, size: 16),
+                        label: const Text('Add to Cart',
+                            style: TextStyle(fontSize: 12)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
