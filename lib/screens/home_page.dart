@@ -2,6 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../utils/url_utils.dart'
+    if (dart.library.html) '../utils/url_utils_web.dart';
 import 'package:farm_app/data/cart_data.dart';
 
 import '../widgets/customer_drawer.dart';
@@ -31,11 +33,82 @@ class _HomePageState extends State<HomePage> {
     'vegetables',
   ];
 
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _handlePayChanguRedirect();
+    });
+  }
+
+  Future<void> _handlePayChanguRedirect() async {
+    final queryParams = Uri.base.queryParameters;
+    if (queryParams['paychangu_callback'] != '1') {
+      return;
+    }
+
+    final status = (queryParams['status'] ?? '').toLowerCase();
+    final txRef = queryParams['tx_ref'] ?? queryParams['txRef'];
+    final orderId = queryParams['orderId'];
+
+    clearQueryParameters();
+
+    final isSuccessCallback =
+        status == 'success' ||
+        (status.isEmpty &&
+            orderId != null &&
+            txRef != null &&
+            txRef.isNotEmpty);
+
+    if (orderId == null || orderId.isEmpty || txRef == null || txRef.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Payment returned, but the order could not be identified.',
+            ),
+            duration: Duration(seconds: 4),
+          ),
+        );
+      }
+      return;
+    }
+
+    if (mounted) {
+      if (isSuccessCallback) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Order placed successfully. You may continue shopping.',
+            ),
+            duration: Duration(seconds: 4),
+          ),
+        );
+
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
+        });
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            status == 'failed' || status == 'cancelled'
+                ? 'Payment was not completed. Please try again.'
+                : 'Payment returned to the app. Please verify your order status.',
+          ),
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    }
+  }
+
   // Calculate how many products to show based on screen size
   int _getProductsPerPage(BuildContext context) {
     final screenHeight = MediaQuery.of(context).size.height;
     final screenWidth = MediaQuery.of(context).size.width;
-    
+
     // Calculate based on screen size
     if (screenWidth >= 1200) {
       // Desktop - 4 columns
@@ -81,31 +154,32 @@ class _HomePageState extends State<HomePage> {
   bool _isPriceSearch(String query) {
     final trimmed = query.trim();
     if (trimmed.isEmpty) return false;
-    
+
     // Check if it starts with a number (for partial price search)
     if (RegExp(r'^\d').hasMatch(trimmed)) return true;
-    
+
     // Check for price range (contains dash)
     if (trimmed.contains('-')) return true;
-    
+
     // Check for "under X" or "below X"
     if (trimmed.startsWith('under') || trimmed.startsWith('below')) return true;
-    
+
     // Check for "above X" or "over X"
     if (trimmed.startsWith('above') || trimmed.startsWith('over')) return true;
-    
+
     return false;
   }
 
   // Parse price search query for filtering
-  (double? minPrice, double? maxPrice, String? priceStartsWith) _parsePriceQuery(String query) {
+  (double? minPrice, double? maxPrice, String? priceStartsWith)
+  _parsePriceQuery(String query) {
     final trimmed = query.trim().toLowerCase();
-    
+
     // Check if it's a partial price (starts with digits only)
     if (RegExp(r'^\d+$').hasMatch(trimmed)) {
       return (null, null, trimmed);
     }
-    
+
     // Price range with dash (e.g., "1000-5000")
     if (trimmed.contains('-')) {
       final parts = trimmed.split('-');
@@ -117,32 +191,36 @@ class _HomePageState extends State<HomePage> {
         }
       }
     }
-    
+
     // Under/Below (e.g., "under 1000" or "below 500")
-    final underMatch = RegExp(r'(?:under|below)\s*(\d+(?:\.\d+)?)').firstMatch(trimmed);
+    final underMatch = RegExp(
+      r'(?:under|below)\s*(\d+(?:\.\d+)?)',
+    ).firstMatch(trimmed);
     if (underMatch != null) {
       final max = double.tryParse(underMatch.group(1)!);
       if (max != null) {
         return (null, max, null);
       }
     }
-    
+
     // Above/Over (e.g., "above 1000" or "over 5000")
-    final aboveMatch = RegExp(r'(?:above|over)\s*(\d+(?:\.\d+)?)').firstMatch(trimmed);
+    final aboveMatch = RegExp(
+      r'(?:above|over)\s*(\d+(?:\.\d+)?)',
+    ).firstMatch(trimmed);
     if (aboveMatch != null) {
       final min = double.tryParse(aboveMatch.group(1)!);
       if (min != null) {
         return (min, null, null);
       }
     }
-    
+
     return (null, null, null);
   }
 
   @override
   Widget build(BuildContext context) {
     final productsPerPage = _getProductsPerPage(context);
-    
+
     return Scaffold(
       drawer: const CustomerDrawer(),
       backgroundColor: Colors.grey.shade200,
@@ -225,7 +303,8 @@ class _HomePageState extends State<HomePage> {
                     });
                   },
                   decoration: InputDecoration(
-                    hintText: 'Search by name (e.g., maize) or price (e.g., 1, 10, 100, 1000-5000)',
+                    hintText:
+                        'Search by name (e.g., maize) or price (e.g., 1, 10, 100, 1000-5000)',
                     prefixIcon: const Icon(Icons.search),
                     suffixIcon: searchQuery.isNotEmpty
                         ? IconButton(
@@ -252,16 +331,16 @@ class _HomePageState extends State<HomePage> {
                     child: Row(
                       children: [
                         Icon(
-                          _isPriceSearch(searchQuery) 
-                              ? Icons.monetization_on 
+                          _isPriceSearch(searchQuery)
+                              ? Icons.monetization_on
                               : Icons.search,
                           size: 14,
                           color: Colors.green,
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          _isPriceSearch(searchQuery) 
-                              ? 'Searching by price...' 
+                          _isPriceSearch(searchQuery)
+                              ? 'Searching by price...'
                               : 'Searching by name...',
                           style: TextStyle(
                             fontSize: 11,
@@ -341,10 +420,12 @@ class _HomePageState extends State<HomePage> {
                 }
 
                 final docs = snapshot.data!.docs;
-                
+
                 final isPriceSearch = _isPriceSearch(searchQuery);
-                final (minPrice, maxPrice, priceStartsWith) = _parsePriceQuery(searchQuery);
-                
+                final (minPrice, maxPrice, priceStartsWith) = _parsePriceQuery(
+                  searchQuery,
+                );
+
                 final filtered = docs.where((doc) {
                   final data = doc.data() as Map<String, dynamic>;
                   final name = (data['name'] ?? '').toString().toLowerCase();
@@ -352,7 +433,7 @@ class _HomePageState extends State<HomePage> {
                   final priceString = price.toString();
 
                   bool matchesSearch = true;
-                  
+
                   if (searchQuery.isNotEmpty) {
                     if (isPriceSearch) {
                       if (priceStartsWith != null) {
@@ -369,7 +450,7 @@ class _HomePageState extends State<HomePage> {
                       matchesSearch = name.contains(searchQuery);
                     }
                   }
-                  
+
                   final matchesCategory = selectedCategory == 'All'
                       ? true
                       : name.contains(selectedCategory.toLowerCase());
@@ -378,14 +459,17 @@ class _HomePageState extends State<HomePage> {
                 }).toList();
 
                 _totalProductsCount = filtered.length;
-                
+
                 // Initialize visible count if not set
-                if (_visibleProductsCount == 0 || _visibleProductsCount > _totalProductsCount) {
+                if (_visibleProductsCount == 0 ||
+                    _visibleProductsCount > _totalProductsCount) {
                   _visibleProductsCount = productsPerPage;
                   _isShowingAll = false;
                 }
-                
-                final visibleProducts = filtered.take(_visibleProductsCount).toList();
+
+                final visibleProducts = filtered
+                    .take(_visibleProductsCount)
+                    .toList();
                 final hasMore = _visibleProductsCount < _totalProductsCount;
                 final hasLess = _visibleProductsCount > productsPerPage;
 
@@ -455,25 +539,32 @@ class _HomePageState extends State<HomePage> {
                         return _buildCard(data, doc.id, doc);
                       },
                     ),
-                    
+
                     // View More / View Less Button (Same as Add to Cart button)
                     if (hasMore || hasLess)
                       Center(
                         child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 8,
+                          ),
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               // View Less button (only show if viewing more than initial)
                               if (hasLess)
                                 ElevatedButton.icon(
-                                  onPressed: () => _showLessProducts(productsPerPage),
+                                  onPressed: () =>
+                                      _showLessProducts(productsPerPage),
                                   icon: const Icon(Icons.expand_less, size: 16),
                                   label: const Text('View Less'),
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: Colors.green,
                                     foregroundColor: Colors.white,
-                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 8,
+                                    ),
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(20),
                                     ),
@@ -483,21 +574,28 @@ class _HomePageState extends State<HomePage> {
                                     ),
                                   ),
                                 ),
-                              
+
                               // Spacing between buttons
-                              if (hasMore && hasLess)
-                                const SizedBox(width: 12),
-                              
+                              if (hasMore && hasLess) const SizedBox(width: 12),
+
                               // View More button (only show if more products available)
                               if (hasMore)
                                 ElevatedButton.icon(
-                                  onPressed: () => _loadMoreProducts(productsPerPage, _totalProductsCount),
+                                  onPressed: () => _loadMoreProducts(
+                                    productsPerPage,
+                                    _totalProductsCount,
+                                  ),
                                   icon: const Icon(Icons.expand_more, size: 16),
-                                  label: Text('View More (${_totalProductsCount - _visibleProductsCount})'),
+                                  label: Text(
+                                    'View More (${_totalProductsCount - _visibleProductsCount})',
+                                  ),
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: Colors.green,
                                     foregroundColor: Colors.white,
-                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 8,
+                                    ),
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(20),
                                     ),
@@ -511,13 +609,16 @@ class _HomePageState extends State<HomePage> {
                           ),
                         ),
                       ),
-                    
+
                     // Showing info text
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 4,
+                      ),
                       child: Center(
                         child: Text(
-                          _isShowingAll 
+                          _isShowingAll
                               ? 'Showing all $_totalProductsCount products'
                               : 'Showing ${_visibleProductsCount} of $_totalProductsCount products',
                           textAlign: TextAlign.center,
@@ -528,7 +629,7 @@ class _HomePageState extends State<HomePage> {
                         ),
                       ),
                     ),
-                    
+
                     // Refund Policy Section
                     _buildRefundPolicySection(),
                   ],
@@ -623,12 +724,12 @@ class _HomePageState extends State<HomePage> {
           ),
           const SizedBox(height: 8),
           const Divider(color: Colors.grey),
-          
+
           // Policy content - expandable
           AnimatedCrossFade(
             duration: const Duration(milliseconds: 300),
-            crossFadeState: _showRefundPolicy 
-                ? CrossFadeState.showFirst 
+            crossFadeState: _showRefundPolicy
+                ? CrossFadeState.showFirst
                 : CrossFadeState.showSecond,
             firstChild: Column(
               children: [
@@ -636,21 +737,24 @@ class _HomePageState extends State<HomePage> {
                 _buildPolicyRule(
                   number: '1',
                   title: 'Payment Release Confirmation',
-                  description: 'Money will be sent to farmer ONLY if customer confirms that goods ordered have been received.',
+                  description:
+                      'Money will be sent to farmer ONLY if customer confirms that goods ordered have been received.',
                   icon: Icons.check_circle_outline,
                 ),
                 const SizedBox(height: 12),
                 _buildPolicyRule(
                   number: '2',
                   title: '14-Day Confirmation Period',
-                  description: 'If you buy a product, make sure you notify us once you have received your produce. Otherwise, money will be released to the produce owner if we receive no message from customer within 14 days.',
+                  description:
+                      'If you buy a product, make sure you notify us once you have received your produce. Otherwise, money will be released to the produce owner if we receive no message from customer within 14 days.',
                   icon: Icons.timer_outlined,
                 ),
                 const SizedBox(height: 12),
                 _buildPolicyRule(
                   number: '3',
                   title: 'Transportation Issues',
-                  description: 'Goods not reaching destination due to poor transportation or stealing by transporter will be the farmer\'s responsibility to handle the issue. Money will NOT be released until the issue is solved.',
+                  description:
+                      'Goods not reaching destination due to poor transportation or stealing by transporter will be the farmer\'s responsibility to handle the issue. Money will NOT be released until the issue is solved.',
                   icon: Icons.local_shipping_outlined,
                   isLast: true,
                 ),
@@ -664,7 +768,11 @@ class _HomePageState extends State<HomePage> {
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.info_outline, color: Colors.amber.shade800, size: 20),
+                      Icon(
+                        Icons.info_outline,
+                        color: Colors.amber.shade800,
+                        size: 20,
+                      ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
@@ -699,7 +807,9 @@ class _HomePageState extends State<HomePage> {
       decoration: BoxDecoration(
         color: Colors.grey.shade50,
         borderRadius: BorderRadius.circular(12),
-        border: isLast ? null : Border(bottom: BorderSide(color: Colors.grey.shade200)),
+        border: isLast
+            ? null
+            : Border(bottom: BorderSide(color: Colors.grey.shade200)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -759,26 +869,63 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  void addToCart(Map<String, dynamic> data, String id) {
-    setState(() {
-      final existingIndex = cartItems.indexWhere(
-        (item) => item.productId == id,
-      );
+  int? _parseStock(Map<String, dynamic> data) {
+    final stockValue = data['stock'];
+    if (stockValue is num) return stockValue.toInt();
+    if (stockValue is String) return int.tryParse(stockValue);
 
-      if (existingIndex >= 0) {
-        cartItems[existingIndex].quantity += 1;
+    final quantityValue = data['quantity'];
+    if (quantityValue is num) return quantityValue.toInt();
+    if (quantityValue is String) return int.tryParse(quantityValue);
+
+    return null;
+  }
+
+  void addToCart(Map<String, dynamic> data, String id) {
+    final availableStock = _parseStock(data);
+    final existingIndex = cartItems.indexWhere((item) => item.productId == id);
+
+    if (availableStock != null && availableStock <= 0) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Product is out of stock')));
+      return;
+    }
+
+    if (existingIndex >= 0) {
+      final currentQuantity = cartItems[existingIndex].quantity;
+      if (availableStock == null || currentQuantity < availableStock) {
+        setState(() {
+          cartItems[existingIndex].quantity += 1;
+        });
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Added to cart')));
       } else {
-        cartItems.add(
-          CartItem(
-            productId: id,
-            name: data['name']?.toString() ?? '',
-            price: (data['price'] as num?)?.toDouble() ?? 0,
-            quantity: 1,
-            imageUrl: data['imageUrl']?.toString() ?? '',
-            farmer: data['farmerName']?.toString() ?? 'Farmer',
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Only $availableStock unit${availableStock == 1 ? '' : 's'} available',
+            ),
           ),
         );
       }
+      return;
+    }
+
+    setState(() {
+      cartItems.add(
+        CartItem(
+          productId: id,
+          name: data['name']?.toString() ?? '',
+          price: (data['price'] as num?)?.toDouble() ?? 0,
+          quantity: 1,
+          imageUrl: data['imageUrl']?.toString() ?? '',
+          farmer: data['farmerName']?.toString() ?? 'Farmer',
+          unit: data['sellingUnit']?.toString() ?? 'unit',
+          stock: availableStock,
+        ),
+      );
     });
 
     ScaffoldMessenger.of(
