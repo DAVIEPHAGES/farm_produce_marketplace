@@ -3,7 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../services/admin_services.dart';
 import 'admin_products_page.dart';
 import 'admin_orders_page.dart';
-import 'admin_users_page.dart';  // This now handles both customers and farmers
+import 'admin_users_page.dart'; // This now handles both customers and farmers
 import 'admin_reports_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -25,7 +25,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
     const DashboardHome(),
     const AdminProductsPage(),
     const AdminOrdersPage(),
-    const AdminUsersPage(),    // This shows BOTH customers and farmers
+    const AdminUsersPage(), // This shows BOTH customers and farmers
     const AdminReportsPage(),
   ];
 
@@ -33,7 +33,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
     'Dashboard',
     'Manage Products',
     'Manage Orders',
-    'Manage Users',    // Changed from 'Manage Farmers' to 'Manage Users'
+    'Manage Users', // Changed from 'Manage Farmers' to 'Manage Users'
     'Reports',
   ];
 
@@ -41,7 +41,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
     Icons.dashboard,
     Icons.inventory,
     Icons.shopping_cart,
-    Icons.people,      // Changed from Icons.agriculture to Icons.people
+    Icons.people, // Changed from Icons.agriculture to Icons.people
     Icons.bar_chart,
   ];
 
@@ -77,13 +77,11 @@ class _AdminDashboardState extends State<AdminDashboard> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     return Scaffold(
-      backgroundColor: Colors.grey[100],
+      backgroundColor: Colors.white,
       appBar: AppBar(
         title: Text(_titles[_selectedIndex]),
         backgroundColor: const Color(0xFF2E7D32),
@@ -107,10 +105,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
               setState(() {});
             },
           ),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: _logout,
-          ),
+          IconButton(icon: const Icon(Icons.logout), onPressed: _logout),
         ],
       ),
       drawer: _buildDrawer(),
@@ -149,10 +144,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 const SizedBox(height: 4),
                 Text(
                   _adminRole.toUpperCase(),
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 12,
-                  ),
+                  style: const TextStyle(color: Colors.white70, fontSize: 12),
                 ),
               ],
             ),
@@ -223,52 +215,56 @@ class _DashboardHomeState extends State<DashboardHome> {
 
   Future<void> _loadStats() async {
     setState(() => _isLoading = true);
-    
+
     try {
       final firestore = FirebaseFirestore.instance;
-      
+
       // Get all users
       final usersSnapshot = await firestore.collection('users').get();
-      
+
       // Get farmers (userType == 'farmer')
       final farmersSnapshot = await firestore
           .collection('users')
           .where('userType', isEqualTo: 'farmer')
           .get();
-      
+
       // Get customers (userType == 'customer')
       final customersSnapshot = await firestore
           .collection('users')
           .where('userType', isEqualTo: 'customer')
           .get();
-      
+
       // Get all products
       final productsSnapshot = await firestore.collection('products').get();
-      
+
       // Get all orders
       final ordersSnapshot = await firestore.collection('orders').get();
-      
+
       // Calculate revenue from orders
       double totalRevenue = 0;
       int completedOrders = 0;
       int pendingOrders = 0;
       int deliveredOrders = 0;
-      
+
       for (var doc in ordersSnapshot.docs) {
         final data = doc.data();
-        final paymentStatus = data['paymentStatus'] ?? data['status'] ?? 'pending';
+        final paymentStatus =
+            data['paymentStatus'] ?? data['status'] ?? 'pending';
         final orderStatus = data['orderStatus'] ?? data['status'] ?? 'pending';
-        final amount = (data['totalAmount'] ?? data['totalPrice'] ?? 0).toDouble();
-        
-        if (paymentStatus == 'completed' || paymentStatus == 'paid' || orderStatus == 'delivered') {
+        final amount = (data['totalAmount'] ?? data['totalPrice'] ?? 0)
+            .toDouble();
+
+        if (paymentStatus == 'completed' ||
+            paymentStatus == 'paid' ||
+            orderStatus == 'delivered') {
           totalRevenue += amount;
           completedOrders++;
         }
-        
+
         if (orderStatus == 'pending') pendingOrders++;
         if (orderStatus == 'delivered') deliveredOrders++;
       }
-      
+
       setState(() {
         _stats = {
           'totalUsers': usersSnapshot.size,
@@ -337,7 +333,7 @@ class _DashboardHomeState extends State<DashboardHome> {
               ],
             ),
             const SizedBox(height: 16),
-            
+
             // Stats Cards - Row 2
             GridView.count(
               shrinkWrap: true,
@@ -374,7 +370,7 @@ class _DashboardHomeState extends State<DashboardHome> {
               ],
             ),
             const SizedBox(height: 24),
-            
+
             // Recent Orders
             Card(
               elevation: 2,
@@ -399,12 +395,16 @@ class _DashboardHomeState extends State<DashboardHome> {
                           .snapshots(),
                       builder: (context, snapshot) {
                         if (snapshot.hasError) {
-                          return Center(child: Text('Error: ${snapshot.error}'));
+                          return Center(
+                            child: Text('Error: ${snapshot.error}'),
+                          );
                         }
                         if (!snapshot.hasData) {
-                          return const Center(child: CircularProgressIndicator());
+                          return const Center(
+                            child: CircularProgressIndicator(),
+                          );
                         }
-                        
+
                         final orders = snapshot.data!.docs;
                         if (orders.isEmpty) {
                           return const Center(
@@ -414,7 +414,7 @@ class _DashboardHomeState extends State<DashboardHome> {
                             ),
                           );
                         }
-                        
+
                         return ListView.builder(
                           shrinkWrap: true,
                           physics: const NeverScrollableScrollPhysics(),
@@ -422,32 +422,47 @@ class _DashboardHomeState extends State<DashboardHome> {
                           itemBuilder: (context, index) {
                             final order = orders[index];
                             final data = order.data() as Map<String, dynamic>;
-                            
+
                             final orderId = data['orderId'] ?? order.id;
-                            final customerName = data['customerName'] ?? 'Unknown';
-                            final totalAmount = (data['totalAmount'] ?? data['totalPrice'] ?? 0).toDouble();
-                            final orderStatus = data['orderStatus'] ?? data['status'] ?? 'pending';
-                            
+                            final customerName =
+                                data['customerName'] ?? 'Unknown';
+                            final totalAmount =
+                                (data['totalAmount'] ?? data['totalPrice'] ?? 0)
+                                    .toDouble();
+                            final orderStatus =
+                                data['orderStatus'] ??
+                                data['status'] ??
+                                'pending';
+
                             return ListTile(
                               leading: CircleAvatar(
                                 backgroundColor: _getStatusColor(orderStatus),
                                 child: Text(
                                   '${index + 1}',
-                                  style: const TextStyle(color: Colors.white, fontSize: 12),
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                  ),
                                 ),
                               ),
                               title: Text(
                                 'Order #${orderId.length > 8 ? orderId.substring(0, 8) : orderId}',
-                                style: const TextStyle(fontWeight: FontWeight.w500),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w500,
+                                ),
                               ),
-                              subtitle: Text('$customerName - MWK ${totalAmount.toStringAsFixed(2)}'),
+                              subtitle: Text(
+                                '$customerName - MWK ${totalAmount.toStringAsFixed(2)}',
+                              ),
                               trailing: Container(
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 10,
                                   vertical: 4,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: _getStatusColor(orderStatus).withOpacity(0.2),
+                                  color: _getStatusColor(
+                                    orderStatus,
+                                  ).withOpacity(0.2),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: Text(
@@ -490,20 +505,39 @@ class _DashboardHomeState extends State<DashboardHome> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 _buildDetailRow('Customer:', data['customerName'] ?? 'Unknown'),
-                _buildDetailRow('Email:', data['customerEmail'] ?? 'Not provided'),
-                _buildDetailRow('Phone:', data['customerPhone'] ?? 'Not provided'),
+                _buildDetailRow(
+                  'Email:',
+                  data['customerEmail'] ?? 'Not provided',
+                ),
+                _buildDetailRow(
+                  'Phone:',
+                  data['customerPhone'] ?? 'Not provided',
+                ),
                 const Divider(),
-                _buildDetailRow('Total:', 'MWK ${(data['totalAmount'] ?? 0).toStringAsFixed(2)}'),
-                _buildDetailRow('Payment:', data['paymentMethod'] ?? 'Not specified'),
+                _buildDetailRow(
+                  'Total:',
+                  'MWK ${(data['totalAmount'] ?? 0).toStringAsFixed(2)}',
+                ),
+                _buildDetailRow(
+                  'Payment:',
+                  data['paymentMethod'] ?? 'Not specified',
+                ),
                 _buildDetailRow('Status:', data['orderStatus'] ?? 'pending'),
                 const Divider(),
-                const Text('Items:', style: TextStyle(fontWeight: FontWeight.bold)),
+                const Text(
+                  'Items:',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
                 const SizedBox(height: 8),
                 if (data['items'] != null)
-                  ...(data['items'] as List).map((item) => Padding(
-                    padding: const EdgeInsets.only(bottom: 4),
-                    child: Text('• ${item['name']} x ${item['quantity']} = MWK ${(item['price'] * item['quantity']).toStringAsFixed(2)}'),
-                  )),
+                  ...(data['items'] as List).map(
+                    (item) => Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: Text(
+                        '• ${item['name']} x ${item['quantity']} = MWK ${(item['price'] * item['quantity']).toStringAsFixed(2)}',
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
@@ -528,7 +562,10 @@ class _DashboardHomeState extends State<DashboardHome> {
             width: 90,
             child: Text(
               label,
-              style: const TextStyle(fontWeight: FontWeight.w500, color: Colors.grey),
+              style: const TextStyle(
+                fontWeight: FontWeight.w500,
+                color: Colors.grey,
+              ),
             ),
           ),
           Expanded(child: Text(value)),
@@ -546,9 +583,7 @@ class _DashboardHomeState extends State<DashboardHome> {
     return Card(
       elevation: 2,
       child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        decoration: BoxDecoration(borderRadius: BorderRadius.circular(12)),
         child: Padding(
           padding: const EdgeInsets.all(12),
           child: Column(
@@ -567,10 +602,7 @@ class _DashboardHomeState extends State<DashboardHome> {
               const SizedBox(height: 4),
               Text(
                 title,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey[600],
-                ),
+                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                 textAlign: TextAlign.center,
               ),
             ],
