@@ -9,7 +9,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class AddProducePage extends StatefulWidget {
-  // NEW: Optional parameters for editing mode
   final Map<String, dynamic>? existingProduct;
   final String? productId;
   final bool isEditing;
@@ -33,19 +32,17 @@ class _AddProducePageState extends State<AddProducePage> {
   final TextEditingController locationController = TextEditingController();
   final TextEditingController descriptionController = TextEditingController();
 
-  File? _image;           // Mobile
-  Uint8List? _webImage;   // Web
-  String? _existingImageUrl; // Store existing image URL for editing
+  File? _image;
+  Uint8List? _webImage;
+  String? _existingImageUrl;
 
   final ImagePicker _picker = ImagePicker();
   bool _isLoading = false;
 
-  // Dropdown variables
   String? _selectedSellingUnit;
   bool _isCustomUnit = false;
   final TextEditingController _customUnitController = TextEditingController();
 
-  // List of predefined selling units
   final List<String> _predefinedUnits = [
     'Kilogram (kg)',
     'Gram (g)',
@@ -69,7 +66,6 @@ class _AddProducePageState extends State<AddProducePage> {
   @override
   void initState() {
     super.initState();
-    // If editing, pre-fill the form with existing product data
     if (widget.isEditing && widget.existingProduct != null) {
       _preFillForm();
     }
@@ -78,17 +74,22 @@ class _AddProducePageState extends State<AddProducePage> {
   void _preFillForm() {
     nameController.text = widget.existingProduct!['name']?.toString() ?? '';
     priceController.text = widget.existingProduct!['price']?.toString() ?? '';
-    quantityController.text = widget.existingProduct!['quantity']?.toString() ?? '';
+    
+    // ✅ Handle quantity - convert from int to string for display
+    final quantity = widget.existingProduct!['quantity'];
+    if (quantity is int) {
+      quantityController.text = quantity.toString();
+    } else {
+      quantityController.text = quantity?.toString() ?? '';
+    }
     
     String? existingUnit = widget.existingProduct!['sellingUnit']?.toString();
     
-    // Check if the existing unit is in the predefined list
     if (existingUnit != null && _predefinedUnits.contains(existingUnit)) {
       _selectedSellingUnit = existingUnit;
       _isCustomUnit = false;
       sellingUnitController.text = existingUnit;
     } else if (existingUnit != null && existingUnit.isNotEmpty) {
-      // It's a custom unit
       _isCustomUnit = true;
       _customUnitController.text = existingUnit;
       sellingUnitController.text = existingUnit;
@@ -111,7 +112,6 @@ class _AddProducePageState extends State<AddProducePage> {
     super.dispose();
   }
 
-  // Helper method to get the final selling unit value
   String _getSellingUnit() {
     if (_isCustomUnit) {
       return _customUnitController.text.trim();
@@ -120,7 +120,6 @@ class _AddProducePageState extends State<AddProducePage> {
     }
   }
 
-  // ✅ PICK IMAGE (WEB + MOBILE)
   Future<void> pickImage() async {
     try {
       final pickedFile = await _picker.pickImage(
@@ -135,13 +134,13 @@ class _AddProducePageState extends State<AddProducePage> {
         setState(() {
           _webImage = bytes;
           _image = null;
-          _existingImageUrl = null; // Clear existing image when new one is picked
+          _existingImageUrl = null;
         });
       } else {
         setState(() {
           _image = File(pickedFile.path);
           _webImage = null;
-          _existingImageUrl = null; // Clear existing image when new one is picked
+          _existingImageUrl = null;
         });
       }
     } catch (e) {
@@ -149,7 +148,6 @@ class _AddProducePageState extends State<AddProducePage> {
     }
   }
 
-  // ✅ UPLOAD IMAGE (WEB + MOBILE)
   Future<String?> uploadImageToCloudinary() async {
     try {
       final uri = Uri.parse(
@@ -191,50 +189,44 @@ class _AddProducePageState extends State<AddProducePage> {
     }
   }
 
-  // ✅ UPDATE PRODUCE (EDIT MODE)
+  // ✅ UPDATE PRODUCE (EDIT MODE) - Now saves quantity as int
   Future<void> updateProduce() async {
-    // VALIDATE ALL FIELDS
     if (nameController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter produce name')),
-      );
+      _showError('Please enter produce name');
       return;
     }
     
     if (priceController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter price')),
-      );
+      _showError('Please enter price');
       return;
     }
     
     if (quantityController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter quantity')),
-      );
+      _showError('Please enter quantity');
       return;
     }
     
     if (locationController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter location')),
-      );
+      _showError('Please enter location');
       return;
     }
 
     String sellingUnit = _getSellingUnit();
     if (sellingUnit.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select or enter a selling unit')),
-      );
+      _showError('Please select or enter a selling unit');
       return;
     }
 
     double? price = double.tryParse(priceController.text);
     if (price == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Enter a valid price')),
-      );
+      _showError('Enter a valid price');
+      return;
+    }
+
+    // ✅ Parse quantity as integer
+    int? quantity = int.tryParse(quantityController.text);
+    if (quantity == null || quantity <= 0) {
+      _showError('Enter a valid quantity (must be a positive number)');
       return;
     }
 
@@ -244,104 +236,84 @@ class _AddProducePageState extends State<AddProducePage> {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) throw Exception("User not logged in");
 
-      // If user selected a new image, upload it; otherwise keep existing
       String? imageUrl = _existingImageUrl;
       if (_image != null || _webImage != null) {
         imageUrl = await uploadImageToCloudinary();
         if (imageUrl == null) throw Exception("Image upload failed");
       }
 
-      // Update the product in Firestore
+      // ✅ Update with quantity as INTEGER
       await FirebaseFirestore.instance
           .collection('products')
           .doc(widget.productId)
           .update({
         'name': nameController.text.trim(),
         'price': price,
-        'quantity': quantityController.text.trim(),
+        'quantity': quantity, // ✅ NOW SAVED AS INTEGER
         'sellingUnit': sellingUnit,
         'location': locationController.text.trim(),
         'description': descriptionController.text.trim(),
         'imageUrl': imageUrl,
+        'priceDisplay': '$price per $sellingUnit',
         'lastUpdated': DateTime.now().toIso8601String(),
       });
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('✅ Product updated successfully!'),
-          backgroundColor: Colors.green,
-          duration: Duration(seconds: 2),
-        ),
-      );
-
-      // Return success to dashboard
+      _showSuccess('✅ Product updated successfully!');
       Navigator.pop(context, true);
 
     } catch (e) {
       debugPrint("Error: $e");
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('❌ Error: ${e.toString()}')),
-        );
-      }
+      _showError('Error: ${e.toString()}');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  // ✅ UPLOAD PRODUCE (ADD MODE)
+  // ✅ UPLOAD PRODUCE (ADD MODE) - Now saves quantity as int
   Future<void> uploadProduce() async {
-    // VALIDATE ALL FIELDS
     if (nameController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter produce name')),
-      );
+      _showError('Please enter produce name');
       return;
     }
     
     if (priceController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter price')),
-      );
+      _showError('Please enter price');
       return;
     }
     
     if (quantityController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter quantity')),
-      );
+      _showError('Please enter quantity');
       return;
     }
     
     String sellingUnit = _getSellingUnit();
     if (sellingUnit.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select or enter a selling unit')),
-      );
+      _showError('Please select or enter a selling unit');
       return;
     }
     
     if (locationController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter location')),
-      );
+      _showError('Please enter location');
       return;
     }
     
     if (_image == null && _webImage == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select an image')),
-      );
+      _showError('Please select an image');
       return;
     }
 
     double? price = double.tryParse(priceController.text);
     if (price == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Enter a valid price')),
-      );
+      _showError('Enter a valid price');
+      return;
+    }
+
+    // ✅ Parse quantity as integer
+    int? quantity = int.tryParse(quantityController.text);
+    if (quantity == null || quantity <= 0) {
+      _showError('Enter a valid quantity (must be a positive number)');
       return;
     }
 
@@ -349,12 +321,8 @@ class _AddProducePageState extends State<AddProducePage> {
 
     try {
       final user = FirebaseAuth.instance.currentUser;
+      if (user == null) throw Exception("User not logged in");
 
-      if (user == null) {
-        throw Exception("User not logged in");
-      }
-
-      // Get farmer name and location from user profile
       final userDoc = await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
@@ -362,20 +330,18 @@ class _AddProducePageState extends State<AddProducePage> {
       final userData = userDoc.data() ?? {};
       String farmerName = userData['name'] ?? user.displayName ?? "Farmer";
 
-      // Upload Image
       final imageUrl = await uploadImageToCloudinary();
       if (imageUrl == null) throw Exception("Image upload failed");
 
-      // Create display text for price (price + selling unit)
       String priceDisplay = '$price per $sellingUnit';
 
-      // Save to Firestore with ALL REQUIRED FIELDS
+      // ✅ Save quantity as INTEGER
       final productData = {
         'name': nameController.text.trim(),
         'price': price,
-        'quantity': quantityController.text.trim(),
+        'quantity': quantity, // ✅ NOW SAVED AS INTEGER
         'sellingUnit': sellingUnit,
-        'priceDisplay': priceDisplay, // NEW: Combined price and unit for display
+        'priceDisplay': priceDisplay,
         'location': locationController.text.trim(),
         'description': descriptionController.text.trim(),
         'imageUrl': imageUrl,
@@ -389,10 +355,8 @@ class _AddProducePageState extends State<AddProducePage> {
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('✅ Produce added successfully')),
-      );
-
+      _showSuccess('✅ Produce added successfully');
+      
       // Clear form
       nameController.clear();
       priceController.clear();
@@ -409,19 +373,26 @@ class _AddProducePageState extends State<AddProducePage> {
         _customUnitController.clear();
       });
 
-      // Return success to dashboard
       Navigator.pop(context, true);
 
     } catch (e) {
       debugPrint("Error: $e");
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('❌ Error: ${e.toString()}')),
-        );
-      }
+      _showError('Error: ${e.toString()}');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
+    );
+  }
+
+  void _showSuccess(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.green),
+    );
   }
 
   @override
@@ -440,7 +411,7 @@ class _AddProducePageState extends State<AddProducePage> {
           child: Container(
             margin: const EdgeInsets.all(20),
             padding: const EdgeInsets.all(20),
-            width: 400, // Fixed width for smaller form
+            width: 400,
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(25),
@@ -456,7 +427,6 @@ class _AddProducePageState extends State<AddProducePage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Produce Name
                 _buildFieldLabel("Produce Name"),
                 _buildSmallTextField(
                   controller: nameController,
@@ -464,7 +434,6 @@ class _AddProducePageState extends State<AddProducePage> {
                 ),
                 const SizedBox(height: 12),
 
-                // Price
                 _buildFieldLabel("Price (MWK)"),
                 _buildSmallTextField(
                   controller: priceController,
@@ -473,15 +442,20 @@ class _AddProducePageState extends State<AddProducePage> {
                 ),
                 const SizedBox(height: 12),
 
-                // Quantity Available
-                _buildFieldLabel("Quantity Available"),
+                // ✅ Updated label to make it clear it's a number
+                _buildFieldLabel("Quantity Available (Number only)"),
                 _buildSmallTextField(
                   controller: quantityController,
                   hint: "e.g., 50, 100",
+                  isNumber: true,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  "Enter the total quantity available (e.g., 50 kg, 100 bags)",
+                  style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
                 ),
                 const SizedBox(height: 12),
 
-                // Selling Unit
                 _buildFieldLabel("Selling Unit (per unit)"),
                 Card(
                   elevation: 0,
@@ -534,7 +508,6 @@ class _AddProducePageState extends State<AddProducePage> {
                   ),
                 ),
                 
-                // Custom unit text field
                 if (_isCustomUnit) ...[
                   const SizedBox(height: 8),
                   _buildSmallTextField(
@@ -547,7 +520,6 @@ class _AddProducePageState extends State<AddProducePage> {
                 ],
                 const SizedBox(height: 12),
 
-                // Location
                 _buildFieldLabel("Location"),
                 _buildSmallTextField(
                   controller: locationController,
@@ -555,7 +527,6 @@ class _AddProducePageState extends State<AddProducePage> {
                 ),
                 const SizedBox(height: 12),
 
-                // Description
                 _buildFieldLabel("Description (Optional)"),
                 _buildSmallTextField(
                   controller: descriptionController,
@@ -564,7 +535,6 @@ class _AddProducePageState extends State<AddProducePage> {
                 ),
                 const SizedBox(height: 12),
 
-                // Upload Image
                 _buildFieldLabel("Upload Image"),
                 GestureDetector(
                   onTap: pickImage,
@@ -583,7 +553,6 @@ class _AddProducePageState extends State<AddProducePage> {
                 ),
                 const SizedBox(height: 8),
 
-                // Image Preview
                 if (_webImage != null)
                   Center(
                     child: ClipRRect(
@@ -619,7 +588,6 @@ class _AddProducePageState extends State<AddProducePage> {
                     ),
                   ),
 
-                // Preview of how price will be displayed
                 if (priceController.text.isNotEmpty && _getSellingUnit().isNotEmpty)
                   Container(
                     margin: const EdgeInsets.only(top: 12),
@@ -645,7 +613,6 @@ class _AddProducePageState extends State<AddProducePage> {
 
                 const SizedBox(height: 20),
                 
-                // Centered smaller button
                 Center(
                   child: SizedBox(
                     width: 160,
