@@ -26,14 +26,16 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final payChanguCallback =
-        Uri.base.queryParameters['paychangu_callback'] == '1';
-
     return MaterialApp(
       title: 'Farm Produce Marketplace',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(primarySwatch: Colors.green, useMaterial3: true),
-      initialRoute: payChanguCallback ? '/payment' : '/home',
+      // ✅ FIXED: Removed primarySwatch to fix the assertion error
+      theme: ThemeData(
+        useMaterial3: true,
+        colorSchemeSeed: Colors.green,
+      ),
+      // ✅ CHANGED: Always start at Home page
+      initialRoute: '/home',
       routes: {
         '/home': (context) => const HomeWrapper(userType: 'customer'),
         '/signin': (context) => const SignInPage(),
@@ -44,53 +46,20 @@ class MyApp extends StatelessWidget {
         '/farmers-dashboard': (context) => const FarmersDashboardPage(),
         '/admin-dashboard': (context) => const AdminDashboard(),
         '/add-produce': (context) => const AddProducePage(),
-        '/notifications': (context) => const _PlaceholderPage(
-          title: 'Notifications',
-          message: 'Notifications will appear here soon.',
-        ),
       },
       onGenerateRoute: (settings) {
+        // Handle dynamic routing (Payment and Produce Details)
         switch (settings.name) {
           case '/payment':
             final args = settings.arguments;
             if (args is Map<String, dynamic>) {
-              final totalAmount = args['totalAmount'];
-              final orderId = args['orderId'];
-              final cartItems = args['cartItems'];
-
-              if (totalAmount is num &&
-                  orderId is String &&
-                  cartItems is List) {
-                return MaterialPageRoute<void>(
-                  builder: (context) => PaymentPage(
-                    totalAmount: totalAmount.toDouble(),
-                    orderId: orderId,
-                    cartItems: cartItems
-                        .whereType<Map>()
-                        .map(
-                          (item) => item.map(
-                            (key, value) => MapEntry(key.toString(), value),
-                          ),
-                        )
-                        .toList(),
-                  ),
-                  settings: settings,
-                );
-              }
-            }
-
-            final queryParams = Uri.base.queryParameters;
-            final orderId = queryParams['orderId'];
-            final totalAmount = double.tryParse(queryParams['amount'] ?? '');
-
-            if (queryParams['paychangu_callback'] == '1' &&
-                orderId != null &&
-                totalAmount != null) {
               return MaterialPageRoute<void>(
                 builder: (context) => PaymentPage(
-                  totalAmount: totalAmount,
-                  orderId: orderId,
-                  cartItems: const [],
+                  totalAmount: (args['totalAmount'] as num).toDouble(),
+                  orderId: args['orderId'] as String,
+                  cartItems: (args['cartItems'] as List)
+                      .map((item) => Map<String, dynamic>.from(item))
+                      .toList(),
                 ),
                 settings: settings,
               );
@@ -106,31 +75,10 @@ class MyApp extends StatelessWidget {
             }
             break;
         }
-
         return null;
       },
       onUnknownRoute: (settings) =>
           MaterialPageRoute<void>(builder: (context) => const SignInPage()),
-    );
-  }
-}
-
-class _PlaceholderPage extends StatelessWidget {
-  final String title;
-  final String message;
-
-  const _PlaceholderPage({required this.title, required this.message});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(title)),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Text(message, textAlign: TextAlign.center),
-        ),
-      ),
     );
   }
 }
