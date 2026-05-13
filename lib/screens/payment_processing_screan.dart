@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:url_launcher/url_launcher.dart';
 import 'payment_success_screen.dart';
-import '../services/local_notification_service.dart';  // ✅ ADD THIS
+import '../services/local_notification_service.dart';
 
 class PaymentProcessingScreen extends StatefulWidget {
   final String orderId;
@@ -91,14 +92,13 @@ class _PaymentProcessingScreenState extends State<PaymentProcessingScreen> {
       final paymentUrl = data['paymentUrl'];
 
       if (paymentUrl != null && mounted) {
-        // Open in browser
         final Uri url = Uri.parse(paymentUrl);
-        if (await canLaunchUrl(url)) {
-          await launchUrl(url, mode: LaunchMode.externalApplication);
-          
-          // Start listening for payment status
-          _listenForPaymentStatus();
-        }
+        print('Payment URL: $url');
+        
+        // Show dialog before opening browser
+        _showOpenBrowserDialog(url);
+      } else {
+        throw Exception('No payment URL received from backend');
       }
     } catch (e) {
       print('❌ Payment error: $e');
@@ -114,6 +114,137 @@ class _PaymentProcessingScreenState extends State<PaymentProcessingScreen> {
         _isProcessing = false;
       });
     }
+  }
+
+  void _showOpenBrowserDialog(Uri url) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text('Open Payment Page'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'You will be redirected to PayChangu to complete your payment.',
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.amber[50],
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline, color: Colors.amber[700]),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      'After payment, please return to the app.',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              setState(() {
+                _isProcessing = false;
+              });
+            },
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () async {
+              Navigator.pop(context);
+              await _openInChrome(url);
+            },
+            icon: const Icon(Icons.open_in_browser),
+            label: const Text('Open in Chrome'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _openInChrome(Uri url) async {
+    try {
+      // Force open in external browser (Chrome)
+      final bool launched = await launchUrl(
+        url,
+        mode: LaunchMode.externalApplication,
+      );
+      
+      if (launched) {
+        // Start listening for payment status
+        _listenForPaymentStatus();
+      } else {
+        _showCopyUrlDialog(url);
+      }
+    } catch (e) {
+      print('Error opening Chrome: $e');
+      _showCopyUrlDialog(url);
+    }
+  }
+
+  void _showCopyUrlDialog(Uri url) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Complete Payment'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Please open this link in your browser:'),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: SelectableText(
+                url.toString(),
+                style: const TextStyle(color: Colors.blue, fontSize: 12),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              setState(() {
+                _isProcessing = false;
+              });
+            },
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () async {
+              await Clipboard.setData(ClipboardData(text: url.toString()));
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Link copied to clipboard!'),
+                  backgroundColor: Colors.green,
+                ),
+              );
+              _listenForPaymentStatus();
+            },
+            icon: const Icon(Icons.copy),
+            label: const Text('Copy Link'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _listenForPaymentStatus() {
@@ -144,7 +275,7 @@ class _PaymentProcessingScreenState extends State<PaymentProcessingScreen> {
       ),
     );
     
-    // Listen to Firestore for status change (webhook will update this)
+    // Listen to Firestore for status change
     FirebaseFirestore.instance
         .collection('orders')
         .doc(widget.orderId)
@@ -159,13 +290,11 @@ class _PaymentProcessingScreenState extends State<PaymentProcessingScreen> {
         if (paymentStatus == 'completed') {
           print('🎉 Payment completed!');
           
-          // ✅ SHOW LOCAL NOTIFICATION
           await LocalNotificationService.showPaymentSuccessNotification(
             widget.orderId,
             widget.amount,
           );
           
-          // Close dialog
           if (mounted) Navigator.pop(context);
           _navigateToSuccess();
         }

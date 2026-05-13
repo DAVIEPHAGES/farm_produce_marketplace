@@ -67,14 +67,25 @@ class _PaymentPageState extends State<PaymentPage> {
     });
 
     try {
-      if (status == 'success') {
+      final isSuccessCallback = status == 'success' || status.isEmpty;
+      if (isSuccessCallback) {
         final verified = await _verifyTransaction(txRef);
         if (verified) {
           await _markOrderPaid(txRef);
-          setState(() {
-            _isPaymentSuccessful = true;
-            _statusMessage = 'Payment verified successfully.';
-          });
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Order placed successfully.'),
+                duration: Duration(seconds: 4),
+              ),
+            );
+            Navigator.pushNamedAndRemoveUntil(
+              context,
+              '/home',
+              (route) => false,
+            );
+          }
+          return;
         } else {
           await _markOrderVerificationPending(txRef);
           setState(() {
@@ -324,8 +335,8 @@ class _PaymentPageState extends State<PaymentPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Payment'),
-        backgroundColor: Colors.green,
-        foregroundColor: Colors.white,
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
       ),
       body: Padding(
         padding: const EdgeInsets.all(24),
@@ -409,53 +420,69 @@ class _PaymentPageState extends State<PaymentPage> {
             ),
             const Spacer(),
             if (_isPaymentSuccessful)
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.pushNamedAndRemoveUntil(
-                      context,
-                      '/orders',
-                      (route) => false,
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
+              Center(
+                child: SizedBox(
+                  width: 200, // ✅ Fixed width for Continue Shopping button
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.pushNamedAndRemoveUntil(
+                        context,
+                        '/home',
+                        (route) => false,
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                    ),
+                    child: const Text('Continue Shopping'),
                   ),
-                  child: const Text('View My Orders'),
                 ),
               )
             else ...[
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: (_isProcessing || _isHandlingCallback)
-                      ? null
-                      : _startHostedCheckout,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                  ),
-                  child: (_isProcessing || _isHandlingCallback)
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
+              // ✅ FIXED: Pay with PayChangu button - now properly sized
+              Center(
+                child: SizedBox(
+                  width: 220, // ✅ Fixed width instead of double.infinity
+                  child: ElevatedButton(
+                    onPressed: (_isProcessing || _isHandlingCallback)
+                        ? null
+                        : _startHostedCheckout,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    child: (_isProcessing || _isHandlingCallback)
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Text(
+                            'Pay with PayChangu',
+                            style: TextStyle(fontSize: 16),
                           ),
-                        )
-                      : const Text('Pay with PayChangu'),
+                  ),
                 ),
               ),
               const SizedBox(height: 12),
               if (_txRef != null)
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton(
-                    onPressed: _isHandlingCallback ? null : _recheckPayment,
-                    child: const Text('Check Payment Again'),
+                Center(
+                  child: SizedBox(
+                    width: 200,
+                    child: OutlinedButton(
+                      onPressed: _isHandlingCallback ? null : _recheckPayment,
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      child: const Text('Check Payment Again'),
+                    ),
                   ),
                 ),
             ],
