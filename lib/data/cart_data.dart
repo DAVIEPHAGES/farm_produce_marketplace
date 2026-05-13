@@ -5,6 +5,8 @@ class CartItem {
   int quantity;
   final String imageUrl;
   final String farmer;
+  final String unit; // ✅ added
+  final int? stock;
 
   CartItem({
     required this.productId,
@@ -13,6 +15,8 @@ class CartItem {
     required this.quantity,
     required this.imageUrl,
     required this.farmer,
+    required this.unit,
+    this.stock,
   });
 }
 
