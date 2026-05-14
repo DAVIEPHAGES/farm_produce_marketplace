@@ -103,12 +103,15 @@ class _CartPageState extends State<CartPage> {
     final orderRef = FirebaseFirestore.instance.collection('orders').doc();
     final firstItem = cartItems.isNotEmpty ? cartItems.first : null;
 
+    // ✅ Get farmer UIDs (not names)
+    final farmerIds = cartItems.map((item) => item.farmerId).toSet().toList();
+
     await orderRef.set({
       'customerId': user.uid,
       'customerName': userDoc.data()?['name'] ?? 'Customer',
       'customerEmail': user.email,
       'customerPhone': userDoc.data()?['phone'] ?? '',
-      'farmerIds': cartItems.map((item) => item.farmer).toSet().toList(),
+      'farmerIds': farmerIds, // ✅ Now stores UIDs like "1XER15ZNEcgDrqBLfcnhKVR3yDp1"
       'imageUrl': firstItem?.imageUrl ?? '',
       'productName': firstItem?.name ?? '',
       'totalPrice': total,
@@ -118,6 +121,7 @@ class _CartPageState extends State<CartPage> {
       'timestamp': FieldValue.serverTimestamp(),
     });
 
+    // ✅ Create items subcollection with farmer UID
     for (final item in cartItems) {
       await orderRef.collection('items').add({
         'productId': item.productId,
@@ -127,7 +131,8 @@ class _CartPageState extends State<CartPage> {
         'price': item.price,
         'totalPrice': item.price * item.quantity,
         'imageUrl': item.imageUrl,
-        'farmerId': item.farmer,
+        'farmerId': item.farmerId, // ✅ Store farmer UID
+        'farmerName': item.farmerName, // ✅ Store farmer name for display
         'unit': item.unit,
       });
     }
@@ -229,7 +234,8 @@ class _CartPageState extends State<CartPage> {
                     'price': item.price,
                     'quantity': item.quantity,
                     'imageUrl': item.imageUrl,
-                    'farmerId': item.farmer,
+                    'farmerId': item.farmerId,
+                    'farmerName': item.farmerName,
                     'unit': item.unit,
                   },
                 )
@@ -362,6 +368,15 @@ class _CartPageState extends State<CartPage> {
                                         ),
                                       ),
                                     ],
+                                  ),
+                                  
+                                  // ✅ Farmer name (for display)
+                                  Text(
+                                    'By: ${item.farmerName}',
+                                    style: TextStyle(
+                                      color: Colors.grey.shade500,
+                                      fontSize: 11,
+                                    ),
                                   ),
 
                                   const SizedBox(height: 6),
