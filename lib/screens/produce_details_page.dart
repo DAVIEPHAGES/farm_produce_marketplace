@@ -20,7 +20,7 @@ class _ProduceDetailsPageState extends State<ProduceDetailsPage> {
   void initState() {
     super.initState();
     final data = widget.data.data() as Map<String, dynamic>;
-    // ✅ Get stock from 'quantity' field (now int64)
+    // Get stock from 'quantity' field (now int64)
     _availableStock = (data['quantity'] ?? 0).toInt();
     _unit = data['sellingUnit'] ?? data['unit'] ?? 'unit';
   }
@@ -34,14 +34,15 @@ class _ProduceDetailsPageState extends State<ProduceDetailsPage> {
     );
   }
 
+  // ✅ UPDATED: Add to cart with both farmerId (UID) and farmerName
   void addToCart() {
-    // ✅ Check 1: Is product in stock?
+    // Check 1: Is product in stock?
     if (_availableStock <= 0) {
       _showMessage('❌ Product is out of stock');
       return;
     }
 
-    // ✅ Check 2: Is requested quantity available?
+    // Check 2: Is requested quantity available?
     if (quantity > _availableStock) {
       _showMessage('❌ Only $_availableStock $_unit available');
       return;
@@ -55,7 +56,7 @@ class _ProduceDetailsPageState extends State<ProduceDetailsPage> {
       final existingItem = cartItems[existingIndex];
       final desiredQuantity = existingItem.quantity + quantity;
 
-      // ✅ Check 3: Will total exceed stock?
+      // Check 3: Will total exceed stock?
       if (desiredQuantity > _availableStock) {
         final remaining = _availableStock - existingItem.quantity;
         if (remaining <= 0) {
@@ -79,17 +80,26 @@ class _ProduceDetailsPageState extends State<ProduceDetailsPage> {
       return;
     }
 
-    // ✅ Add new item to cart
+    // ✅ Add new item to cart with proper fields
     final data = widget.data.data() as Map<String, dynamic>;
+    
+    // Get farmerId (UID) from product data
+    final farmerId = data['farmerId']?.toString() ?? '';
+    final farmerName = data['farmerName']?.toString() ?? 'Farmer';
+    final name = data['name']?.toString() ?? 'Unknown';
+    final price = (data['price'] ?? 0).toDouble();
+    final imageUrl = data['imageUrl']?.toString() ?? '';
+    
     setState(() {
       cartItems.add(
         CartItem(
           productId: widget.data.id,
-          name: data['name'] ?? 'Unknown',
-          price: (data['price'] ?? 0).toDouble(),
+          name: name,
+          price: price,
           quantity: quantity,
-          imageUrl: data['imageUrl'] ?? '',
-          farmer: data['farmerId'] ?? data['farmerName'] ?? 'Farmer',
+          imageUrl: imageUrl,
+          farmerId: farmerId,      // ✅ Store farmer UID
+          farmerName: farmerName,  // ✅ Store farmer name for display
           unit: _unit,
           stock: _availableStock,
         ),
@@ -185,7 +195,7 @@ class _ProduceDetailsPageState extends State<ProduceDetailsPage> {
                         ),
                         const SizedBox(height: 12),
                         
-                        // ✅ Stock Indicator
+                        // Stock Indicator
                         Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 12,
