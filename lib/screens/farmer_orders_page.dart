@@ -34,7 +34,7 @@ class _FarmerOrdersPageState extends State<FarmerOrdersPage> {
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('orders')
-            .where('farmerId', isEqualTo: user!.uid)
+            .where('farmerIds', arrayContains: user!.uid)
             .orderBy('timestamp', descending: true)
             .snapshots(),
         builder: (context, snapshot) {
@@ -54,7 +54,7 @@ class _FarmerOrdersPageState extends State<FarmerOrdersPage> {
               final doc = orders[index];
               final data = doc.data() as Map<String, dynamic>;
 
-              final status = data['status'] ?? 'pending';
+              final status = data['orderStatus'] ?? data['status'] ?? 'pending';
 
               return Card(
                 margin: const EdgeInsets.all(10),
