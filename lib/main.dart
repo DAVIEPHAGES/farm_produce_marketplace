@@ -14,6 +14,7 @@ import 'screens/profile_page.dart';
 import 'screens/produce_details_page.dart';
 import 'screens/signin_page.dart';
 import 'screens/signup_page.dart';
+import 'utils/fix_olders.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -46,6 +47,7 @@ class MyApp extends StatelessWidget {
         '/farmers-dashboard': (context) => const FarmersDashboardPage(),
         '/admin-dashboard': (context) => const AdminDashboard(),
         '/add-produce': (context) => const AddProducePage(),
+        '/fix-orders': (context) => const FixOrdersWithNames(),
       },
       onGenerateRoute: (settings) {
         // Handle dynamic routing (Payment and Produce Details)
