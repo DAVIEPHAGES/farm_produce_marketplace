@@ -6,6 +6,7 @@ import 'package:farm_app/data/cart_data.dart';
 
 import '../widgets/customer_drawer.dart';
 import 'cart_page.dart';
+import 'my_orders_page.dart';
 import 'produce_details_page.dart';
 
 class HomePage extends StatefulWidget {
@@ -22,6 +23,7 @@ class _HomePageState extends State<HomePage> {
   int _visibleProductsCount = 0;
   int _totalProductsCount = 0;
   bool _isShowingAll = false;
+  int _selectedBottomNavIndex = 0; // Track selected bottom nav index
 
   final List<String> categories = const [
     'All',
@@ -114,6 +116,7 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     final productsPerPage = _getProductsPerPage(context);
+    final user = FirebaseAuth.instance.currentUser;
 
     return Scaffold(
       drawer: const CustomerDrawer(),
@@ -134,6 +137,7 @@ class _HomePageState extends State<HomePage> {
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         actions: [
+          // REMOVED: My Orders button from AppBar - now in bottom nav
           Stack(
             children: [
               IconButton(
@@ -411,7 +415,6 @@ class _HomePageState extends State<HomePage> {
                         crossAxisCount: crossAxisCount,
                         crossAxisSpacing: 10,
                         mainAxisSpacing: 10,
-                        // FIX: use breakpoint-aware ratio instead of a single fixed value
                         childAspectRatio: childAspectRatio,
                       ),
                       itemBuilder: (context, index) {
@@ -506,20 +509,59 @@ class _HomePageState extends State<HomePage> {
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(
-        currentIndex: 0,
+        currentIndex: _selectedBottomNavIndex,
         selectedItemColor: Colors.green,
         unselectedItemColor: Colors.black,
+        type: BottomNavigationBarType.fixed,
         onTap: (index) {
-          if (index == 1) Navigator.pushNamed(context, '/orders');
-          if (index == 2) Navigator.pushNamed(context, '/profile');
+          setState(() {
+            _selectedBottomNavIndex = index;
+          });
+          
+          if (index == 1) {
+            // My Orders
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const MyOrdersPage()),
+            ).then((_) {
+              // Reset index when returning to home
+              setState(() {
+                _selectedBottomNavIndex = 0;
+              });
+            });
+          } else if (index == 2) {
+            // Orders (existing orders page)
+            Navigator.pushNamed(context, '/orders').then((_) {
+              setState(() {
+                _selectedBottomNavIndex = 0;
+              });
+            });
+          } else if (index == 3) {
+            // Profile
+            Navigator.pushNamed(context, '/profile').then((_) {
+              setState(() {
+                _selectedBottomNavIndex = 0;
+              });
+            });
+          }
         },
-        items: const [
-          BottomNavigationBarItem(
-              icon: Icon(Icons.home), label: 'home'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.shopping_cart_outlined), label: 'orders'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.person_outline), label: 'profile'),
+        items: [
+          const BottomNavigationBarItem(
+            icon: Icon(Icons.home),
+            label: 'Home',
+          ),
+          const BottomNavigationBarItem(
+            icon: Icon(Icons.receipt_long),
+            label: 'My Orders',
+          ),
+          const BottomNavigationBarItem(
+            icon: Icon(Icons.shopping_cart_outlined),
+            label: 'Orders',
+          ),
+          const BottomNavigationBarItem(
+            icon: Icon(Icons.person_outline),
+            label: 'Profile',
+          ),
         ],
       ),
     );
@@ -754,17 +796,14 @@ class _HomePageState extends State<HomePage> {
     QueryDocumentSnapshot doc,
   ) {
     return ClipRRect(
-      // FIX: ClipRRect prevents any child from painting outside card bounds
       borderRadius: BorderRadius.circular(16),
       child: Container(
         color: Colors.white,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // FIX: AspectRatio scales the image proportionally instead of
-            //      a hardcoded height that mismatches the grid cell size.
             AspectRatio(
-              aspectRatio: 1.2, // wider than tall — adjust to taste (1.0–1.4)
+              aspectRatio: 1.2,
               child: Stack(
                 fit: StackFit.expand,
                 children: [
@@ -805,7 +844,6 @@ class _HomePageState extends State<HomePage> {
                 ],
               ),
             ),
-            // Text + button section grows to fill remaining card space
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.all(8),
