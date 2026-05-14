@@ -8,6 +8,7 @@ import 'screens/admin_dashboard_page.dart';
 import 'screens/cart_page.dart';
 import 'screens/farmers_dashboard_page.dart';
 import 'screens/home_wrapper.dart';
+import 'screens/my_orders_page.dart'; // ADD THIS IMPORT
 import 'screens/orders_page.dart';
 import 'screens/payment_page.dart';
 import 'screens/profile_page.dart';
@@ -40,6 +41,7 @@ class MyApp extends StatelessWidget {
         '/signup': (context) => const SignUpPage(),
         '/cart': (context) => const CartPage(),
         '/orders': (context) => const OrdersPage(),
+        '/my-orders': (context) => const MyOrdersPage(), // ADD THIS ROUTE
         '/profile': (context) => const ProfilePage(),
         '/farmers-dashboard': (context) => const FarmersDashboardPage(),
         '/admin-dashboard': (context) => const AdminDashboard(),
