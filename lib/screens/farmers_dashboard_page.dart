@@ -95,7 +95,6 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
     }
   }
 
-  // ✅ EDIT PRODUCT METHOD
   Future<void> _editProduct(Map<String, dynamic> product, String productId, int index) async {
     final result = await Navigator.push(
       context,
@@ -109,7 +108,7 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
     );
     
     if (result == true) {
-      _loadData(); // Refresh data after edit
+      _loadData();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('✓ Product updated successfully!'),
@@ -129,6 +128,19 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
       );
     }
 
+    // Calculate responsive sizes based on screen height
+    final screenHeight = MediaQuery.of(context).size.height;
+    final screenWidth = MediaQuery.of(context).size.width;
+    
+    // Calculate available height after AppBar and padding
+    final appBarHeight = AppBar().preferredSize.height;
+    final statusBarHeight = MediaQuery.of(context).padding.top;
+    final availableHeight = screenHeight - appBarHeight - statusBarHeight - 40; // 40 for padding
+    
+    // Responsive card height based on available space (fit exactly 2 rows of cards)
+    final cardHeight = availableHeight * 0.35; // 35% of available height for each card row
+    final cardAspectRatio = screenWidth > 600 ? 1.5 : 1.2; // Wider cards on desktop
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -136,13 +148,13 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
           'FARMER DASHBOARD',
           style: TextStyle(
             fontWeight: FontWeight.bold,
-            fontSize: 20,
+            fontSize: 18,
             letterSpacing: 1,
           ),
         ),
         leading: Builder(
           builder: (context) => IconButton(
-            icon: const Icon(Icons.menu, size: 28),
+            icon: const Icon(Icons.menu, size: 24),
             onPressed: () => Scaffold.of(context).openDrawer(),
             tooltip: 'Menu',
           ),
@@ -151,19 +163,19 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
           GestureDetector(
             onTap: () => _showProfileDialog(context),
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               margin: const EdgeInsets.only(right: 8),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(20),
                 color: Colors.white.withOpacity(0.2),
               ),
-              child: Row(
+              child: const Row(
                 children: [
-                  const Icon(Icons.person, size: 18),
-                  const SizedBox(width: 6),
-                  const Text(
-                    'MY PROFILE',
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                  Icon(Icons.person, size: 16),
+                  SizedBox(width: 4),
+                  Text(
+                    'PROFILE',
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
                   ),
                 ],
               ),
@@ -173,7 +185,7 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
         centerTitle: false,
         backgroundColor: Colors.green[700],
         foregroundColor: Colors.white,
-        elevation: 4,
+        elevation: 2,
       ),
       drawer: Drawer(
         child: Container(
@@ -182,7 +194,7 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
             padding: EdgeInsets.zero,
             children: [
               Container(
-                height: 200,
+                height: 160,
                 decoration: BoxDecoration(
                   color: Colors.green[700],
                 ),
@@ -191,46 +203,45 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Container(
-                        padding: const EdgeInsets.all(12),
+                        padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
                           color: Colors.white,
                           shape: BoxShape.circle,
                           boxShadow: [
                             BoxShadow(
                               color: Colors.black.withOpacity(0.2),
-                              blurRadius: 10,
-                              spreadRadius: 2,
+                              blurRadius: 8,
+                              spreadRadius: 1,
                             ),
                           ],
                         ),
                         child: const Icon(
                           Icons.agriculture,
-                          size: 50,
+                          size: 40,
                           color: Colors.green,
                         ),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 8),
                       Text(
                         farmerProfile['name'],
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 20,
+                          fontSize: 18,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 2),
                       Text(
                         farmerProfile['location'],
                         style: const TextStyle(
                           color: Colors.white70,
-                          fontSize: 13,
+                          fontSize: 11,
                         ),
                       ),
                     ],
                   ),
                 ),
               ),
-              const SizedBox(height: 8),
               _buildDrawerItem(
                 icon: Icons.attach_money,
                 title: 'Total Earnings',
@@ -245,7 +256,7 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
               _buildDrawerItem(
                 icon: Icons.agriculture,
                 title: 'My Produce',
-                subtitle: '${farmerProfile['products'].length} products listed',
+                subtitle: '${farmerProfile['products'].length} products',
                 color: Colors.orange,
                 onTap: () {
                   Navigator.pop(context);
@@ -255,7 +266,7 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
               _buildDrawerItem(
                 icon: Icons.shopping_cart,
                 title: 'New Orders',
-                subtitle: '${farmerProfile['orders'].length} pending orders',
+                subtitle: '${farmerProfile['orders'].length} pending',
                 color: Colors.blue,
                 onTap: () {
                   Navigator.pop(context);
@@ -265,7 +276,7 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
               _buildDrawerItem(
                 icon: Icons.add_box,
                 title: 'Add Produce',
-                subtitle: 'Post new items to marketplace',
+                subtitle: 'Post new items',
                 color: Colors.purple,
                 onTap: () {
                   Navigator.pop(context);
@@ -296,180 +307,225 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
       ),
       body: Container(
         color: Colors.white,
-        child: SingleChildScrollView(
-          child: Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Welcome back!',
-                      style: TextStyle(
-                        fontSize: 32,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.green,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      farmerProfile['name'],
-                      style: const TextStyle(fontSize: 16, color: Colors.grey),
-                    ),
-                    const SizedBox(height: 32),
-                    
-                    // 2x2 Grid Layout (2 cards per row)
-                    GridView.count(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      crossAxisCount: 2,
-                      mainAxisSpacing: 16,
-                      crossAxisSpacing: 16,
-                      childAspectRatio: 1.1,
+        child: Column(
+          children: [
+            // Welcome message - compact
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+              child: Row(
+                children: [
+                  const Icon(Icons.waving_hand, color: Colors.green, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _buildDashboardCard(
-                          'Total Earnings',
-                          'MWK ${farmerProfile['totalEarnings'].toStringAsFixed(2)}',
-                          Icons.attach_money,
-                          Colors.green,
-                          () => _showEarningsDialog(context),
+                        const Text(
+                          'Welcome back!',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.green,
+                          ),
                         ),
-                        _buildDashboardCard(
-                          'My Produce',
-                          '${farmerProfile['products'].length} items',
-                          Icons.agriculture,
-                          Colors.orange,
-                          () => _showMyProduceDialog(context),
-                        ),
-                        _buildDashboardCard(
-                          'New Orders',
-                          '${farmerProfile['orders'].length} pending',
-                          Icons.shopping_cart,
-                          Colors.blue,
-                          () => _showOrdersDialog(context),
-                        ),
-                        _buildDashboardCard(
-                          'Add Produce',
-                          'Post new items',
-                          Icons.add_box,
-                          Colors.purple,
-                          () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const AddProducePage(),
-                              ),
-                            ).then((result) {
-                              if (result != null) {
-                                _loadData();
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                      '✓ Produce added successfully!',
-                                    ),
-                                    backgroundColor: Colors.green,
-                                    duration: Duration(seconds: 2),
-                                  ),
-                                );
-                              }
-                            });
-                          },
+                        Text(
+                          farmerProfile['name'],
+                          style: const TextStyle(fontSize: 12, color: Colors.grey),
                         ),
                       ],
                     ),
-                    
-                    if (farmerProfile['products'].isNotEmpty) ...[
-                      const SizedBox(height: 32),
-                      const Text(
-                        'Recent Products',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      ListView.builder(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        itemCount: farmerProfile['products'].length > 3
-                            ? 3
-                            : farmerProfile['products'].length,
-                        itemBuilder: (context, index) {
-                          var product = farmerProfile['products'][index];
-                          
-                          // Safe data extraction
-                          String productName = product['name']?.toString() ?? 'Unnamed Product';
-                          String price = product['price']?.toString() ?? '0';
-                          String quantity = product['quantity']?.toString() ?? '0';
-                          String location = product['location']?.toString() ?? 'Unknown';
-                          String productId = product['id']?.toString() ?? '';
-                          
-                          return Card(
-                            margin: const EdgeInsets.only(bottom: 10),
-                            elevation: 2,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+                  ),
+                ],
+              ),
+            ),
+            
+            // Dashboard Cards Grid - 2 per row always
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: GridView.builder(
+                  physics: const NeverScrollableScrollPhysics(), // No scrolling
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2, // ALWAYS 2 per row
+                    crossAxisSpacing: 16,
+                    mainAxisSpacing: 16,
+                    childAspectRatio: cardAspectRatio, // Responsive aspect ratio
+                    mainAxisExtent: cardHeight, // Fixed responsive height
+                  ),
+                  itemCount: 4, // Exactly 4 cards (2 rows)
+                  itemBuilder: (context, index) {
+                    final cards = [
+                      {
+                        'title': 'Total Earnings',
+                        'value': 'MWK ${(farmerProfile['totalEarnings'] ?? 0).toStringAsFixed(0)}',
+                        'icon': Icons.attach_money,
+                        'color': Colors.green,
+                        'onTap': () => _showEarningsDialog(context),
+                      },
+                      {
+                        'title': 'My Produce',
+                        'value': '${farmerProfile['products'].length}',
+                        'icon': Icons.agriculture,
+                        'color': Colors.orange,
+                        'onTap': () => _showMyProduceDialog(context),
+                      },
+                      {
+                        'title': 'New Orders',
+                        'value': '${farmerProfile['orders'].length}',
+                        'icon': Icons.shopping_cart,
+                        'color': Colors.blue,
+                        'onTap': () => _showOrdersDialog(context),
+                      },
+                      {
+                        'title': 'Add Produce',
+                        'value': 'New',
+                        'icon': Icons.add_box,
+                        'color': Colors.purple,
+                        'onTap': () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const AddProducePage(),
                             ),
-                            child: ListTile(
-                              leading: CircleAvatar(
-                                backgroundColor: Colors.green[100],
-                                child: const Icon(
-                                  Icons.agriculture,
-                                  color: Colors.green,
+                          ).then((result) {
+                            if (result != null) {
+                              _loadData();
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('✓ Produce added!'),
+                                  backgroundColor: Colors.green,
+                                  duration: Duration(seconds: 1),
                                 ),
-                              ),
-                              title: Text(
-                                productName,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              subtitle: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text('MWK $price'),
-                                  Text('Quantity: $quantity'),
-                                  Text('📍 $location'),
-                                ],
-                              ),
-                              trailing: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  // ✅ EDIT BUTTON ADDED
-                                  IconButton(
-                                    icon: const Icon(Icons.edit, color: Colors.blue),
-                                    onPressed: () => _editProduct(product, productId, index),
-                                    tooltip: 'Edit product',
-                                  ),
-                                  // ✅ DELETE BUTTON
-                                  IconButton(
-                                    icon: const Icon(Icons.delete, color: Colors.red),
-                                    onPressed: () => _deleteProduct(productId, index),
-                                    tooltip: 'Delete product',
-                                  ),
-                                  const Icon(
-                                    Icons.chevron_right,
-                                    color: Colors.green,
-                                  ),
-                                ],
-                              ),
-                              isThreeLine: true,
-                            ),
-                          );
+                              );
+                            }
+                          });
                         },
+                      },
+                    ];
+                    
+                    final card = cards[index];
+                    return _buildResponsiveDashboardCard(
+                      title: card['title'] as String,
+                      value: card['value'] as String,
+                      icon: card['icon'] as IconData,
+                      color: card['color'] as Color,
+                      onTap: card['onTap'] as VoidCallback,
+                      screenWidth: screenWidth,
+                    );
+                  },
+                ),
+              ),
+            ),
+            
+            // Recent Products Section - Compact (only if products exist)
+            if (farmerProfile['products'].isNotEmpty) ...[
+              Container(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Recent Products',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
                       ),
-                      if (farmerProfile['products'].length > 3)
-                        TextButton(
-                          onPressed: () => _showMyProduceDialog(context),
-                          child: const Text('View all products →'),
+                    ),
+                    if (farmerProfile['products'].length > 2)
+                      TextButton(
+                        onPressed: () => _showMyProduceDialog(context),
+                        style: TextButton.styleFrom(
+                          padding: EdgeInsets.zero,
+                          minimumSize: const Size(60, 30),
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         ),
-                    ],
+                        child: const Text(
+                          'View all →',
+                          style: TextStyle(fontSize: 11),
+                        ),
+                      ),
                   ],
                 ),
               ),
+              SizedBox(
+                height: 70,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: farmerProfile['products'].length > 3
+                      ? 3
+                      : farmerProfile['products'].length,
+                  itemBuilder: (context, index) {
+                    var product = farmerProfile['products'][index];
+                    String productName = product['name']?.toString() ?? 'Unnamed';
+                    String price = product['price']?.toString() ?? '0';
+                    String productId = product['id']?.toString() ?? '';
+                    
+                    return Container(
+                      width: 130,
+                      margin: const EdgeInsets.only(right: 8),
+                      child: Card(
+                        elevation: 1,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: InkWell(
+                          onTap: () => _editProduct(product, productId, index),
+                          borderRadius: BorderRadius.circular(8),
+                          child: Padding(
+                            padding: const EdgeInsets.all(6),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Row(
+                                  children: [
+                                    Icon(Icons.agriculture, size: 14, color: Colors.green[600]),
+                                    const SizedBox(width: 4),
+                                    Expanded(
+                                      child: Text(
+                                        productName,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 10,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  'MWK $price',
+                                  style: TextStyle(
+                                    fontSize: 9,
+                                    color: Colors.green[700],
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Row(
+                                  children: [
+                                    Icon(Icons.edit, size: 12, color: Colors.blue[300]),
+                                    const SizedBox(width: 8),
+                                    GestureDetector(
+                                      onTap: () => _deleteProduct(productId, index),
+                                      child: Icon(Icons.delete, size: 12, color: Colors.red[300]),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 8), // Small bottom padding
             ],
-          ),
+          ],
         ),
       ),
     );
@@ -484,33 +540,39 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
   }) {
     return ListTile(
       leading: Container(
-        padding: const EdgeInsets.all(8),
+        padding: const EdgeInsets.all(6),
         decoration: BoxDecoration(
           color: color.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(8),
         ),
-        child: Icon(icon, color: color),
+        child: Icon(icon, color: color, size: 20),
       ),
-      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
-      subtitle: Text(subtitle, style: const TextStyle(fontSize: 12)),
+      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+      subtitle: Text(subtitle, style: const TextStyle(fontSize: 11)),
       onTap: onTap,
     );
   }
 
-  Widget _buildDashboardCard(
-    String title,
-    String value,
-    IconData icon,
-    Color color,
-    VoidCallback onTap,
-  ) {
+  Widget _buildResponsiveDashboardCard({
+    required String title,
+    required String value,
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+    required double screenWidth,
+  }) {
+    // Responsive sizes based on screen width
+    final iconSize = screenWidth > 600 ? 32.0 : 28.0;
+    final valueFontSize = screenWidth > 600 ? 20.0 : 18.0;
+    final titleFontSize = screenWidth > 600 ? 13.0 : 12.0;
+    
     return GestureDetector(
       onTap: onTap,
       child: Card(
-        elevation: 4,
+        elevation: 3,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         child: Container(
-          padding: const EdgeInsets.all(16),
+          width: double.infinity,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
             color: Colors.white,
@@ -519,29 +581,33 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Container(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
                   color: color.withOpacity(0.1),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(icon, size: 40, color: color),
+                child: Icon(icon, size: iconSize, color: color),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
               Text(
                 value,
                 style: TextStyle(
-                  fontSize: 18,
+                  fontSize: valueFontSize,
                   fontWeight: FontWeight.bold,
                   color: color,
                 ),
                 textAlign: TextAlign.center,
-                maxLines: 2,
+                maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
               const SizedBox(height: 4),
               Text(
                 title,
-                style: const TextStyle(fontSize: 13, color: Colors.grey),
+                style: TextStyle(
+                  fontSize: titleFontSize,
+                  color: Colors.grey[600],
+                  fontWeight: FontWeight.w500,
+                ),
                 textAlign: TextAlign.center,
               ),
             ],
@@ -551,15 +617,13 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
     );
   }
 
-  // ✅ DELETE METHOD with confirmation dialog
   Future<void> _deleteProduct(String productId, int index) async {
-    // Show confirmation dialog first
     bool? confirm = await showDialog<bool>(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text('Delete Product'),
-          content: const Text('Are you sure you want to delete this product? This action cannot be undone.'),
+          content: const Text('Are you sure?'),
           backgroundColor: Colors.white,
           actions: [
             TextButton(
@@ -588,9 +652,9 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('✓ Product deleted successfully!'),
+            content: Text('✓ Product deleted'),
             backgroundColor: Colors.red,
-            duration: Duration(seconds: 2),
+            duration: Duration(seconds: 1),
           ),
         );
       }
@@ -598,7 +662,7 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error deleting product: $e'),
+            content: Text('Error: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -620,12 +684,12 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
                   color: Colors.green[100],
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.person, color: Colors.green),
+                child: const Icon(Icons.person, color: Colors.green, size: 20),
               ),
               const SizedBox(width: 12),
               const Text(
                 'Farmer Profile',
-                style: TextStyle(fontWeight: FontWeight.bold),
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
               ),
             ],
           ),
@@ -647,38 +711,6 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
                   label: 'Location',
                   value: farmerProfile['location'],
                 ),
-                const Divider(height: 24),
-                const Text(
-                  'Products:',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                ),
-                const SizedBox(height: 12),
-                if (farmerProfile['products'].isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 8),
-                    child: Text('No products added yet'),
-                  )
-                else
-                  ...farmerProfile['products'].map<Widget>((product) {
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 6),
-                      child: Row(
-                        children: [
-                          const Icon(
-                            Icons.agriculture,
-                            size: 16,
-                            color: Colors.green,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              '${product['name']} (${product['quantity']}) - MWK ${product['price']}',
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }).toList(),
               ],
             ),
           ),
@@ -707,18 +739,18 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
   }) {
     return Row(
       children: [
-        Icon(icon, size: 20, color: Colors.green),
+        Icon(icon, size: 18, color: Colors.green),
         const SizedBox(width: 12),
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               label,
-              style: const TextStyle(fontSize: 12, color: Colors.grey),
+              style: const TextStyle(fontSize: 11, color: Colors.grey),
             ),
             Text(
               value,
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
             ),
           ],
         ),
@@ -732,36 +764,30 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
       builder: (BuildContext context) {
         return AlertDialog(
           backgroundColor: Colors.white,
-          title: const Text('Total Earnings'),
+          title: const Text('Total Earnings', style: TextStyle(fontSize: 16)),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: Colors.green[50],
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
                   Icons.attach_money,
-                  size: 60,
+                  size: 40,
                   color: Colors.green,
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
               Text(
                 'MWK ${farmerProfile['totalEarnings'].toStringAsFixed(2)}',
                 style: const TextStyle(
-                  fontSize: 28,
+                  fontSize: 22,
                   fontWeight: FontWeight.bold,
                   color: Colors.green,
                 ),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Total earnings from all completed sales',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey),
               ),
             ],
           ),
@@ -782,20 +808,20 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
       builder: (BuildContext context) {
         return AlertDialog(
           backgroundColor: Colors.white,
-          title: const Text('My Produce'),
+          title: const Text('My Produce', style: TextStyle(fontSize: 16)),
           content: Container(
             width: double.maxFinite,
             constraints: BoxConstraints(
-              maxHeight: MediaQuery.of(context).size.height * 0.6,
+              maxHeight: MediaQuery.of(context).size.height * 0.5,
             ),
             child: farmerProfile['products'].isEmpty
                 ? const Center(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.agriculture, size: 50, color: Colors.grey),
-                        SizedBox(height: 16),
-                        Text('No produce added yet'),
+                        Icon(Icons.agriculture, size: 40, color: Colors.grey),
+                        SizedBox(height: 12),
+                        Text('No produce added yet', style: TextStyle(fontSize: 12)),
                       ],
                     ),
                   )
@@ -804,73 +830,42 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
                     itemCount: farmerProfile['products'].length,
                     itemBuilder: (context, index) {
                       var product = farmerProfile['products'][index];
-                      
-                      String productName = product['name']?.toString() ?? 'Unnamed Product';
+                      String productName = product['name']?.toString() ?? 'Unnamed';
                       String price = product['price']?.toString() ?? '0';
                       String quantity = product['quantity']?.toString() ?? '0';
-                      String location = product['location']?.toString() ?? 'Unknown';
-                      String dateAdded = product['dateAdded']?.toString() ?? '';
                       String productId = product['id']?.toString() ?? '';
                       
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        child: ListTile(
-                          leading: const Icon(
-                            Icons.agriculture,
-                            color: Colors.green,
-                          ),
-                          title: Text(
-                            productName,
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('Price: MWK $price'),
-                              Text('Quantity: $quantity'),
-                              Text('Location: $location'),
-                            ],
-                          ),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              if (dateAdded.isNotEmpty)
-                                Text(
-                                  _formatDate(dateAdded),
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    color: Colors.grey,
-                                  ),
-                                ),
-                              // ✅ EDIT BUTTON IN DIALOG
-                              IconButton(
-                                icon: const Icon(Icons.edit, color: Colors.blue),
-                                onPressed: () async {
-                                  Navigator.pop(context); // Close dialog first
-                                  final result = await Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => AddProducePage(
-                                        isEditing: true,
-                                        existingProduct: product,
-                                        productId: productId,
-                                      ),
+                      return ListTile(
+                        leading: const Icon(Icons.agriculture, color: Colors.green, size: 20),
+                        title: Text(productName, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                        subtitle: Text('MWK $price | Qty: $quantity', style: const TextStyle(fontSize: 11)),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.edit, size: 18, color: Colors.blue),
+                              onPressed: () async {
+                                Navigator.pop(context);
+                                final result = await Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => AddProducePage(
+                                      isEditing: true,
+                                      existingProduct: product,
+                                      productId: productId,
                                     ),
-                                  );
-                                  if (result == true) {
-                                    _loadData();
-                                  }
-                                },
-                                tooltip: 'Edit product',
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.delete, color: Colors.red),
-                                onPressed: () => _deleteProduct(productId, index),
-                                tooltip: 'Delete product',
-                              ),
-                            ],
-                          ),
-                          isThreeLine: true,
+                                  ),
+                                );
+                                if (result == true) {
+                                  _loadData();
+                                }
+                              },
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.delete, size: 18, color: Colors.red),
+                              onPressed: () => _deleteProduct(productId, index),
+                            ),
+                          ],
                         ),
                       );
                     },
@@ -893,20 +888,20 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
       builder: (BuildContext context) {
         return AlertDialog(
           backgroundColor: Colors.white,
-          title: const Text('New Orders'),
+          title: const Text('Orders', style: TextStyle(fontSize: 16)),
           content: Container(
             width: double.maxFinite,
             constraints: BoxConstraints(
-              maxHeight: MediaQuery.of(context).size.height * 0.6,
+              maxHeight: MediaQuery.of(context).size.height * 0.5,
             ),
             child: farmerProfile['orders'].isEmpty
                 ? const Center(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.shopping_cart, size: 50, color: Colors.grey),
-                        SizedBox(height: 16),
-                        Text('No new orders at the moment'),
+                        Icon(Icons.shopping_cart, size: 40, color: Colors.grey),
+                        SizedBox(height: 12),
+                        Text('No orders yet', style: TextStyle(fontSize: 12)),
                       ],
                     ),
                   )
@@ -914,35 +909,23 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
                     itemCount: farmerProfile['orders'].length,
                     itemBuilder: (context, index) {
                       var order = farmerProfile['orders'][index];
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        child: ListTile(
-                          leading: const Icon(
-                            Icons.shopping_cart,
-                            color: Colors.blue,
+                      return ListTile(
+                        leading: const Icon(Icons.shopping_cart, color: Colors.blue, size: 20),
+                        title: Text(order['product']?.toString() ?? 'Unknown', style: const TextStyle(fontSize: 13)),
+                        subtitle: Text(
+                          'Qty: ${order['quantity']?.toString() ?? "0"}',
+                          style: const TextStyle(fontSize: 11),
+                        ),
+                        trailing: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(10),
                           ),
-                          title: Text(order['product']?.toString() ?? 'Unknown Product'),
-                          subtitle: Text(
-                            'Customer: ${order['customer']?.toString() ?? "Unknown"}\nQuantity: ${order['quantity']?.toString() ?? "0"}',
+                          child: Text(
+                            order['status']?.toString() ?? 'pending',
+                            style: const TextStyle(color: Colors.orange, fontSize: 10),
                           ),
-                          trailing: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.orange.withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              order['status']?.toString() ?? 'pending',
-                              style: const TextStyle(
-                                color: Colors.orange,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ),
-                          isThreeLine: true,
                         ),
                       );
                     },
@@ -957,15 +940,6 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
         );
       },
     );
-  }
-
-  String _formatDate(String dateTime) {
-    try {
-      DateTime date = DateTime.parse(dateTime);
-      return '${date.day}/${date.month}/${date.year}';
-    } catch (e) {
-      return 'Unknown date';
-    }
   }
 
   @override
