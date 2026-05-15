@@ -310,7 +310,7 @@ class PaymentSuccessPage extends StatelessWidget {
                 onPressed: () {
                   Navigator.pushNamedAndRemoveUntil(
                     context,
-                    '/orders',
+                    '/home',
                     (route) => false,
                   );
                 },
@@ -322,7 +322,7 @@ class PaymentSuccessPage extends StatelessWidget {
                   ),
                 ),
                 child: const Text(
-                  'View My Orders',
+                  'Continue Shopping',
                   style: TextStyle(fontSize: 16),
                 ),
               ),

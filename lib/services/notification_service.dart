@@ -9,7 +9,7 @@ class NotificationService {
 
   static Future<void> initialize() async {
     // Initialize local notifications
-    const AndroidInitializationSettings androidSettings = AndroidInitializationSettings('@drawable/ic_notification');
+    const AndroidInitializationSettings androidSettings = AndroidInitializationSettings('/ic_notification');
     const DarwinInitializationSettings iosSettings = DarwinInitializationSettings();
     const InitializationSettings settings = InitializationSettings(
       android: androidSettings,

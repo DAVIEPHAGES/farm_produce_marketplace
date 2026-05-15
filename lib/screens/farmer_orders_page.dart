@@ -13,21 +13,19 @@ class _FarmerOrdersPageState extends State<FarmerOrdersPage> {
   final user = FirebaseAuth.instance.currentUser;
 
   Future<void> updateStatus(String orderId, String status) async {
-    await FirebaseFirestore.instance
-        .collection('orders')
-        .doc(orderId)
-        .update({'status': status});
+    await FirebaseFirestore.instance.collection('orders').doc(orderId).update({
+      'status': status,
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     if (user == null) {
-      return const Scaffold(
-        body: Center(child: Text("Not logged in")),
-      );
+      return const Scaffold(body: Center(child: Text("Not logged in")));
     }
 
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
         title: const Text("My Orders"),
         backgroundColor: Colors.green,
@@ -36,11 +34,10 @@ class _FarmerOrdersPageState extends State<FarmerOrdersPage> {
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('orders')
-            .where('farmerId', isEqualTo: user!.uid)
+            .where('farmerIds', arrayContains: user!.uid)
             .orderBy('timestamp', descending: true)
             .snapshots(),
         builder: (context, snapshot) {
-
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
@@ -57,7 +54,7 @@ class _FarmerOrdersPageState extends State<FarmerOrdersPage> {
               final doc = orders[index];
               final data = doc.data() as Map<String, dynamic>;
 
-              final status = data['status'] ?? 'pending';
+              final status = data['orderStatus'] ?? data['status'] ?? 'pending';
 
               return Card(
                 margin: const EdgeInsets.all(10),
@@ -66,7 +63,6 @@ class _FarmerOrdersPageState extends State<FarmerOrdersPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-
                       Text(
                         data['productName'] ?? 'Product',
                         style: const TextStyle(
@@ -86,7 +82,6 @@ class _FarmerOrdersPageState extends State<FarmerOrdersPage> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-
                           // ✅ ACCEPT BUTTON
                           ElevatedButton(
                             onPressed: status == 'pending'

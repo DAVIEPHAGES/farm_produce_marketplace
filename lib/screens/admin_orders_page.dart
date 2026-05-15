@@ -2,30 +2,40 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AdminOrdersPage extends StatefulWidget {
-  const AdminOrdersPage({super.key});
+  final String initialFilter;
+  const AdminOrdersPage({super.key, this.initialFilter = 'all'});
 
   @override
   State<AdminOrdersPage> createState() => _AdminOrdersPageState();
 }
 
 class _AdminOrdersPageState extends State<AdminOrdersPage> {
-  String _filterStatus = 'all';
+  late String _filterStatus;
   bool _isUpdating = false;
-  
-  final List<String> _statusOptions = ['all', 'pending', 'confirmed', 'delivered', 'cancelled'];
-  
+
+  final List<String> _statusOptions = [
+    'all',
+    'pending',
+    'completed',
+    'cancelled',
+    'confirmed',
+    'delivered',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _filterStatus = widget.initialFilter;
+  }
+
   Future<void> _updateOrderStatus(String orderId, String newStatus) async {
     setState(() => _isUpdating = true);
-    
+
     try {
-      await FirebaseFirestore.instance
-          .collection('orders')
-          .doc(orderId)
-          .update({
-            'orderStatus': newStatus,
-            'updatedAt': FieldValue.serverTimestamp(),
-          });
-      
+      await FirebaseFirestore.instance.collection('orders').doc(orderId).update(
+        {'orderStatus': newStatus, 'updatedAt': FieldValue.serverTimestamp()},
+      );
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -42,6 +52,22 @@ class _AdminOrdersPageState extends State<AdminOrdersPage> {
       }
     } finally {
       setState(() => _isUpdating = false);
+    }
+  }
+
+  bool _matchesStatus(String orderStatus, String paymentStatus, String filter) {
+    switch (filter) {
+      case 'pending':
+        return orderStatus == 'pending' ||
+            (orderStatus == 'processing' && paymentStatus != 'completed');
+      case 'completed':
+        return paymentStatus == 'completed' ||
+            orderStatus == 'completed' ||
+            orderStatus == 'delivered';
+      case 'cancelled':
+        return orderStatus == 'cancelled' || paymentStatus == 'failed';
+      default:
+        return orderStatus == filter;
     }
   }
 
@@ -81,7 +107,7 @@ class _AdminOrdersPageState extends State<AdminOrdersPage> {
             ],
           ),
         ),
-        
+
         // Orders List
         Expanded(
           child: StreamBuilder<QuerySnapshot>(
@@ -90,37 +116,55 @@ class _AdminOrdersPageState extends State<AdminOrdersPage> {
                 .orderBy('timestamp', descending: true)
                 .snapshots(),
             builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+              if (snapshot.connectionState == ConnectionState.waiting &&
+                  !snapshot.hasData) {
                 return const Center(child: CircularProgressIndicator());
               }
-              
+
               if (snapshot.hasError) {
                 return Center(child: Text('Error: ${snapshot.error}'));
               }
-              
+
               if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
                 return const Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.shopping_cart_outlined, size: 64, color: Colors.grey),
+                      Icon(
+                        Icons.shopping_cart_outlined,
+                        size: 64,
+                        color: Colors.grey,
+                      ),
                       SizedBox(height: 16),
-                      Text('No orders found', style: TextStyle(fontSize: 18, color: Colors.grey)),
+                      Text(
+                        'No orders found',
+                        style: TextStyle(fontSize: 18, color: Colors.grey),
+                      ),
                     ],
                   ),
                 );
               }
-              
+
               var orders = snapshot.data!.docs;
-              
+
               if (_filterStatus != 'all') {
                 orders = orders.where((doc) {
                   final data = doc.data() as Map<String, dynamic>;
-                  final orderStatus = data['orderStatus'] ?? data['status'] ?? 'pending';
-                  return orderStatus == _filterStatus;
+                  final orderStatus =
+                      (data['orderStatus'] ?? data['status'] ?? 'pending')
+                          .toString()
+                          .toLowerCase();
+                  final paymentStatus = (data['paymentStatus'] ?? '')
+                      .toString()
+                      .toLowerCase();
+                  return _matchesStatus(
+                    orderStatus,
+                    paymentStatus,
+                    _filterStatus,
+                  );
                 }).toList();
               }
-              
+
               if (orders.isEmpty) {
                 return Center(
                   child: Column(
@@ -128,29 +172,36 @@ class _AdminOrdersPageState extends State<AdminOrdersPage> {
                     children: [
                       Icon(Icons.filter_alt_off, size: 64, color: Colors.grey),
                       SizedBox(height: 16),
-                      Text('No ${_filterStatus.toUpperCase()} orders', style: TextStyle(fontSize: 18, color: Colors.grey)),
+                      Text(
+                        'No ${_filterStatus.toUpperCase()} orders',
+                        style: TextStyle(fontSize: 18, color: Colors.grey),
+                      ),
                     ],
                   ),
                 );
               }
-              
+
               return ListView.builder(
                 padding: const EdgeInsets.all(16),
                 itemCount: orders.length,
                 itemBuilder: (context, index) {
                   final order = orders[index];
                   final data = order.data() as Map<String, dynamic>;
-                  
+
                   // Get correct field names
                   final orderId = data['orderId'] ?? order.id;
                   final customerName = data['customerName'] ?? 'Unknown';
-                  final totalAmount = (data['totalAmount'] ?? data['totalPrice'] ?? 0).toDouble();
-                  final orderStatus = data['orderStatus'] ?? data['status'] ?? 'pending';
-                  final paymentMethod = data['paymentMethod'] ?? 'Not specified';
+                  final totalAmount =
+                      (data['totalAmount'] ?? data['totalPrice'] ?? 0)
+                          .toDouble();
+                  final orderStatus =
+                      data['orderStatus'] ?? data['status'] ?? 'pending';
+                  final paymentMethod =
+                      data['paymentMethod'] ?? 'Not specified';
                   final paymentStatus = data['paymentStatus'] ?? 'pending';
                   final items = data['items'] as List? ?? [];
                   final timestamp = data['timestamp'];
-                  
+
                   return Card(
                     margin: const EdgeInsets.only(bottom: 12),
                     elevation: 2,
@@ -176,26 +227,40 @@ class _AdminOrdersPageState extends State<AdminOrdersPage> {
                           Row(
                             children: [
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 2,
+                                ),
                                 decoration: BoxDecoration(
                                   color: _getStatusColor(orderStatus),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: Text(
                                   orderStatus.toUpperCase(),
-                                  style: const TextStyle(color: Colors.white, fontSize: 10),
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                  ),
                                 ),
                               ),
                               const SizedBox(width: 8),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 2,
+                                ),
                                 decoration: BoxDecoration(
-                                  color: paymentStatus == 'completed' ? Colors.green : Colors.orange,
+                                  color: paymentStatus == 'completed'
+                                      ? Colors.green
+                                      : Colors.orange,
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: Text(
                                   paymentStatus.toUpperCase(),
-                                  style: const TextStyle(color: Colors.white, fontSize: 10),
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                  ),
                                 ),
                               ),
                             ],
@@ -211,83 +276,143 @@ class _AdminOrdersPageState extends State<AdminOrdersPage> {
                               // Order Details
                               const Text(
                                 'Order Details:',
-                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
                               ),
                               const SizedBox(height: 8),
                               _buildInfoRow('Order ID:', orderId),
-                              _buildInfoRow('Order Date:', _formatDate(timestamp)),
+                              _buildInfoRow(
+                                'Order Date:',
+                                _formatDate(timestamp),
+                              ),
                               _buildInfoRow('Payment Method:', paymentMethod),
                               _buildInfoRow('Payment Status:', paymentStatus),
-                              
+
                               const Divider(),
-                              
+
                               // Order Items
                               const Text(
                                 'Items:',
-                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
                               ),
                               const SizedBox(height: 8),
                               if (items.isEmpty)
                                 const Text('No items found')
                               else
-                                ...items.map((item) => Padding(
-                                  padding: const EdgeInsets.only(bottom: 8),
-                                  child: Row(
-                                    children: [
-                                      Expanded(
-                                        flex: 3,
-                                        child: Text('${item['quantity']}x ${item['name'] ?? item['productName'] ?? 'Product'}'),
-                                      ),
-                                      Expanded(
-                                        flex: 1,
-                                        child: Text(
-                                          'MWK ${(item['price'] * item['quantity']).toStringAsFixed(2)}',
-                                          textAlign: TextAlign.right,
+                                ...items.map((item) {
+                                  final productName =
+                                      item['name'] ??
+                                      item['productName'] ??
+                                      'Product';
+                                  final farmerName =
+                                      item['farmerName'] ??
+                                      item['farmer'] ??
+                                      'Unknown';
+                                  final quantity = item['quantity'] ?? 0;
+                                  final price = (item['price'] ?? 0).toDouble();
+                                  return Padding(
+                                    padding: const EdgeInsets.only(bottom: 8),
+                                    child: Row(
+                                      children: [
+                                        Expanded(
+                                          flex: 3,
+                                          child: Text(
+                                            '$quantity x $productName\nProducer: $farmerName',
+                                          ),
                                         ),
-                                      ),
-                                    ],
-                                  ),
-                                )),
-                              
+                                        Expanded(
+                                          flex: 1,
+                                          child: Text(
+                                            'MWK ${(price * quantity).toStringAsFixed(2)}',
+                                            textAlign: TextAlign.right,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                }),
+
                               const Divider(),
-                              
+
                               // Customer Information
                               const Text(
                                 'Customer Information:',
-                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
                               ),
                               const SizedBox(height: 8),
                               _buildInfoRow('Name:', customerName),
-                              _buildInfoRow('Email:', data['customerEmail'] ?? 'Not provided'),
-                              _buildInfoRow('Phone:', data['customerPhone'] ?? 'Not provided'),
-                              
+                              _buildInfoRow(
+                                'Email:',
+                                data['customerEmail'] ?? 'Not provided',
+                              ),
+                              _buildInfoRow(
+                                'Phone:',
+                                data['customerPhone'] ?? 'Not provided',
+                              ),
+
                               const Divider(),
-                              
+
                               // Summary
                               const Text(
                                 'Summary:',
-                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
                               ),
                               const SizedBox(height: 8),
-                              _buildInfoRow('Subtotal:', 'MWK ${totalAmount.toStringAsFixed(2)}'),
-                              _buildInfoRow('Total:', 'MWK ${totalAmount.toStringAsFixed(2)}'),
-                              
+                              _buildInfoRow(
+                                'Subtotal:',
+                                'MWK ${totalAmount.toStringAsFixed(2)}',
+                              ),
+                              _buildInfoRow(
+                                'Total:',
+                                'MWK ${totalAmount.toStringAsFixed(2)}',
+                              ),
+
                               const Divider(),
-                              
+
                               // Update Status
                               const Text(
                                 'Update Order Status:',
-                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
                               ),
                               const SizedBox(height: 12),
                               Wrap(
                                 spacing: 8,
                                 runSpacing: 8,
                                 children: [
-                                  _buildStatusChip('pending', orderStatus, order.id),
-                                  _buildStatusChip('confirmed', orderStatus, order.id),
-                                  _buildStatusChip('delivered', orderStatus, order.id),
-                                  _buildStatusChip('cancelled', orderStatus, order.id),
+                                  _buildStatusChip(
+                                    'pending',
+                                    orderStatus,
+                                    order.id,
+                                  ),
+                                  _buildStatusChip(
+                                    'confirmed',
+                                    orderStatus,
+                                    order.id,
+                                  ),
+                                  _buildStatusChip(
+                                    'delivered',
+                                    orderStatus,
+                                    order.id,
+                                  ),
+                                  _buildStatusChip(
+                                    'cancelled',
+                                    orderStatus,
+                                    order.id,
+                                  ),
                                 ],
                               ),
                             ],
@@ -320,7 +445,9 @@ class _AdminOrdersPageState extends State<AdminOrdersPage> {
       selectedColor: _getStatusColor(status),
       labelStyle: TextStyle(
         color: currentStatus == status ? Colors.white : Colors.black87,
-        fontWeight: currentStatus == status ? FontWeight.bold : FontWeight.normal,
+        fontWeight: currentStatus == status
+            ? FontWeight.bold
+            : FontWeight.normal,
       ),
       showCheckmark: false,
     );
@@ -336,7 +463,10 @@ class _AdminOrdersPageState extends State<AdminOrdersPage> {
             width: 120,
             child: Text(
               label,
-              style: const TextStyle(fontWeight: FontWeight.w500, color: Colors.grey),
+              style: const TextStyle(
+                fontWeight: FontWeight.w500,
+                color: Colors.grey,
+              ),
             ),
           ),
           Expanded(
@@ -349,7 +479,7 @@ class _AdminOrdersPageState extends State<AdminOrdersPage> {
       ),
     );
   }
-  
+
   Color _getStatusColor(String status) {
     switch (status.toLowerCase()) {
       case 'delivered':
@@ -364,7 +494,7 @@ class _AdminOrdersPageState extends State<AdminOrdersPage> {
         return Colors.grey;
     }
   }
-  
+
   IconData _getStatusIcon(String status) {
     switch (status.toLowerCase()) {
       case 'delivered':

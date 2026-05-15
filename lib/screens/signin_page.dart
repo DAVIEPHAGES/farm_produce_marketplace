@@ -16,6 +16,20 @@ class _SignInPageState extends State<SignInPage> {
 
   bool _isLoading = false;
   bool _rememberMe = false;
+  
+  // Store where to redirect after login
+  String? _redirectTo;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Get redirect info from route arguments
+    final args = ModalRoute.of(context)?.settings.arguments;
+    if (args is Map<String, dynamic>) {
+      _redirectTo = args['redirectTo'];
+      print('📍 Will redirect to: $_redirectTo after login');
+    }
+  }
 
   @override
   void dispose() {
@@ -91,7 +105,10 @@ class _SignInPageState extends State<SignInPage> {
           ),
         );
 
-        if (userDoc.exists) {
+        // Redirect to previous page if specified, otherwise check user type
+        if (_redirectTo != null) {
+          Navigator.pushReplacementNamed(context, _redirectTo!);
+        } else if (userDoc.exists) {
           String userType = userDoc.get('userType') ?? 'customer';
           
           if (userType == 'farmer') {
@@ -313,46 +330,6 @@ class _SignInPageState extends State<SignInPage> {
                           child: Divider(color: Colors.grey[300], thickness: 1),
                         ),
                       ],
-                    ),
-                    const SizedBox(height: 24),
-
-                    OutlinedButton.icon(
-                      onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Google sign in coming soon!'),
-                          ),
-                        );
-                      },
-                      icon: const Icon(Icons.g_mobiledata, color: Colors.red),
-                      label: const Text('Continue with Google'),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        side: BorderSide(color: Colors.grey[300]!),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    OutlinedButton.icon(
-                      onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Facebook sign in coming soon!'),
-                          ),
-                        );
-                      },
-                      icon: const Icon(Icons.facebook, color: Colors.blue),
-                      label: const Text('Continue with Facebook'),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        side: BorderSide(color: Colors.grey[300]!),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
                     ),
                     const SizedBox(height: 24),
 
