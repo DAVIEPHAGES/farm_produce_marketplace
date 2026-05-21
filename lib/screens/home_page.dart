@@ -41,9 +41,9 @@ class _HomePageState extends State<HomePage> {
   }
 
   (int count, double ratio) _getGridConfig(double screenWidth) {
-    if (screenWidth >= 1200) return (4, 0.68);
-    if (screenWidth >= 800) return (3, 0.70);
-    return (2, 0.75);
+    if (screenWidth >= 1200) return (4, 0.58);
+    if (screenWidth >= 800) return (3, 0.60);
+    return (2, 0.62);
   }
 
   void _resetToInitialView(int productsPerPage) {
@@ -182,7 +182,36 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  Widget _buildCardInfoRow({
+    required IconData icon,
+    required String text,
+  }) {
+    return Row(
+      children: [
+        Icon(icon, size: 13, color: Colors.grey.shade600),
+        const SizedBox(width: 4),
+        Expanded(
+          child: Text(
+            text,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildCard(Map<String, dynamic> data, String id, QueryDocumentSnapshot doc) {
+    final farmerName = data['farmerName']?.toString().trim().isNotEmpty == true
+        ? data['farmerName'].toString()
+        : 'Farmer';
+    final farmerLocation = data['location']?.toString().trim().isNotEmpty == true
+        ? data['location'].toString()
+        : data['farmerLocation']?.toString().trim().isNotEmpty == true
+            ? data['farmerLocation'].toString()
+            : 'Location not set';
+
     return ClipRRect(
       borderRadius: BorderRadius.circular(16),
       child: Container(
@@ -248,6 +277,16 @@ class _HomePageState extends State<HomePage> {
                       style: const TextStyle(fontSize: 12),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    _buildCardInfoRow(
+                      icon: Icons.person_outline,
+                      text: farmerName,
+                    ),
+                    const SizedBox(height: 2),
+                    _buildCardInfoRow(
+                      icon: Icons.location_on_outlined,
+                      text: farmerLocation,
                     ),
                     const Spacer(),
                     SizedBox(
