@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import '../services/remember_me_service.dart';
+
 class CustomerDrawer extends StatelessWidget {
   const CustomerDrawer({super.key});
 
@@ -82,6 +84,7 @@ class CustomerDrawer extends StatelessWidget {
               style: TextStyle(color: Colors.red),
             ),
             onTap: () async {
+              RememberMeService.markSignedOut();
               await FirebaseAuth.instance.signOut();
 
               Navigator.pushNamedAndRemoveUntil(

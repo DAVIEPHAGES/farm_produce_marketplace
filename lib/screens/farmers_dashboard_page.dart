@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/remember_me_service.dart';
 import 'add_produce_page.dart';
 
 class FarmersDashboardPage extends StatefulWidget {
@@ -940,9 +941,13 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
               child: const Text('Close'),
             ),
             TextButton(
-              onPressed: () {
+              onPressed: () async {
                 Navigator.pop(context);
-                Navigator.pushReplacementNamed(context, '/signin');
+                RememberMeService.markSignedOut();
+                await FirebaseAuth.instance.signOut();
+                if (context.mounted) {
+                  Navigator.pushReplacementNamed(context, '/signin');
+                }
               },
               child: const Text('Logout', style: TextStyle(color: Colors.red)),
             ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/admin_services.dart';
+import '../services/remember_me_service.dart';
 import 'admin_products_page.dart';
 import 'admin_orders_page.dart';
 import 'admin_users_page.dart'; // This now handles both customers and farmers
@@ -83,6 +84,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
   }
 
   Future<void> _logout() async {
+    RememberMeService.markSignedOut();
     await FirebaseAuth.instance.signOut();
     if (mounted) {
       Navigator.pushReplacementNamed(context, '/signin');
