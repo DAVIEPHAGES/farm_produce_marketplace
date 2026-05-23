@@ -945,40 +945,6 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
                       label: 'Location',
                       value: farmerProfile['location'],
                     ),
-                    const Divider(height: 24),
-                    const Text(
-                      'Products:',
-                      style:
-                          TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                    ),
-                    const SizedBox(height: 12),
-                    if (farmerProfile['products'].isEmpty)
-                      const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 8),
-                        child: Text('No products added yet'),
-                      )
-                    else
-                      ...farmerProfile['products'].map<Widget>((product) {
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 6),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Icon(
-                                Icons.agriculture,
-                                size: 16,
-                                color: Colors.green,
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  '${product['name']} (${product['quantity']}) - MWK ${product['price']}',
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      }).toList(),
                   ],
                 ),
               ),
