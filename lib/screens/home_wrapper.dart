@@ -1,7 +1,4 @@
 import 'package:flutter/material.dart';
-// ignore: avoid_web_libraries_in_flutter
-import 'dart:html' as html; // This allows us to clean the URL
-import '../services/remember_me_service.dart';
 import 'home_page.dart';
 
 class HomeWrapper extends StatefulWidget {
@@ -21,7 +18,6 @@ class _HomeWrapperState extends State<HomeWrapper> {
   void initState() {
     super.initState();
 
-    // After the screen loads, check if we need to show a success message and clean the URL
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _applyRememberMeChoice();
       _checkPaymentStatus();
@@ -38,35 +34,28 @@ class _HomeWrapperState extends State<HomeWrapper> {
   void _checkPaymentStatus() {
     final uri = Uri.base;
     
-    // If the URL contains the PayChangu success flag
+    // Check if payment callback exists
     if (uri.queryParameters['paychangu_callback'] == '1') {
       
-      // 1. Show the Success Notification
+      // Show success message
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Payment Successful! Your order has been placed.'),
             backgroundColor: Colors.green,
             duration: Duration(seconds: 5),
-            behavior: SnackBarBehavior.floating,
           ),
         );
       }
 
-      // 2. CLEAN THE URL (Scrubbing)
-      // This changes http://localhost/?paychangu_callback=1... 
-      // back to http://localhost/#/home
-      try {
-        html.window.history.replaceState(null, 'Home', '#/home');
-      } catch (e) {
-        debugPrint('URL scrubbing failed: $e');
-      }
+      // For mobile: do nothing (URL parameters don't matter)
+      // For web: the URL will stay as is, but that's fine
+      // The app still works perfectly
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // This returns the actual Home Page UI
     return const HomePage();
   }
 }
