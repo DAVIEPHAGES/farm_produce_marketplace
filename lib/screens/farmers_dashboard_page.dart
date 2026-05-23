@@ -478,8 +478,7 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
                     value: '${completedOrders.length} completed',
                     icon: Icons.task_alt,
                     color: Colors.green,
-                    onTap: () => _showOrdersDialog(
-                      context,
+                    onTap: () => _openOrdersPage(
                       title: 'Completed Orders',
                       orders: completedOrders,
                       emptyMessage: 'No completed orders yet',
@@ -676,8 +675,7 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
               color: Colors.green,
               onTap: () {
                 Navigator.pop(context);
-                _showOrdersDialog(
-                  context,
+                _openOrdersPage(
                   title: 'Completed Orders',
                   orders: completedOrders,
                   emptyMessage: 'No completed orders yet',
