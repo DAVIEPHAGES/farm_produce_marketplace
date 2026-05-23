@@ -304,60 +304,16 @@ class _MyOrdersPageState extends State<MyOrdersPage> {
     }
 
     return Scaffold(
-      backgroundColor: Colors.grey.shade100,
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        title: const Text('My Orders'),
+        backgroundColor: Colors.green[700],
+        foregroundColor: Colors.white,
+      ),
       body: RefreshIndicator(
         onRefresh: _refreshOrders,
         child: CustomScrollView(
           slivers: [
-            // Hero Header
-            SliverToBoxAdapter(
-              child: Stack(
-                children: [
-                  Image.network(
-                    "https://images.unsplash.com/photo-1542838132-92c53300491e",
-                    height: 180,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                  ),
-                  Container(
-                    height: 180,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          Colors.white.withOpacity(0.9),
-                          Colors.white.withOpacity(0.6),
-                          Colors.transparent,
-                        ],
-                        begin: Alignment.centerLeft,
-                        end: Alignment.centerRight,
-                      ),
-                    ),
-                  ),
-                  const Positioned(
-                    left: 16,
-                    top: 70,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          "My Orders",
-                          style: TextStyle(
-                            fontSize: 26,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        SizedBox(height: 6),
-                        Text(
-                          "Track, manage and confirm your farm fresh orders",
-                          style: TextStyle(color: Colors.grey),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            
             // Tabs + Search
             SliverToBoxAdapter(
               child: Container(
