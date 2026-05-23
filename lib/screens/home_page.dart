@@ -836,12 +836,6 @@ class _HomePageState extends State<HomePage> {
               });
             });
           } else if (index == 2) {
-            Navigator.pushNamed(context, '/orders').then((_) {
-              setState(() {
-                _selectedBottomNavIndex = 0;
-              });
-            });
-          } else if (index == 3) {
             Navigator.pushNamed(context, '/profile').then((_) {
               setState(() {
                 _selectedBottomNavIndex = 0;
@@ -851,8 +845,7 @@ class _HomePageState extends State<HomePage> {
         },
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.receipt_long), label: 'My Orders'),
-          BottomNavigationBarItem(icon: Icon(Icons.shopping_cart_outlined), label: 'Orders'),
+          BottomNavigationBarItem(icon: Icon(Icons.receipt_long), label: 'My Order'),
           BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: 'Profile'),
         ],
       ),
