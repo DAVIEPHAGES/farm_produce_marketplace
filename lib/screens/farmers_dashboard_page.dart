@@ -323,6 +323,32 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
     return null;
   }
 
+  bool _isCompletedOrder(Map<String, dynamic> order) {
+    final orderStatus = (order['status'] ?? order['orderStatus'] ?? '')
+        .toString()
+        .toLowerCase();
+    final paymentStatus = (order['paymentStatus'] ?? '')
+        .toString()
+        .toLowerCase();
+
+    return paymentStatus == 'completed' ||
+        paymentStatus == 'paid' ||
+        orderStatus == 'completed' ||
+        orderStatus == 'delivered';
+  }
+
+  List<Map<String, dynamic>> _ordersByCompletion({required bool completed}) {
+    final orders = farmerProfile['orders'] is List
+        ? farmerProfile['orders'] as List
+        : const [];
+
+    return orders
+        .whereType<Map>()
+        .map((order) => Map<String, dynamic>.from(order))
+        .where((order) => _isCompletedOrder(order) == completed)
+        .toList();
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -389,6 +415,8 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
   /// so there is never any overflow on any screen size.
   Widget _buildBody() {
     final demandStats = _buildProduceDemandStats();
+    final pendingOrders = _ordersByCompletion(completed: false);
+    final completedOrders = _ordersByCompletion(completed: true);
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
@@ -432,17 +460,36 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
                     onTap: () => _showMyProduceDialog(context),
                   ),
                   _buildStatCard(
-                    title: 'New Orders',
-                    value: '${farmerProfile['orders'].length} pending',
-                    icon: Icons.shopping_cart,
+                    title: 'Pending Orders',
+                    value: '${pendingOrders.length} pending',
+                    icon: Icons.pending_actions,
                     color: Colors.blue,
-                    onTap: () => _showOrdersDialog(context),
+                    onTap: () => _showOrdersDialog(
+                      context,
+                      title: 'Pending Orders',
+                      orders: pendingOrders,
+                      emptyMessage: 'No pending orders at the moment',
+                      icon: Icons.pending_actions,
+                      color: Colors.blue,
+                    ),
+                  ),
+                  _buildStatCard(
+                    title: 'Completed Orders',
+                    value: '${completedOrders.length} completed',
+                    icon: Icons.task_alt,
+                    color: Colors.green,
+                    onTap: () => _showOrdersDialog(
+                      context,
+                      title: 'Completed Orders',
+                      orders: completedOrders,
+                      emptyMessage: 'No completed orders yet',
+                      icon: Icons.task_alt,
+                      color: Colors.green,
+                    ),
                   ),
                   _buildStatCard(
                     title: 'Demand Trends',
-                    value: demandStats.isEmpty
-                        ? 'No data yet'
-                        : '${demandStats.first['name']}',
+                    value: 'Demand Trends',
                     icon: Icons.insights,
                     color: Colors.teal,
                     onTap: () => _showDemandStatsDialog(context),
@@ -533,6 +580,9 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
 
   /// ─── DRAWER ─────────────────────────────────────────────────────────────
   Widget _buildDrawer() {
+    final pendingOrders = _ordersByCompletion(completed: false);
+    final completedOrders = _ordersByCompletion(completed: true);
+
     return Drawer(
       child: Container(
         color: Colors.white,
@@ -609,13 +659,37 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
               },
             ),
             _buildDrawerItem(
-              icon: Icons.shopping_cart,
-              title: 'New Orders',
-              subtitle: '${farmerProfile['orders'].length} pending orders',
+              icon: Icons.pending_actions,
+              title: 'Pending Orders',
+              subtitle: '${pendingOrders.length} pending orders',
               color: Colors.blue,
               onTap: () {
                 Navigator.pop(context);
-                _showOrdersDialog(context);
+                _showOrdersDialog(
+                  context,
+                  title: 'Pending Orders',
+                  orders: pendingOrders,
+                  emptyMessage: 'No pending orders at the moment',
+                  icon: Icons.pending_actions,
+                  color: Colors.blue,
+                );
+              },
+            ),
+            _buildDrawerItem(
+              icon: Icons.task_alt,
+              title: 'Completed Orders',
+              subtitle: '${completedOrders.length} completed orders',
+              color: Colors.green,
+              onTap: () {
+                Navigator.pop(context);
+                _showOrdersDialog(
+                  context,
+                  title: 'Completed Orders',
+                  orders: completedOrders,
+                  emptyMessage: 'No completed orders yet',
+                  icon: Icons.task_alt,
+                  color: Colors.green,
+                );
               },
             ),
             _buildDrawerItem(
@@ -1192,37 +1266,35 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
     IconData icon,
     Color color,
   ) {
-    return Container(
+    return SizedBox(
       width: 150,
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.08),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: color, size: 20),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  value,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-                Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 11, color: Colors.grey[700]),
-                ),
-              ],
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Row(
+          children: [
+            Icon(icon, color: color, size: 18),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    value,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 11, color: Colors.grey[700]),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -1343,44 +1415,53 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
     );
   }
 
-  void _showOrdersDialog(BuildContext context) {
+  void _showOrdersDialog(
+    BuildContext context, {
+    required String title,
+    required List<Map<String, dynamic>> orders,
+    required String emptyMessage,
+    required IconData icon,
+    required Color color,
+  }) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
           backgroundColor: Colors.white,
-          title: const Text('New Orders'),
+          title: Text(title),
           content: SizedBox(
             width: double.maxFinite,
             height: MediaQuery.of(context).size.height * 0.6,
-            child: farmerProfile['orders'].isEmpty
-                ? const Center(
+            child: orders.isEmpty
+                ? Center(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.shopping_cart, size: 50, color: Colors.grey),
-                        SizedBox(height: 16),
-                        Text('No new orders at the moment'),
+                        Icon(icon, size: 50, color: Colors.grey),
+                        const SizedBox(height: 16),
+                        Text(emptyMessage),
                       ],
                     ),
                   )
                 : ListView.builder(
-                    itemCount: farmerProfile['orders'].length,
+                    itemCount: orders.length,
                     itemBuilder: (context, index) {
-                      var order = farmerProfile['orders'][index];
+                      var order = orders[index];
+                      final status =
+                          order['status']?.toString() ?? 'pending';
                       return Card(
                         margin: const EdgeInsets.only(bottom: 8),
                         child: ListTile(
-                          leading: const Icon(
-                            Icons.shopping_cart,
-                            color: Colors.blue,
+                          leading: Icon(
+                            icon,
+                            color: color,
                           ),
                           title: Text(
                             order['productName']?.toString() ??
                                 'Unknown Product',
                           ),
                           subtitle: Text(
-                            'Customer: ${order['customerName']?.toString() ?? "Unknown"}\nQuantity: ${order['quantity']?.toString() ?? "0"}\nStatus: ${order['paymentStatus']?.toString() ?? order['status']?.toString() ?? 'pending'}',
+                            'Customer: ${order['customerName']?.toString() ?? "Unknown"}\nQuantity needed: ${order['quantity']?.toString() ?? "0"}\nStatus: ${order['paymentStatus']?.toString() ?? order['status']?.toString() ?? 'pending'}',
                           ),
                           trailing: Container(
                             padding: const EdgeInsets.symmetric(
@@ -1388,13 +1469,13 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
                               vertical: 4,
                             ),
                             decoration: BoxDecoration(
-                              color: Colors.orange.withOpacity(0.2),
+                              color: color.withOpacity(0.2),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(
-                              order['status']?.toString() ?? 'pending',
-                              style: const TextStyle(
-                                color: Colors.orange,
+                              status,
+                              style: TextStyle(
+                                color: color,
                                 fontSize: 12,
                               ),
                             ),
