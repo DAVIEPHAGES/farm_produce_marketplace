@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../services/remember_me_service.dart';
+
 class SignInPage extends StatefulWidget {
   const SignInPage({super.key});
 
@@ -21,6 +23,12 @@ class _SignInPageState extends State<SignInPage> {
   String? _redirectTo;
 
   @override
+  void initState() {
+    super.initState();
+    _loadRememberMeChoice();
+  }
+
+  @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     // Get redirect info from route arguments
@@ -36,6 +44,19 @@ class _SignInPageState extends State<SignInPage> {
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadRememberMeChoice() async {
+    final rememberMe = await RememberMeService.isRememberMeEnabled();
+    final rememberedEmail = await RememberMeService.getRememberedEmail();
+
+    if (!mounted) return;
+    setState(() {
+      _rememberMe = rememberMe;
+      if (_emailController.text.isEmpty) {
+        _emailController.text = rememberedEmail;
+      }
+    });
   }
 
   String? _validateEmail(String? value) {
@@ -66,11 +87,20 @@ class _SignInPageState extends State<SignInPage> {
     });
 
     try {
+      final email = _emailController.text.trim().toLowerCase();
+
+      await RememberMeService.prepareAuthPersistence(_rememberMe);
+
       UserCredential userCredential = await FirebaseAuth.instance
           .signInWithEmailAndPassword(
-            email: _emailController.text.trim().toLowerCase(),
+            email: email,
             password: _passwordController.text,
           );
+
+      await RememberMeService.saveSignInChoice(
+        rememberMe: _rememberMe,
+        email: email,
+      );
 
       print('✅ User signed in: ${userCredential.user!.uid}');
 

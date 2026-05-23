@@ -2,8 +2,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
-import '../utils/url_utils.dart'
-    if (dart.library.html) '../utils/url_utils_web.dart';
 import 'package:farm_app/data/cart_data.dart';
 
 import '../widgets/customer_drawer.dart';
@@ -25,7 +23,7 @@ class _HomePageState extends State<HomePage> {
   int _visibleProductsCount = 0;
   int _totalProductsCount = 0;
   bool _isShowingAll = false;
-  int _selectedBottomNavIndex = 0; // Track selected bottom nav index
+  int _selectedBottomNavIndex = 0;
 
   final List<String> categories = const [
     'All',
@@ -35,79 +33,17 @@ class _HomePageState extends State<HomePage> {
     'vegetables',
   ];
 
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _handlePayChanguRedirect();
-    });
-  }
-
-  Future<void> _handlePayChanguRedirect() async {
-    final queryParams = Uri.base.queryParameters;
-    if (queryParams['paychangu_callback'] != '1') {
-      return;
-    }
-
-    final status = (queryParams['status'] ?? '').toLowerCase();
-    final txRef = queryParams['tx_ref'] ?? queryParams['txRef'];
-    final orderId = queryParams['orderId'];
-
-    clearQueryParameters();
-
-    final isSuccessCallback = status == 'success' ||
-        (status.isEmpty && orderId != null && txRef != null && txRef.isNotEmpty);
-
-    if (orderId == null || orderId.isEmpty || txRef == null || txRef.isEmpty) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Payment returned, but the order could not be identified.',
-            ),
-            duration: Duration(seconds: 4),
-          ),
-        );
-      }
-      return;
-    }
-
-    if (mounted) {
-      if (isSuccessCallback) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Order placed successfully. You may continue shopping.',
-            ),
-            duration: Duration(seconds: 4),
-          ),
-        );
-        return;
-      }
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            status == 'failed' || status == 'cancelled'
-                ? 'Payment was not completed. Please try again.'
-                : 'Payment returned to the app. Please verify your order status.',
-          ),
-          duration: const Duration(seconds: 4),
-        ),
-      );
-    }
-  }
-
   int _getProductsPerPage(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
+    if (screenWidth >= 1200) return 8;
+    if (screenWidth >= 800) return 6;
+    return 4;
+  }
 
-    if (screenWidth >= 1200) {
-      return 8;
-    } else if (screenWidth >= 800) {
-      return 6;
-    } else {
-      return 4;
-    }
+  (int count, double ratio) _getGridConfig(double screenWidth) {
+    if (screenWidth >= 1200) return (4, 0.58);
+    if (screenWidth >= 800) return (3, 0.60);
+    return (2, 0.62);
   }
 
   void _resetToInitialView(int productsPerPage) {
@@ -138,23 +74,17 @@ class _HomePageState extends State<HomePage> {
   bool _isPriceSearch(String query) {
     final trimmed = query.trim();
     if (trimmed.isEmpty) return false;
-
     if (RegExp(r'^\d').hasMatch(trimmed)) return true;
     if (trimmed.contains('-')) return true;
     if (trimmed.startsWith('under') || trimmed.startsWith('below')) return true;
     if (trimmed.startsWith('above') || trimmed.startsWith('over')) return true;
-
     return false;
   }
 
   (double? minPrice, double? maxPrice, String? priceStartsWith) _parsePriceQuery(
-    String query,
-  ) {
+      String query) {
     final trimmed = query.trim().toLowerCase();
-
-    if (RegExp(r'^\d+$').hasMatch(trimmed)) {
-      return (null, null, trimmed);
-    }
+    if (RegExp(r'^\d+$').hasMatch(trimmed)) return (null, null, trimmed);
 
     if (trimmed.contains('-')) {
       final parts = trimmed.split('-');
@@ -182,25 +112,13 @@ class _HomePageState extends State<HomePage> {
     return (null, null, null);
   }
 
-  (int crossAxisCount, double childAspectRatio) _getGridConfig(double width) {
-    if (width >= 1200) {
-      return (4, 0.75);
-    } else if (width >= 800) {
-      return (3, 0.8);
-    } else {
-      return (2, 0.85);
-    }
-  }
-
   int? _parseStock(Map<String, dynamic> data) {
     final stockValue = data['stock'];
     if (stockValue is num) return stockValue.toInt();
     if (stockValue is String) return int.tryParse(stockValue);
-
     final quantityValue = data['quantity'];
     if (quantityValue is num) return quantityValue.toInt();
     if (quantityValue is String) return int.tryParse(quantityValue);
-
     return null;
   }
 
@@ -264,7 +182,36 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  Widget _buildCardInfoRow({
+    required IconData icon,
+    required String text,
+  }) {
+    return Row(
+      children: [
+        Icon(icon, size: 13, color: Colors.grey.shade600),
+        const SizedBox(width: 4),
+        Expanded(
+          child: Text(
+            text,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildCard(Map<String, dynamic> data, String id, QueryDocumentSnapshot doc) {
+    final farmerName = data['farmerName']?.toString().trim().isNotEmpty == true
+        ? data['farmerName'].toString()
+        : 'Farmer';
+    final farmerLocation = data['location']?.toString().trim().isNotEmpty == true
+        ? data['location'].toString()
+        : data['farmerLocation']?.toString().trim().isNotEmpty == true
+            ? data['farmerLocation'].toString()
+            : 'Location not set';
+
     return ClipRRect(
       borderRadius: BorderRadius.circular(16),
       child: Container(
@@ -330,6 +277,16 @@ class _HomePageState extends State<HomePage> {
                       style: const TextStyle(fontSize: 12),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    _buildCardInfoRow(
+                      icon: Icons.person_outline,
+                      text: farmerName,
+                    ),
+                    const SizedBox(height: 2),
+                    _buildCardInfoRow(
+                      icon: Icons.location_on_outlined,
+                      text: farmerLocation,
                     ),
                     const Spacer(),
                     SizedBox(
@@ -483,8 +440,9 @@ class _HomePageState extends State<HomePage> {
           const Divider(color: Colors.grey),
           AnimatedCrossFade(
             duration: const Duration(milliseconds: 300),
-            crossFadeState:
-                _showRefundPolicy ? CrossFadeState.showFirst : CrossFadeState.showSecond,
+            crossFadeState: _showRefundPolicy
+                ? CrossFadeState.showFirst
+                : CrossFadeState.showSecond,
             firstChild: Column(
               children: [
                 const SizedBox(height: 12),
@@ -545,7 +503,6 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     final productsPerPage = _getProductsPerPage(context);
-    final user = FirebaseAuth.instance.currentUser;
 
     return Scaffold(
       drawer: const CustomerDrawer(),
@@ -627,8 +584,7 @@ class _HomePageState extends State<HomePage> {
                     });
                   },
                   decoration: InputDecoration(
-                    hintText:
-                        'Search by name (e.g., maize) or price (e.g., 1, 10, 100, 1000-5000)',
+                    hintText: 'Search by name (e.g., maize) or price (e.g., 1000-5000)',
                     prefixIcon: const Icon(Icons.search),
                     suffixIcon: searchQuery.isNotEmpty
                         ? IconButton(
@@ -661,9 +617,7 @@ class _HomePageState extends State<HomePage> {
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          _isPriceSearch(searchQuery)
-                              ? 'Searching by price...'
-                              : 'Searching by name...',
+                          _isPriceSearch(searchQuery) ? 'Searching by price...' : 'Searching by name...',
                           style: TextStyle(fontSize: 11, color: Colors.grey[600]),
                         ),
                       ],
@@ -681,7 +635,6 @@ class _HomePageState extends State<HomePage> {
               itemBuilder: (context, index) {
                 final category = categories[index];
                 final isSelected = selectedCategory == category;
-
                 return GestureDetector(
                   onTap: () {
                     setState(() {
@@ -699,9 +652,7 @@ class _HomePageState extends State<HomePage> {
                     ),
                     child: Text(
                       category,
-                      style: TextStyle(
-                        color: isSelected ? Colors.white : Colors.black,
-                      ),
+                      style: TextStyle(color: isSelected ? Colors.white : Colors.black),
                     ),
                   ),
                 );
@@ -730,59 +681,43 @@ class _HomePageState extends State<HomePage> {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
-
                 if (!snapshot.hasData) {
                   return const Center(child: Text('No products'));
                 }
-
                 final docs = snapshot.data!.docs;
-                
                 final isPriceSearch = _isPriceSearch(searchQuery);
                 final (minPrice, maxPrice, priceStartsWith) = _parsePriceQuery(searchQuery);
-
                 final filtered = docs.where((doc) {
                   final data = doc.data() as Map<String, dynamic>;
                   final name = (data['name'] ?? '').toString().toLowerCase();
                   final price = (data['price'] as num?)?.toDouble() ?? 0;
                   final priceString = price.toString();
-
                   bool matchesSearch = true;
-
                   if (searchQuery.isNotEmpty) {
                     if (isPriceSearch) {
                       if (priceStartsWith != null) {
                         matchesSearch = priceString.startsWith(priceStartsWith);
                       } else {
-                        if (minPrice != null && price < minPrice) {
-                          matchesSearch = false;
-                        }
-                        if (maxPrice != null && price > maxPrice) {
-                          matchesSearch = false;
-                        }
+                        if (minPrice != null && price < minPrice) matchesSearch = false;
+                        if (maxPrice != null && price > maxPrice) matchesSearch = false;
                       }
                     } else {
                       matchesSearch = name.contains(searchQuery);
                     }
                   }
-
                   final matchesCategory = selectedCategory == 'All'
                       ? true
                       : name.contains(selectedCategory.toLowerCase());
-
                   return matchesSearch && matchesCategory;
                 }).toList();
-
                 _totalProductsCount = filtered.length;
-
                 if (_visibleProductsCount == 0 || _visibleProductsCount > _totalProductsCount) {
                   _visibleProductsCount = productsPerPage;
                   _isShowingAll = false;
                 }
-
                 final visibleProducts = filtered.take(_visibleProductsCount).toList();
                 final hasMore = _visibleProductsCount < _totalProductsCount;
                 final hasLess = _visibleProductsCount > productsPerPage;
-
                 if (filtered.isEmpty) {
                   return Center(
                     child: Column(
@@ -790,10 +725,7 @@ class _HomePageState extends State<HomePage> {
                       children: [
                         Icon(Icons.search_off, size: 64, color: Colors.grey[400]),
                         const SizedBox(height: 16),
-                        Text(
-                          'No products found',
-                          style: TextStyle(fontSize: 16, color: Colors.grey[600]),
-                        ),
+                        Text('No products found', style: TextStyle(fontSize: 16, color: Colors.grey[600])),
                         const SizedBox(height: 8),
                         Text(
                           isPriceSearch
@@ -806,10 +738,8 @@ class _HomePageState extends State<HomePage> {
                     ),
                   );
                 }
-
                 final screenWidth = MediaQuery.of(context).size.width;
                 final (crossAxisCount, childAspectRatio) = _getGridConfig(screenWidth);
-
                 return ListView(
                   children: [
                     GridView.builder(
@@ -887,7 +817,6 @@ class _HomePageState extends State<HomePage> {
           ),
         ],
       ),
-      // ✅ UPDATED: Bottom navigation bar with ONLY 3 items (Home, My Orders, Profile)
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedBottomNavIndex,
         selectedItemColor: Colors.green,
@@ -897,9 +826,7 @@ class _HomePageState extends State<HomePage> {
           setState(() {
             _selectedBottomNavIndex = index;
           });
-          
           if (index == 1) {
-            // My Orders
             Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const MyOrdersPage()),
@@ -909,7 +836,12 @@ class _HomePageState extends State<HomePage> {
               });
             });
           } else if (index == 2) {
-            // Profile
+            Navigator.pushNamed(context, '/orders').then((_) {
+              setState(() {
+                _selectedBottomNavIndex = 0;
+              });
+            });
+          } else if (index == 3) {
             Navigator.pushNamed(context, '/profile').then((_) {
               setState(() {
                 _selectedBottomNavIndex = 0;
@@ -920,6 +852,7 @@ class _HomePageState extends State<HomePage> {
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
           BottomNavigationBarItem(icon: Icon(Icons.receipt_long), label: 'My Orders'),
+          BottomNavigationBarItem(icon: Icon(Icons.shopping_cart_outlined), label: 'Orders'),
           BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: 'Profile'),
         ],
       ),

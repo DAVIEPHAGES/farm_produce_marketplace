@@ -83,3 +83,23 @@ class MyApp extends StatelessWidget {
     );
   }
 }
+
+class _PlaceholderPage extends StatelessWidget {
+  final String title;
+  final String message;
+
+  const _PlaceholderPage({required this.title, required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text(title)),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text(message, textAlign: TextAlign.center),
+        ),
+      ),
+    );
+  }
+}

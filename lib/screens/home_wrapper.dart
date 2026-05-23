@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 // ignore: avoid_web_libraries_in_flutter
 import 'dart:html' as html; // This allows us to clean the URL
+import '../services/remember_me_service.dart';
 import 'home_page.dart';
 
 class HomeWrapper extends StatefulWidget {
@@ -22,8 +23,16 @@ class _HomeWrapperState extends State<HomeWrapper> {
 
     // After the screen loads, check if we need to show a success message and clean the URL
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      _applyRememberMeChoice();
       _checkPaymentStatus();
     });
+  }
+
+  Future<void> _applyRememberMeChoice() async {
+    await RememberMeService.signOutIfCurrentUserWasNotRemembered();
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   void _checkPaymentStatus() {
