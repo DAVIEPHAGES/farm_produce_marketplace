@@ -491,7 +491,7 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
                     value: 'Demand Trends',
                     icon: Icons.insights,
                     color: Colors.teal,
-                    onTap: () => _showDemandStatsDialog(context),
+                    onTap: _openDemandStatsPage,
                   ),
                   SizedBox(
                     width: MediaQuery.of(context).size.width - 24,
@@ -691,7 +691,7 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
               color: Colors.teal,
               onTap: () {
                 Navigator.pop(context);
-                _showDemandStatsDialog(context);
+                _openDemandStatsPage();
               },
             ),
             _buildDrawerItem(
@@ -760,7 +760,7 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
                   ),
                 ),
                 TextButton(
-                  onPressed: () => _showDemandStatsDialog(context),
+                  onPressed: _openDemandStatsPage,
                   child: const Text('View'),
                 ),
               ],
@@ -1086,7 +1086,7 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
     );
   }
 
-  void _showDemandStatsDialog(BuildContext context) {
+  void _openDemandStatsPage() {
     final stats = _buildProduceDemandStats();
     final orderedStats = stats
         .where((stat) => _toDouble(stat['quantity']) > 0)
@@ -1107,136 +1107,136 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
       (sum, stat) => sum + _toDouble(stat['earnings']),
     );
 
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          backgroundColor: Colors.white,
-          title: const Text('Produce Demand Trends'),
-          content: SizedBox(
-            width: MediaQuery.of(context).size.width > 720
-                ? 640
-                : double.maxFinite,
-            height: MediaQuery.of(context).size.height * 0.68,
-            child: orderedStats.isEmpty
-                ? const Center(
-                    child: Text(
-                      'No demand trend yet. Customer orders will create statistics here.',
-                      textAlign: TextAlign.center,
-                    ),
-                  )
-                : Column(
-                    children: [
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) {
+          return Scaffold(
+            backgroundColor: Colors.white,
+            appBar: AppBar(
+              title: const Text('Produce Demand Trends'),
+              backgroundColor: Colors.green[700],
+              foregroundColor: Colors.white,
+            ),
+            body: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: orderedStats.isEmpty
+                    ? const Center(
+                        child: Text(
+                          'No demand trend yet. Customer orders will create statistics here.',
+                          textAlign: TextAlign.center,
+                        ),
+                      )
+                    : Column(
                         children: [
-                          _buildMiniMetric(
-                            'Orders',
-                            totalOrders.toString(),
-                            Icons.receipt_long,
-                            Colors.blue,
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              _buildMiniMetric(
+                                'Orders',
+                                totalOrders.toString(),
+                                Icons.receipt_long,
+                                Colors.blue,
+                              ),
+                              _buildMiniMetric(
+                                'Units Needed',
+                                totalQuantity.toStringAsFixed(
+                                  totalQuantity % 1 == 0 ? 0 : 1,
+                                ),
+                                Icons.inventory_2,
+                                Colors.teal,
+                              ),
+                              _buildMiniMetric(
+                                'Value',
+                                'MWK ${totalEarnings.toStringAsFixed(2)}',
+                                Icons.payments,
+                                Colors.green,
+                              ),
+                            ],
                           ),
-                          _buildMiniMetric(
-                            'Units Needed',
-                            totalQuantity.toStringAsFixed(
-                              totalQuantity % 1 == 0 ? 0 : 1,
+                          const SizedBox(height: 14),
+                          Expanded(
+                            child: ListView.builder(
+                              itemCount: orderedStats.length,
+                              itemBuilder: (context, index) {
+                                final stat = orderedStats[index];
+                                final lastOrdered = stat['lastOrdered'];
+
+                                return Card(
+                                  margin: const EdgeInsets.only(bottom: 10),
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(12),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: Text(
+                                                stat['name'].toString(),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                            ),
+                                            Text(
+                                              '${stat['orders']} orders',
+                                              style: TextStyle(
+                                                color: Colors.grey[700],
+                                                fontSize: 12,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 8),
+                                        _buildDemandBar(
+                                          name: 'Customer demand',
+                                          quantity:
+                                              _toDouble(stat['quantity']),
+                                          maxQuantity: maxQuantity,
+                                          orders:
+                                              stat['orders'] as int? ?? 0,
+                                        ),
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: Text(
+                                                'Earnings: MWK ${_toDouble(stat['earnings']).toStringAsFixed(2)}',
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  color: Colors.grey[700],
+                                                ),
+                                              ),
+                                            ),
+                                            if (lastOrdered is DateTime)
+                                              Text(
+                                                'Last: ${lastOrdered.day}/${lastOrdered.month}/${lastOrdered.year}',
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  color: Colors.grey[700],
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              },
                             ),
-                            Icons.inventory_2,
-                            Colors.teal,
-                          ),
-                          _buildMiniMetric(
-                            'Value',
-                            'MWK ${totalEarnings.toStringAsFixed(2)}',
-                            Icons.payments,
-                            Colors.green,
                           ),
                         ],
                       ),
-                      const SizedBox(height: 14),
-                      Expanded(
-                        child: Scrollbar(
-                          child: ListView.builder(
-                            itemCount: orderedStats.length,
-                            itemBuilder: (context, index) {
-                              final stat = orderedStats[index];
-                              final lastOrdered = stat['lastOrdered'];
-                              return Card(
-                                margin: const EdgeInsets.only(bottom: 10),
-                                child: Padding(
-                                  padding: const EdgeInsets.all(12),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
-                                        children: [
-                                          Expanded(
-                                            child: Text(
-                                              stat['name'].toString(),
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: const TextStyle(
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                            ),
-                                          ),
-                                          Text(
-                                            '${stat['orders']} orders',
-                                            style: TextStyle(
-                                              color: Colors.grey[700],
-                                              fontSize: 12,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 8),
-                                      _buildDemandBar(
-                                        name: 'Customer demand',
-                                        quantity: _toDouble(stat['quantity']),
-                                        maxQuantity: maxQuantity,
-                                        orders: stat['orders'] as int? ?? 0,
-                                      ),
-                                      Row(
-                                        children: [
-                                          Expanded(
-                                            child: Text(
-                                              'Earnings: MWK ${_toDouble(stat['earnings']).toStringAsFixed(2)}',
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                                color: Colors.grey[700],
-                                              ),
-                                            ),
-                                          ),
-                                          if (lastOrdered is DateTime)
-                                            Text(
-                                              'Last: ${lastOrdered.day}/${lastOrdered.month}/${lastOrdered.year}',
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                                color: Colors.grey[700],
-                                              ),
-                                            ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Close'),
+              ),
             ),
-          ],
-        );
-      },
+          );
+        },
+      ),
     );
   }
 
