@@ -458,7 +458,7 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
                     value: '${farmerProfile['products'].length} items',
                     icon: Icons.agriculture,
                     color: Colors.orange,
-                    onTap: () => _showMyProduceDialog(context),
+                    onTap: _openMyProducePage,
                   ),
                   _buildStatCard(
                     title: 'Pending Orders',
@@ -651,7 +651,7 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
               color: Colors.orange,
               onTap: () {
                 Navigator.pop(context);
-                _showMyProduceDialog(context);
+                _openMyProducePage();
               },
             ),
             _buildDrawerItem(
@@ -1283,161 +1283,197 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
     );
   }
 
-  void _showMyProduceDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          backgroundColor: Colors.white,
-          title: const Text('My Produce'),
-          content: SizedBox(
-            width: double.maxFinite,
-            height: MediaQuery.of(context).size.height * 0.6,
-            child: Column(
-              children: [
-                Expanded(
-                  child: farmerProfile['products'].isEmpty
-                      ? const Center(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.agriculture,
-                                size: 50,
-                                color: Colors.grey,
-                              ),
-                              SizedBox(height: 16),
-                              Text('No produce added yet'),
-                            ],
-                          ),
-                        )
-                      : ListView.builder(
-                          shrinkWrap: true,
-                          itemCount: farmerProfile['products'].length,
-                          itemBuilder: (context, index) {
-                            var product = farmerProfile['products'][index];
-                            String productName =
-                                product['name']?.toString() ??
-                                    'Unnamed Product';
-                            String price =
-                                product['price']?.toString() ?? '0';
-                            String quantity =
-                                product['quantity']?.toString() ?? '0';
-                            String location =
-                                product['location']?.toString() ?? 'Unknown';
-                            String dateAdded =
-                                product['dateAdded']?.toString() ?? '';
-                            String productId =
-                                product['id']?.toString() ?? '';
+  void _openMyProducePage() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (pageContext) {
+          return StatefulBuilder(
+            builder: (context, refreshPage) {
+              final products = farmerProfile['products'] is List
+                  ? farmerProfile['products'] as List
+                  : const [];
 
-                            return Card(
-                              margin: const EdgeInsets.only(bottom: 8),
-                              child: ListTile(
-                                leading: const Icon(
-                                  Icons.agriculture,
-                                  color: Colors.green,
-                                ),
-                                title: Text(
-                                  productName,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                subtitle: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text('Price: MWK $price'),
-                                    Text('Quantity: $quantity'),
-                                    Text('Location: $location'),
-                                  ],
-                                ),
-                                trailing: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    if (dateAdded.isNotEmpty)
-                                      Text(
-                                        _formatDate(dateAdded),
-                                        style: const TextStyle(
-                                          fontSize: 11,
-                                          color: Colors.grey,
-                                        ),
-                                      ),
-                                    IconButton(
-                                      icon: const Icon(
-                                        Icons.edit,
-                                        color: Colors.blue,
-                                      ),
-                                      onPressed: () async {
-                                        Navigator.pop(context);
-                                        final result = await Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (context) =>
-                                                AddProducePage(
-                                              isEditing: true,
-                                              existingProduct: product,
-                                              productId: productId,
-                                            ),
-                                          ),
-                                        );
-                                        if (result == true) {
-                                          _loadData();
-                                        }
-                                      },
-                                      tooltip: 'Edit product',
-                                    ),
-                                    IconButton(
-                                      icon: const Icon(
-                                        Icons.delete,
-                                        color: Colors.red,
-                                      ),
-                                      onPressed: () =>
-                                          _deleteProduct(productId, index),
-                                      tooltip: 'Delete product',
-                                    ),
-                                  ],
-                                ),
-                                isThreeLine: true,
-                              ),
-                            );
-                          },
-                        ),
+              return Scaffold(
+                backgroundColor: Colors.white,
+                appBar: AppBar(
+                  title: const Text('My Produce'),
+                  backgroundColor: Colors.green[700],
+                  foregroundColor: Colors.white,
                 ),
-                const SizedBox(height: 12),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      _openAddProducePage();
-                    },
-                    icon: const Icon(Icons.add, size: 18),
-                    label: const Text('Post new item'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      foregroundColor: Colors.white,
-                      elevation: 3,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 10,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
+                body: SafeArea(
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      children: [
+                        Expanded(
+                          child: products.isEmpty
+                              ? const Center(
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.agriculture,
+                                        size: 56,
+                                        color: Colors.grey,
+                                      ),
+                                      SizedBox(height: 16),
+                                      Text('No produce added yet'),
+                                    ],
+                                  ),
+                                )
+                              : ListView.builder(
+                                  itemCount: products.length,
+                                  itemBuilder: (context, index) {
+                                    final product = products[index];
+                                    final productName =
+                                        product['name']?.toString() ??
+                                            'Unnamed Product';
+                                    final price =
+                                        product['price']?.toString() ?? '0';
+                                    final quantity =
+                                        product['quantity']?.toString() ?? '0';
+                                    final location =
+                                        product['location']?.toString() ??
+                                            'Unknown';
+                                    final dateAdded =
+                                        product['dateAdded']?.toString() ?? '';
+                                    final productId =
+                                        product['id']?.toString() ?? '';
+
+                                    return Card(
+                                      margin: const EdgeInsets.only(bottom: 8),
+                                      child: ListTile(
+                                        leading: const Icon(
+                                          Icons.agriculture,
+                                          color: Colors.green,
+                                        ),
+                                        title: Text(
+                                          productName,
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        subtitle: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text('Price: MWK $price'),
+                                            Text('Quantity: $quantity'),
+                                            Text('Location: $location'),
+                                          ],
+                                        ),
+                                        trailing: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            if (dateAdded.isNotEmpty)
+                                              Text(
+                                                _formatDate(dateAdded),
+                                                style: const TextStyle(
+                                                  fontSize: 11,
+                                                  color: Colors.grey,
+                                                ),
+                                              ),
+                                            IconButton(
+                                              icon: const Icon(
+                                                Icons.edit,
+                                                color: Colors.blue,
+                                              ),
+                                              onPressed: () async {
+                                                final result =
+                                                    await Navigator.push(
+                                                  context,
+                                                  MaterialPageRoute(
+                                                    builder: (context) =>
+                                                        AddProducePage(
+                                                      isEditing: true,
+                                                      existingProduct: product,
+                                                      productId: productId,
+                                                    ),
+                                                  ),
+                                                );
+                                                if (result == true) {
+                                                  await _loadData();
+                                                  refreshPage(() {});
+                                                }
+                                              },
+                                              tooltip: 'Edit product',
+                                            ),
+                                            IconButton(
+                                              icon: const Icon(
+                                                Icons.delete,
+                                                color: Colors.red,
+                                              ),
+                                              onPressed: () async {
+                                                await _deleteProduct(
+                                                  productId,
+                                                  index,
+                                                );
+                                                refreshPage(() {});
+                                              },
+                                              tooltip: 'Delete product',
+                                            ),
+                                          ],
+                                        ),
+                                        isThreeLine: true,
+                                      ),
+                                    );
+                                  },
+                                ),
+                        ),
+                        const SizedBox(height: 12),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: ElevatedButton.icon(
+                            onPressed: () async {
+                              final result = await Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      const AddProducePage(),
+                                ),
+                              );
+                              if (result != null) {
+                                await _loadData();
+                                refreshPage(() {});
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        'Produce added successfully!',
+                                      ),
+                                      backgroundColor: Colors.green,
+                                      duration: Duration(seconds: 2),
+                                    ),
+                                  );
+                                }
+                              }
+                            },
+                            icon: const Icon(Icons.add, size: 18),
+                            label: const Text('Post new item'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.green,
+                              foregroundColor: Colors.white,
+                              elevation: 3,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 10,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Close'),
-            ),
-          ],
-        );
-      },
+              );
+            },
+          );
+        },
+      ),
     );
   }
 
