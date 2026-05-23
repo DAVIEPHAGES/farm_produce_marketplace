@@ -465,8 +465,7 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
                     value: '${pendingOrders.length} pending',
                     icon: Icons.pending_actions,
                     color: Colors.blue,
-                    onTap: () => _showOrdersDialog(
-                      context,
+                    onTap: () => _openOrdersPage(
                       title: 'Pending Orders',
                       orders: pendingOrders,
                       emptyMessage: 'No pending orders at the moment',
@@ -661,8 +660,7 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
               color: Colors.blue,
               onTap: () {
                 Navigator.pop(context);
-                _showOrdersDialog(
-                  context,
+                _openOrdersPage(
                   title: 'Pending Orders',
                   orders: pendingOrders,
                   emptyMessage: 'No pending orders at the moment',
@@ -1556,6 +1554,86 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
           ],
         );
       },
+    );
+  }
+
+  void _openOrdersPage({
+    required String title,
+    required List<Map<String, dynamic>> orders,
+    required String emptyMessage,
+    required IconData icon,
+    required Color color,
+  }) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) {
+          return Scaffold(
+            backgroundColor: Colors.white,
+            appBar: AppBar(
+              title: Text(title),
+              backgroundColor: Colors.green[700],
+              foregroundColor: Colors.white,
+            ),
+            body: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: orders.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(icon, size: 56, color: Colors.grey),
+                            const SizedBox(height: 16),
+                            Text(emptyMessage),
+                          ],
+                        ),
+                      )
+                    : ListView.builder(
+                        itemCount: orders.length,
+                        itemBuilder: (context, index) {
+                          final order = orders[index];
+                          final status =
+                              order['status']?.toString() ?? 'pending';
+
+                          return Card(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            child: ListTile(
+                              leading: Icon(icon, color: color),
+                              title: Text(
+                                order['productName']?.toString() ??
+                                    'Unknown Product',
+                              ),
+                              subtitle: Text(
+                                'Customer: ${order['customerName']?.toString() ?? "Unknown"}\nQuantity needed: ${order['quantity']?.toString() ?? "0"}\nStatus: ${order['paymentStatus']?.toString() ?? order['status']?.toString() ?? 'pending'}',
+                              ),
+                              trailing: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: color.withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  status,
+                                  style: TextStyle(
+                                    color: color,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
+                              isThreeLine: true,
+                            ),
+                          );
+                        },
+                      ),
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 
