@@ -495,31 +495,6 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
                     color: Colors.teal,
                     onTap: () => _showDemandStatsDialog(context),
                   ),
-                  _buildStatCard(
-                    title: 'Add Produce',
-                    value: 'Post new items',
-                    icon: Icons.add_box,
-                    color: Colors.purple,
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const AddProducePage(),
-                        ),
-                      ).then((result) {
-                        if (result != null) {
-                          _loadData();
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('✓ Produce added successfully!'),
-                              backgroundColor: Colors.green,
-                              duration: Duration(seconds: 2),
-                            ),
-                          );
-                        }
-                      });
-                    },
-                  ),
                   SizedBox(
                     width: MediaQuery.of(context).size.width - 24,
                     child: _buildDemandOverview(demandStats),
@@ -579,7 +554,27 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
     );
   }
 
-  /// ─── DRAWER ─────────────────────────────────────────────────────────────
+  void _openAddProducePage() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const AddProducePage(),
+      ),
+    ).then((result) {
+      if (result != null) {
+        _loadData();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Produce added successfully!'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    });
+  }
+
+  /// Drawer
   Widget _buildDrawer() {
     final pendingOrders = _ordersByCompletion(completed: false);
     final completedOrders = _ordersByCompletion(completed: true);
@@ -710,23 +705,7 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
               color: Colors.purple,
               onTap: () {
                 Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const AddProducePage(),
-                  ),
-                ).then((result) {
-                  if (result != null) {
-                    _loadData();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('✓ Produce added successfully!'),
-                        backgroundColor: Colors.green,
-                        duration: Duration(seconds: 2),
-                      ),
-                    );
-                  }
-                });
+                _openAddProducePage();
               },
             ),
             const SizedBox(height: 20),
@@ -1314,100 +1293,142 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
           content: SizedBox(
             width: double.maxFinite,
             height: MediaQuery.of(context).size.height * 0.6,
-            child: farmerProfile['products'].isEmpty
-                ? const Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.agriculture, size: 50, color: Colors.grey),
-                        SizedBox(height: 16),
-                        Text('No produce added yet'),
-                      ],
-                    ),
-                  )
-                : ListView.builder(
-                    shrinkWrap: true,
-                    itemCount: farmerProfile['products'].length,
-                    itemBuilder: (context, index) {
-                      var product = farmerProfile['products'][index];
-                      String productName =
-                          product['name']?.toString() ?? 'Unnamed Product';
-                      String price = product['price']?.toString() ?? '0';
-                      String quantity = product['quantity']?.toString() ?? '0';
-                      String location =
-                          product['location']?.toString() ?? 'Unknown';
-                      String dateAdded = product['dateAdded']?.toString() ?? '';
-                      String productId = product['id']?.toString() ?? '';
-
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        child: ListTile(
-                          leading: const Icon(
-                            Icons.agriculture,
-                            color: Colors.green,
-                          ),
-                          title: Text(
-                            productName,
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('Price: MWK $price'),
-                              Text('Quantity: $quantity'),
-                              Text('Location: $location'),
-                            ],
-                          ),
-                          trailing: Row(
+            child: Column(
+              children: [
+                Expanded(
+                  child: farmerProfile['products'].isEmpty
+                      ? const Center(
+                          child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              if (dateAdded.isNotEmpty)
-                                Text(
-                                  _formatDate(dateAdded),
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    color: Colors.grey,
-                                  ),
-                                ),
-                              IconButton(
-                                icon: const Icon(
-                                  Icons.edit,
-                                  color: Colors.blue,
-                                ),
-                                onPressed: () async {
-                                  Navigator.pop(context);
-                                  final result = await Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => AddProducePage(
-                                        isEditing: true,
-                                        existingProduct: product,
-                                        productId: productId,
-                                      ),
-                                    ),
-                                  );
-                                  if (result == true) {
-                                    _loadData();
-                                  }
-                                },
-                                tooltip: 'Edit product',
+                              Icon(
+                                Icons.agriculture,
+                                size: 50,
+                                color: Colors.grey,
                               ),
-                              IconButton(
-                                icon: const Icon(
-                                  Icons.delete,
-                                  color: Colors.red,
-                                ),
-                                onPressed: () =>
-                                    _deleteProduct(productId, index),
-                                tooltip: 'Delete product',
-                              ),
+                              SizedBox(height: 16),
+                              Text('No produce added yet'),
                             ],
                           ),
-                          isThreeLine: true,
+                        )
+                      : ListView.builder(
+                          shrinkWrap: true,
+                          itemCount: farmerProfile['products'].length,
+                          itemBuilder: (context, index) {
+                            var product = farmerProfile['products'][index];
+                            String productName =
+                                product['name']?.toString() ??
+                                    'Unnamed Product';
+                            String price =
+                                product['price']?.toString() ?? '0';
+                            String quantity =
+                                product['quantity']?.toString() ?? '0';
+                            String location =
+                                product['location']?.toString() ?? 'Unknown';
+                            String dateAdded =
+                                product['dateAdded']?.toString() ?? '';
+                            String productId =
+                                product['id']?.toString() ?? '';
+
+                            return Card(
+                              margin: const EdgeInsets.only(bottom: 8),
+                              child: ListTile(
+                                leading: const Icon(
+                                  Icons.agriculture,
+                                  color: Colors.green,
+                                ),
+                                title: Text(
+                                  productName,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                subtitle: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text('Price: MWK $price'),
+                                    Text('Quantity: $quantity'),
+                                    Text('Location: $location'),
+                                  ],
+                                ),
+                                trailing: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    if (dateAdded.isNotEmpty)
+                                      Text(
+                                        _formatDate(dateAdded),
+                                        style: const TextStyle(
+                                          fontSize: 11,
+                                          color: Colors.grey,
+                                        ),
+                                      ),
+                                    IconButton(
+                                      icon: const Icon(
+                                        Icons.edit,
+                                        color: Colors.blue,
+                                      ),
+                                      onPressed: () async {
+                                        Navigator.pop(context);
+                                        final result = await Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) =>
+                                                AddProducePage(
+                                              isEditing: true,
+                                              existingProduct: product,
+                                              productId: productId,
+                                            ),
+                                          ),
+                                        );
+                                        if (result == true) {
+                                          _loadData();
+                                        }
+                                      },
+                                      tooltip: 'Edit product',
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(
+                                        Icons.delete,
+                                        color: Colors.red,
+                                      ),
+                                      onPressed: () =>
+                                          _deleteProduct(productId, index),
+                                      tooltip: 'Delete product',
+                                    ),
+                                  ],
+                                ),
+                                isThreeLine: true,
+                              ),
+                            );
+                          },
                         ),
-                      );
+                ),
+                const SizedBox(height: 12),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      _openAddProducePage();
                     },
+                    icon: const Icon(Icons.add, size: 18),
+                    label: const Text('Post new item'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      foregroundColor: Colors.white,
+                      elevation: 3,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 10,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
                   ),
+                ),
+              ],
+            ),
           ),
           actions: [
             TextButton(
