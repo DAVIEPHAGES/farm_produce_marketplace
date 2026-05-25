@@ -314,6 +314,63 @@ class _MyOrdersPageState extends State<MyOrdersPage> {
         onRefresh: _refreshOrders,
         child: CustomScrollView(
           slivers: [
+            SliverToBoxAdapter(
+              child: Stack(
+                children: [
+                  Image.network(
+                    'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1200&q=80',
+                    height: 180,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Container(
+                      height: 180,
+                      color: Colors.green.shade50,
+                      child: Icon(
+                        Icons.shopping_basket,
+                        size: 56,
+                        color: Colors.green.shade700,
+                      ),
+                    ),
+                  ),
+                  Container(
+                    height: 180,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Colors.white.withOpacity(0.92),
+                          Colors.white.withOpacity(0.65),
+                          Colors.transparent,
+                        ],
+                        begin: Alignment.centerLeft,
+                        end: Alignment.centerRight,
+                      ),
+                    ),
+                  ),
+                  const Positioned(
+                    left: 16,
+                    top: 62,
+                    right: 16,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'My Orders',
+                          style: TextStyle(
+                            fontSize: 26,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        SizedBox(height: 6),
+                        Text(
+                          'Track, manage and confirm your farm fresh orders',
+                          style: TextStyle(color: Colors.grey),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
             // Tabs + Search
             SliverToBoxAdapter(
               child: Container(
