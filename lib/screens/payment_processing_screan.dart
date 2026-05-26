@@ -7,6 +7,7 @@ import 'dart:convert';
 import 'package:url_launcher/url_launcher.dart';
 import 'payment_success_screen.dart';
 import '../services/local_notification_service.dart';
+import '../data/cart_data.dart' as cart_data;
 
 class PaymentProcessingScreen extends StatefulWidget {
   final String orderId;
@@ -34,8 +35,10 @@ class _PaymentProcessingScreenState extends State<PaymentProcessingScreen> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // Your ngrok URL from ngrok
-  final String backendUrl = 'https://taps-boneless-seventeen.ngrok-free.dev';
+  static const String backendUrl = String.fromEnvironment(
+    'PAYCHANGU_BACKEND_URL',
+    defaultValue: 'https://taps-boneless-seventeen.ngrok-free.dev',
+  );
 
   @override
   void initState() {
@@ -50,19 +53,31 @@ class _PaymentProcessingScreenState extends State<PaymentProcessingScreen> {
     final userDoc = await _firestore.collection('users').doc(user.uid).get();
     final userData = userDoc.data();
 
+    final farmerIds = widget.cartItems
+        .map((item) => item['farmerId']?.toString() ?? '')
+        .where((id) => id.isNotEmpty)
+        .toSet()
+        .toList();
+    final firstItem = widget.cartItems.isNotEmpty ? widget.cartItems.first : null;
+
     await _firestore.collection('orders').doc(widget.orderId).set({
       'orderId': widget.orderId,
       'customerId': user.uid,
       'customerName': widget.customerName,
       'customerEmail': widget.customerEmail,
       'customerPhone': userData?['phone'] ?? '',
+      'farmerIds': farmerIds,
+      'imageUrl': firstItem?['imageUrl'] ?? '',
+      'productName': firstItem?['name'] ?? '',
+      'totalPrice': widget.amount,
       'totalAmount': widget.amount,
       'items': widget.cartItems,
       'paymentMethod': 'paychangu',
       'paymentStatus': 'pending',
+      'status': 'Pending',
       'orderStatus': 'pending',
       'timestamp': FieldValue.serverTimestamp(),
-    });
+    }, SetOptions(merge: true));
     
     print('✅ Order saved to Firestore');
   }
@@ -85,6 +100,12 @@ class _PaymentProcessingScreenState extends State<PaymentProcessingScreen> {
           'orderId': widget.orderId,
         }),
       );
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw Exception(
+          'Backend returned ${response.statusCode}: ${response.body}',
+        );
+      }
 
       final data = json.decode(response.body);
       print('Backend Response: $data');
@@ -290,6 +311,12 @@ class _PaymentProcessingScreenState extends State<PaymentProcessingScreen> {
         if (paymentStatus == 'completed') {
           print('🎉 Payment completed!');
           
+          final currentUser = _auth.currentUser;
+          if (currentUser != null) {
+            await _firestore.collection('carts').doc(currentUser.uid).delete();
+          }
+          cart_data.cartItems.clear();
+
           await LocalNotificationService.showPaymentSuccessNotification(
             widget.orderId,
             widget.amount,
@@ -342,16 +369,21 @@ class _PaymentProcessingScreenState extends State<PaymentProcessingScreen> {
               ),
             ),
             const SizedBox(height: 32),
-            ElevatedButton(
-              onPressed: _isProcessing ? null : _processPayment,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green,
-                minimumSize: const Size(double.infinity, 50),
-                padding: const EdgeInsets.symmetric(vertical: 16),
+            Center(
+              child: SizedBox(
+                width: 220,
+                height: 48,
+                child: ElevatedButton(
+                  onPressed: _isProcessing ? null : _processPayment,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  child: _isProcessing
+                      ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator())
+                      : const Text('PAY NOW', style: TextStyle(fontSize: 16)),
+                ),
               ),
-              child: _isProcessing
-                  ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator())
-                  : const Text('PAY NOW', style: TextStyle(fontSize: 18)),
             ),
             const SizedBox(height: 16),
             Text(
