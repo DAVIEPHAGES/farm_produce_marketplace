@@ -102,41 +102,49 @@ class PaymentSuccessScreen extends StatelessWidget {
               const SizedBox(height: 48),
               
               // Make Another Order Button
-              ElevatedButton.icon(
-                onPressed: () => _makeAnotherOrder(context),
-                icon: const Icon(Icons.shopping_cart),
-                label: const Text(
-                  'MAKE ANOTHER ORDER',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue,
-                  foregroundColor: Colors.white,
-                  minimumSize: const Size(double.infinity, 50),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+              Center(
+                child: SizedBox(
+                  width: 220,
+                  height: 48,
+                  child: ElevatedButton.icon(
+                    onPressed: () => _makeAnotherOrder(context),
+                    icon: const Icon(Icons.shopping_cart),
+                    label: const Text(
+                      'MAKE ANOTHER ORDER',
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
                   ),
                 ),
               ),
-              
               const SizedBox(height: 16),
-              
               // Logout Button
-              OutlinedButton.icon(
-                onPressed: () => _logout(context),
-                icon: const Icon(Icons.logout),
-                label: const Text(
-                  'LOG OUT',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.red,
-                  minimumSize: const Size(double.infinity, 50),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  side: const BorderSide(color: Colors.red, width: 2),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+              Center(
+                child: SizedBox(
+                  width: 220,
+                  height: 48,
+                  child: OutlinedButton.icon(
+                    onPressed: () => _logout(context),
+                    icon: const Icon(Icons.logout),
+                    label: const Text(
+                      'LOG OUT',
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.red,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      side: const BorderSide(color: Colors.red, width: 2),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
                   ),
                 ),
               ),
