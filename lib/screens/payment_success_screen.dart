@@ -17,11 +17,11 @@ class PaymentSuccessScreen extends StatelessWidget {
     // Clear user session data
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear(); // This clears all saved session data
-    
+
     // Optional: Clear specific items instead of everything
     // await prefs.remove('user_token');
     // await prefs.remove('user_id');
-    
+
     if (context.mounted) {
       // Navigate to home page and remove all previous routes so user can't go back
       Navigator.of(context).pushNamedAndRemoveUntil(
@@ -59,13 +59,9 @@ class PaymentSuccessScreen extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               // Success Icon
-              const Icon(
-                Icons.check_circle,
-                color: Colors.green,
-                size: 100,
-              ),
+              const Icon(Icons.check_circle, color: Colors.green, size: 100),
               const SizedBox(height: 24),
-              
+
               // Success Message
               Text(
                 'Thank you, $customerName!',
@@ -76,14 +72,14 @@ class PaymentSuccessScreen extends StatelessWidget {
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 16),
-              
+
               Text(
                 'Your payment of MWK ${amount.toStringAsFixed(2)} has been processed successfully.',
                 style: const TextStyle(fontSize: 16),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 8),
-              
+
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
@@ -92,15 +88,12 @@ class PaymentSuccessScreen extends StatelessWidget {
                 ),
                 child: Text(
                   'Order ID: $orderId',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey,
-                  ),
+                  style: const TextStyle(fontSize: 14, color: Colors.grey),
                 ),
               ),
-              
+
               const SizedBox(height: 48),
-              
+
               // Make Another Order Button
               Center(
                 child: SizedBox(
@@ -111,15 +104,19 @@ class PaymentSuccessScreen extends StatelessWidget {
                     icon: const Icon(Icons.shopping_cart),
                     label: const Text(
                       'MAKE ANOTHER ORDER',
-                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
+                      backgroundColor: Colors.indigo.shade700,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(24),
                       ),
+                      elevation: 4,
                     ),
                   ),
                 ),
@@ -135,14 +132,17 @@ class PaymentSuccessScreen extends StatelessWidget {
                     icon: const Icon(Icons.logout),
                     label: const Text(
                       'LOG OUT',
-                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.red,
+                      foregroundColor: Colors.red.shade700,
                       padding: const EdgeInsets.symmetric(vertical: 12),
-                      side: const BorderSide(color: Colors.red, width: 2),
+                      side: BorderSide(color: Colors.red.shade700, width: 2),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(24),
                       ),
                     ),
                   ),
