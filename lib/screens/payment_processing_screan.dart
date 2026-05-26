@@ -26,7 +26,8 @@ class PaymentProcessingScreen extends StatefulWidget {
   }) : super(key: key);
 
   @override
-  State<PaymentProcessingScreen> createState() => _PaymentProcessingScreenState();
+  State<PaymentProcessingScreen> createState() =>
+      _PaymentProcessingScreenState();
 }
 
 class _PaymentProcessingScreenState extends State<PaymentProcessingScreen> {
@@ -58,7 +59,9 @@ class _PaymentProcessingScreenState extends State<PaymentProcessingScreen> {
         .where((id) => id.isNotEmpty)
         .toSet()
         .toList();
-    final firstItem = widget.cartItems.isNotEmpty ? widget.cartItems.first : null;
+    final firstItem = widget.cartItems.isNotEmpty
+        ? widget.cartItems.first
+        : null;
 
     await _firestore.collection('orders').doc(widget.orderId).set({
       'orderId': widget.orderId,
@@ -78,7 +81,7 @@ class _PaymentProcessingScreenState extends State<PaymentProcessingScreen> {
       'orderStatus': 'pending',
       'timestamp': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
-    
+
     print('✅ Order saved to Firestore');
   }
 
@@ -109,13 +112,13 @@ class _PaymentProcessingScreenState extends State<PaymentProcessingScreen> {
 
       final data = json.decode(response.body);
       print('Backend Response: $data');
-      
+
       final paymentUrl = data['paymentUrl'];
 
       if (paymentUrl != null && mounted) {
         final Uri url = Uri.parse(paymentUrl);
         print('Payment URL: $url');
-        
+
         // Show dialog before opening browser
         _showOpenBrowserDialog(url);
       } else {
@@ -202,7 +205,7 @@ class _PaymentProcessingScreenState extends State<PaymentProcessingScreen> {
         url,
         mode: LaunchMode.externalApplication,
       );
-      
+
       if (launched) {
         // Start listening for payment status
         _listenForPaymentStatus();
@@ -271,9 +274,9 @@ class _PaymentProcessingScreenState extends State<PaymentProcessingScreen> {
   void _listenForPaymentStatus() {
     if (_isListening) return;
     _isListening = true;
-    
+
     print('👂 Listening for payment status changes...');
-    
+
     // Show waiting dialog
     showDialog(
       context: context,
@@ -295,38 +298,41 @@ class _PaymentProcessingScreenState extends State<PaymentProcessingScreen> {
         ],
       ),
     );
-    
+
     // Listen to Firestore for status change
     FirebaseFirestore.instance
         .collection('orders')
         .doc(widget.orderId)
         .snapshots()
         .listen((snapshot) async {
-      if (snapshot.exists) {
-        final data = snapshot.data() as Map<String, dynamic>;
-        final paymentStatus = data['paymentStatus'];
-        
-        print('📢 Payment status: $paymentStatus');
-        
-        if (paymentStatus == 'completed') {
-          print('🎉 Payment completed!');
-          
-          final currentUser = _auth.currentUser;
-          if (currentUser != null) {
-            await _firestore.collection('carts').doc(currentUser.uid).delete();
-          }
-          cart_data.cartItems.clear();
+          if (snapshot.exists) {
+            final data = snapshot.data() as Map<String, dynamic>;
+            final paymentStatus = data['paymentStatus'];
 
-          await LocalNotificationService.showPaymentSuccessNotification(
-            widget.orderId,
-            widget.amount,
-          );
-          
-          if (mounted) Navigator.pop(context);
-          _navigateToSuccess();
-        }
-      }
-    });
+            print('📢 Payment status: $paymentStatus');
+
+            if (paymentStatus == 'completed') {
+              print('🎉 Payment completed!');
+
+              final currentUser = _auth.currentUser;
+              if (currentUser != null) {
+                await _firestore
+                    .collection('carts')
+                    .doc(currentUser.uid)
+                    .delete();
+              }
+              cart_data.cartItems.clear();
+
+              await LocalNotificationService.showPaymentSuccessNotification(
+                widget.orderId,
+                widget.amount,
+              );
+
+              if (mounted) Navigator.pop(context);
+              _navigateToSuccess();
+            }
+          }
+        });
   }
 
   void _navigateToSuccess() {
@@ -363,7 +369,11 @@ class _PaymentProcessingScreenState extends State<PaymentProcessingScreen> {
                     _buildInfoRow('Customer:', widget.customerName),
                     _buildInfoRow('Email:', widget.customerEmail),
                     const Divider(),
-                    _buildInfoRow('Total:', 'MWK ${widget.amount.toStringAsFixed(2)}', isTotal: true),
+                    _buildInfoRow(
+                      'Total:',
+                      'MWK ${widget.amount.toStringAsFixed(2)}',
+                      isTotal: true,
+                    ),
                   ],
                 ),
               ),
@@ -380,7 +390,11 @@ class _PaymentProcessingScreenState extends State<PaymentProcessingScreen> {
                     padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
                   child: _isProcessing
-                      ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator())
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(),
+                        )
                       : const Text('PAY NOW', style: TextStyle(fontSize: 16)),
                 ),
               ),
@@ -404,7 +418,12 @@ class _PaymentProcessingScreenState extends State<PaymentProcessingScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label),
-          Text(value, style: TextStyle(fontWeight: isTotal ? FontWeight.bold : FontWeight.normal)),
+          Text(
+            value,
+            style: TextStyle(
+              fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
+            ),
+          ),
         ],
       ),
     );
