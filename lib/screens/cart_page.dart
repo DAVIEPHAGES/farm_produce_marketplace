@@ -3,7 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../data/cart_data.dart';
-import 'payment_page.dart';
+import 'payment_processing_screan.dart';
 import '../services/local_notification_service.dart';
 
 class CartPage extends StatefulWidget {
@@ -220,12 +220,22 @@ class _CartPageState extends State<CartPage> {
         return;
       }
 
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+      final userData = userDoc.data();
+      final customerName = userData?['name'] ?? 'Customer';
+      final customerEmail = user.email ?? 'customer@example.com';
+
       await Navigator.push(
         context,
         MaterialPageRoute<void>(
-          builder: (context) => PaymentPage(
-            totalAmount: getTotal(),
+          builder: (context) => PaymentProcessingScreen(
+            amount: getTotal(),
             orderId: orderRef.id,
+            customerName: customerName,
+            customerEmail: customerEmail,
             cartItems: cartItems
                 .map(
                   (item) => {
