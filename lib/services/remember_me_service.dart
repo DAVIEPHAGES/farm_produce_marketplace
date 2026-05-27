@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 class RememberMeService {
   static const String _rememberMeKey = 'remember_me';
   static const String _rememberedEmailKey = 'remembered_email';
+  static const String _rememberedPasswordKey = 'remembered_password'; // ✅ Added Key
 
   static bool _currentSessionAllowed = false;
 
@@ -18,9 +19,14 @@ class RememberMeService {
     return prefs.getString(_rememberedEmailKey) ?? '';
   }
 
+  // ✅ Added method to get Password
+  static Future<String> getRememberedPassword() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_rememberedPasswordKey) ?? '';
+  }
+
   static Future<void> prepareAuthPersistence(bool rememberMe) async {
     if (!kIsWeb) return;
-
     try {
       await FirebaseAuth.instance.setPersistence(
         rememberMe ? Persistence.LOCAL : Persistence.SESSION,
@@ -30,17 +36,21 @@ class RememberMeService {
     }
   }
 
+  // ✅ Updated to save both Email and Password
   static Future<void> saveSignInChoice({
     required bool rememberMe,
     required String email,
+    required String password,
   }) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_rememberMeKey, rememberMe);
 
     if (rememberMe) {
       await prefs.setString(_rememberedEmailKey, email);
+      await prefs.setString(_rememberedPasswordKey, password); // ✅ Save password
     } else {
       await prefs.remove(_rememberedEmailKey);
+      await prefs.remove(_rememberedPasswordKey); // ✅ Clear password
     }
 
     _currentSessionAllowed = true;
