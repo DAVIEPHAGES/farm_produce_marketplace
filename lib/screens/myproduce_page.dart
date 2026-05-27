@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 class MyProducePage extends StatefulWidget {
@@ -8,86 +10,260 @@ class MyProducePage extends StatefulWidget {
 }
 
 class _MyProducePageState extends State<MyProducePage> {
-  // Sample data - This would come from your backend/database
-  List<Map<String, dynamic>> _produceItems = [
-    {
-      'id': '1',
-      'name': 'Fresh Tomatoes',
-      'quantity': 50,
-      'unit': 'kg',
-      'price': 2.99,
-      'total': 149.50,
-      'status': 'Available',
-      'image': Icons.agriculture,
-    },
-    {
-      'id': '2',
-      'name': 'Organic Potatoes',
-      'quantity': 30,
-      'unit': 'kg',
-      'price': 1.99,
-      'total': 59.70,
-      'status': 'Available',
-      'image': Icons.agriculture,
-    },
-    {
-      'id': '3',
-      'name': 'Green Beans',
-      'quantity': 25,
-      'unit': 'kg',
-      'price': 3.49,
-      'total': 87.25,
-      'status': 'Low Stock',
-      'image': Icons.agriculture,
-    },
-    {
-      'id': '4',
-      'name': 'Sweet Corn',
-      'quantity': 100,
-      'unit': 'pieces',
-      'price': 0.99,
-      'total': 99.00,
-      'status': 'Available',
-      'image': Icons.agriculture,
-    },
-  ];
+  final String? _farmerId = FirebaseAuth.instance.currentUser?.uid;
 
-  double get _totalAmount {
-    return _produceItems.fold(
-      0,
-      (sum, item) => sum + (item['total'] as double),
+  @override
+  Widget build(BuildContext context) {
+    if (_farmerId == null) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('My Produce'),
+          backgroundColor: const Color(0xFF2E7D32),
+        ),
+        body: const Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.lock_outline, size: 64, color: Colors.grey),
+              SizedBox(height: 16),
+              Text('Please login to view your produce'),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('My Produce'),
+        backgroundColor: const Color(0xFF2E7D32),
+        foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: () => setState(() {}),
+          ),
+        ],
+      ),
+      body: StreamBuilder<QuerySnapshot>(
+        // REAL-TIME STREAM
+        stream: FirebaseFirestore.instance
+            .collection('products')
+            .where('farmerId', isEqualTo: _farmerId)
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          if (snapshot.hasError) {
+            return Center(child: Text('Error: ${snapshot.error}'));
+          }
+
+          final docs = snapshot.data!.docs;
+          if (docs.isEmpty) {
+            return const Center(child: Text('No produce added yet'));
+          }
+
+          // 1. Process Data & Totals
+          final List<Map<String, dynamic>> produceItems = docs.map((doc) {
+            final data = doc.data() as Map<String, dynamic>;
+            
+            // Logic: if availableQuantity doesn't exist yet, fallback to original quantity
+            final int totalQty = (data['quantity'] ?? 0).toInt();
+            final int availableQty = (data['availableQuantity'] ?? totalQty).toInt();
+            final double price = (data['price'] ?? 0).toDouble();
+
+            return {
+              'id': doc.id,
+              'name': data['name'] ?? 'Unknown',
+              'totalQuantity': totalQty,
+              'availableQuantity': availableQty,
+              'unit': data['sellingUnit'] ?? data['unit'] ?? 'unit',
+              'price': price,
+              'totalValue': price * availableQty,
+              'imageUrl': data['imageUrl'] ?? '',
+              'status': data['status'] ?? 'in_stock',
+            };
+          }).toList();
+
+          final totalValue = produceItems.fold(0.0, (sum, item) => sum + item['totalValue']);
+
+          return Column(
+            children: [
+              // Summary Cards
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _buildSummaryCard(
+                        'Items',
+                        produceItems.length.toString(),
+                        Icons.inventory,
+                        Colors.green.shade100,
+                        Colors.green.shade800,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _buildSummaryCard(
+                        'Total Stock Value',
+                        'MK ${totalValue.toStringAsFixed(0)}',
+                        Icons.account_balance_wallet,
+                        Colors.orange.shade100,
+                        Colors.orange.shade800,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Produce List
+              Expanded(
+                child: ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: produceItems.length,
+                  itemBuilder: (context, index) {
+                    final item = produceItems[index];
+                    return _buildProduceCard(item);
+                  },
+                ),
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 
-  int get _totalItems {
-    return _produceItems.length;
+  Widget _buildProduceCard(Map<String, dynamic> item) {
+    final int avail = item['availableQuantity'];
+    final int total = item['totalQuantity'];
+    
+    // Status Logic for your -2 situation
+    Color statusColor = Colors.green;
+    String statusText = "In Stock";
+    if (avail < 0) {
+      statusColor = Colors.red;
+      statusText = "Oversold ($avail)";
+    } else if (avail == 0) {
+      statusColor = Colors.red;
+      statusText = "Out of Stock";
+    } else if (avail < 5) {
+      statusColor = Colors.orange;
+      statusText = "Low Stock";
+    }
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                // Product Image
+                Container(
+                  width: 70,
+                  height: 70,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(8),
+                    color: Colors.grey[200],
+                  ),
+                  child: item['imageUrl'].isNotEmpty
+                      ? ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.network(item['imageUrl'], fit: BoxFit.cover),
+                        )
+                      : const Icon(Icons.agriculture),
+                ),
+                const SizedBox(width: 12),
+                
+                // Details
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(item['name'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Text('Total: $total', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                          const Text(' | ', style: TextStyle(color: Colors.grey)),
+                          Text(
+                            'Available: $avail',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                              color: statusColor,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Text('MK ${item['price']} per ${item['unit']}', style: const TextStyle(fontSize: 12)),
+                    ],
+                  ),
+                ),
+
+                // Status Badge
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      'MK ${(item['price'] * avail).toStringAsFixed(0)}',
+                      style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green),
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: statusColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        statusText,
+                        style: TextStyle(color: statusColor, fontSize: 10, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const Divider(),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton.icon(
+                  onPressed: () {/* Navigate to Edit */},
+                  icon: const Icon(Icons.edit, size: 18),
+                  label: const Text('Edit'),
+                ),
+                TextButton.icon(
+                  onPressed: () => _confirmDelete(item['id'], item['name']),
+                  icon: const Icon(Icons.delete, size: 18, color: Colors.red),
+                  label: const Text('Delete', style: TextStyle(color: Colors.red)),
+                ),
+              ],
+            )
+          ],
+        ),
+      ),
+    );
   }
 
-  void _deleteItem(int index) {
+  void _confirmDelete(String id, String name) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete Produce'),
-        content: Text(
-          'Are you sure you want to delete "${_produceItems[index]['name']}"?',
-        ),
+        title: const Text('Delete Product?'),
+        content: Text('Are you sure you want to remove $name?'),
         actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              setState(() {
-                _produceItems.removeAt(index);
-              });
+            onPressed: () async {
+              await FirebaseFirestore.instance.collection('products').doc(id).delete();
               Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Produce deleted successfully'),
-                  backgroundColor: Colors.orange,
-                ),
-              );
             },
             child: const Text('Delete', style: TextStyle(color: Colors.red)),
           ),
@@ -96,278 +272,18 @@ class _MyProducePageState extends State<MyProducePage> {
     );
   }
 
-  void _editItem(int index) {
-    // TODO: Navigate to edit produce page
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Edit feature coming soon'),
-        duration: Duration(seconds: 1),
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('My Produce'),
-        backgroundColor: const Color(0xFF2E7D32),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: () {
-              // TODO: Navigate to add produce page
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Add produce feature coming soon'),
-                  duration: Duration(seconds: 1),
-                ),
-              );
-            },
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          // Summary Cards
-          Container(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Expanded(
-                  child: _buildSummaryCard(
-                    'Total Items',
-                    _totalItems.toString(),
-                    Icons.inventory,
-                    Colors.green.shade100,
-                    Colors.green.shade800,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildSummaryCard(
-                    'Total Value',
-                    '\$${_totalAmount.toStringAsFixed(2)}',
-                    Icons.attach_money,
-                    Colors.orange.shade100,
-                    Colors.orange.shade800,
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // Produce List
-          Expanded(
-            child: _produceItems.isEmpty
-                ? const Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.agriculture, size: 80, color: Colors.grey),
-                        SizedBox(height: 16),
-                        Text(
-                          'No produce added yet',
-                          style: TextStyle(fontSize: 18, color: Colors.grey),
-                        ),
-                        SizedBox(height: 8),
-                        Text(
-                          'Tap the + button to add your first produce',
-                          style: TextStyle(color: Colors.grey),
-                        ),
-                      ],
-                    ),
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: _produceItems.length,
-                    itemBuilder: (context, index) {
-                      final item = _produceItems[index];
-                      return _buildProduceCard(item, index);
-                    },
-                  ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSummaryCard(
-    String title,
-    String value,
-    IconData icon,
-    Color bgColor,
-    Color textColor,
-  ) {
+  Widget _buildSummaryCard(String title, String value, IconData icon, Color bg, Color text) {
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
+      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(12)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: textColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(icon, color: textColor),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  value,
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: textColor,
-                  ),
-                ),
-              ],
-            ),
-          ),
+          Icon(icon, color: text, size: 20),
+          const SizedBox(height: 8),
+          Text(title, style: TextStyle(fontSize: 12, color: text.withOpacity(0.7))),
+          Text(value, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: text)),
         ],
-      ),
-    );
-  }
-
-  Widget _buildProduceCard(Map<String, dynamic> item, int index) {
-    Color statusColor;
-    switch (item['status']) {
-      case 'Available':
-        statusColor = Colors.green;
-        break;
-      case 'Low Stock':
-        statusColor = Colors.orange;
-        break;
-      case 'Out of Stock':
-        statusColor = Colors.red;
-        break;
-      default:
-        statusColor = Colors.grey;
-    }
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                // Image/Icon
-                Container(
-                  width: 60,
-                  height: 60,
-                  decoration: BoxDecoration(
-                    color: Colors.green.shade50,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(
-                    item['image'],
-                    size: 30,
-                    color: const Color(0xFF2E7D32),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                // Details
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        item['name'],
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Quantity: ${item['quantity']} ${item['unit']}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey.shade600,
-                        ),
-                      ),
-                      Text(
-                        'Price: \$${item['price']}/${item['unit']}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey.shade600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                // Price and Actions
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      '\$${item['total'].toStringAsFixed(2)}',
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF2E7D32),
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: statusColor.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        item['status'],
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: statusColor,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            const Divider(height: 16),
-            // Action Buttons
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                TextButton.icon(
-                  onPressed: () => _editItem(index),
-                  icon: const Icon(Icons.edit, size: 18),
-                  label: const Text('Edit'),
-                  style: TextButton.styleFrom(foregroundColor: Colors.blue),
-                ),
-                const SizedBox(width: 8),
-                TextButton.icon(
-                  onPressed: () => _deleteItem(index),
-                  icon: const Icon(Icons.delete, size: 18),
-                  label: const Text('Delete'),
-                  style: TextButton.styleFrom(foregroundColor: Colors.red),
-                ),
-              ],
-            ),
-          ],
-        ),
       ),
     );
   }
