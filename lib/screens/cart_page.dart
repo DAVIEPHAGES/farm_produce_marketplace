@@ -3,8 +3,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../data/cart_data.dart';
-import 'payment_processing_screan.dart';
+import 'payment_processing_screan.dart'; // Ensure this matches your actual filename
 import '../services/local_notification_service.dart';
+
 
 class CartPage extends StatefulWidget {
   const CartPage({super.key});
@@ -20,7 +21,6 @@ class _CartPageState extends State<CartPage> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Auto proceed to payment after login if cart has items
     final user = FirebaseAuth.instance.currentUser;
     if (user != null &&
         cartItems.isNotEmpty &&
@@ -41,18 +41,18 @@ class _CartPageState extends State<CartPage> {
     return total;
   }
 
+  // ✅ UPDATED: Prioritizes availableQuantity to prevent overselling (-2 issue)
   int? _parseStock(Map<String, dynamic> data) {
-    final stockValue = data['stock'];
-    if (stockValue is num) return stockValue.toInt();
-    if (stockValue is String) return int.tryParse(stockValue);
-
-    final quantityValue = data['quantity'];
-    if (quantityValue is num) return quantityValue.toInt();
-    if (quantityValue is String) return int.tryParse(quantityValue);
-
+    if (data.containsKey('availableQuantity')) {
+      return (data['availableQuantity'] as num).toInt();
+    }
+    if (data.containsKey('quantity')) {
+      return (data['quantity'] as num).toInt();
+    }
     return null;
   }
 
+  // ✅ UPDATED: Final check before letting the customer pay
   Future<bool> _validateCartStock() async {
     for (final item in cartItems) {
       final doc = await FirebaseFirestore.instance
@@ -61,22 +61,19 @@ class _CartPageState extends State<CartPage> {
           .get();
 
       if (!doc.exists) {
-        continue;
+        _showMessage('❌ ${item.name} is no longer available.');
+        return false;
       }
 
-      final data = doc.data();
-      if (data == null) {
-        continue;
-      }
-
+      final data = doc.data()!;
       final stock = _parseStock(data);
-      if (stock != null && item.quantity > stock) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Cannot place order: only $stock unit${stock == 1 ? '' : 's'} available for ${item.name}.',
-            ),
-          ),
+
+      // If stock is 0 or less (e.g., -2), stop the payment
+      if (stock != null && (stock <= 0 || item.quantity > stock)) {
+        _showMessage(
+          stock <= 0 
+            ? '❌ Sorry, ${item.name} is out of stock!' 
+            : '⚠️ Only $stock left of ${item.name}. Please reduce quantity.',
         );
         return false;
       }
@@ -84,15 +81,19 @@ class _CartPageState extends State<CartPage> {
     return true;
   }
 
+  void _showMessage(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+
   Future<DocumentReference<Map<String, dynamic>>?> _createOrder({
     required String paymentMethod,
     required String paymentStatus,
   }) async {
     final user = FirebaseAuth.instance.currentUser;
-
-    if (user == null) {
-      return null;
-    }
+    if (user == null) return null;
 
     final total = getTotal();
     final userDoc = await FirebaseFirestore.instance
@@ -103,120 +104,73 @@ class _CartPageState extends State<CartPage> {
     final orderRef = FirebaseFirestore.instance.collection('orders').doc();
     final firstItem = cartItems.isNotEmpty ? cartItems.first : null;
 
-    // ✅ Get farmer UIDs (not names)
+    // Collect all unique farmer UIDs
     final farmerIds = cartItems.map((item) => item.farmerId).toSet().toList();
 
     await orderRef.set({
+      'orderId': orderRef.id,
       'customerId': user.uid,
       'customerName': userDoc.data()?['name'] ?? 'Customer',
       'customerEmail': user.email,
       'customerPhone': userDoc.data()?['phone'] ?? '',
-      'farmerIds': farmerIds, // ✅ Now stores UIDs like "1XER15ZNEcgDrqBLfcnhKVR3yDp1"
+      'farmerIds': farmerIds,
       'imageUrl': firstItem?.imageUrl ?? '',
       'productName': firstItem?.name ?? '',
       'totalPrice': total,
+      'totalAmount': total,
       'status': 'Pending',
       'paymentMethod': paymentMethod,
       'paymentStatus': paymentStatus,
       'timestamp': FieldValue.serverTimestamp(),
     });
 
-    // ✅ Create items subcollection with farmer UID
+    // Create subcollection for items
     for (final item in cartItems) {
       await orderRef.collection('items').add({
         'productId': item.productId,
-        'productName': item.name,
         'name': item.name,
         'quantity': item.quantity,
         'price': item.price,
         'totalPrice': item.price * item.quantity,
         'imageUrl': item.imageUrl,
-        'farmerId': item.farmerId, // ✅ Store farmer UID
-        'farmerName': item.farmerName, // ✅ Store farmer name for display
+        'farmerId': item.farmerId,
+        'farmerName': item.farmerName,
         'unit': item.unit,
       });
     }
 
-    // Show local notification for new order
-    final customerName = userDoc.data()?['name'] ?? 'Customer';
     await LocalNotificationService.showNewOrderNotification(
-      customerName,
+      userDoc.data()?['name'] ?? 'Customer',
       orderRef.id,
     );
 
     return orderRef;
   }
 
-  // Show login dialog with redirect info
-  void _showLoginRequiredDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: const Text('Login Required'),
-        content: const Text(
-          'Please login or create an account to complete your payment.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-            },
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              // Pass redirect info to signin page
-              Navigator.pushNamed(
-                context,
-                '/signin',
-                arguments: {'redirectTo': '/cart'},
-              );
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-            child: const Text('Login'),
-          ),
-        ],
-      ),
-    );
-  }
-
   Future<void> _proceedToPayment() async {
     final user = FirebaseAuth.instance.currentUser;
-
-    // If not logged in, show login dialog
     if (user == null) {
       _showLoginRequiredDialog();
       return;
     }
 
-    // Reset auto proceed flag
-    _hasAutoProceed = true;
-
-    setState(() {
-      _isProcessingPayment = true;
-    });
+    setState(() => _isProcessingPayment = true);
 
     try {
+      // 1. Check stock one last time
       if (!await _validateCartStock()) {
-        if (mounted) {
-          setState(() {
-            _isProcessingPayment = false;
-          });
-        }
+        setState(() => _isProcessingPayment = false);
         return;
       }
 
+      // 2. Create the order document
       final orderRef = await _createOrder(
         paymentMethod: 'paychangu',
         paymentStatus: 'pending',
       );
 
       if (orderRef == null || !mounted) {
-        setState(() {
-          _isProcessingPayment = false;
-        });
+        setState(() => _isProcessingPayment = false);
         return;
       }
 
@@ -224,10 +178,10 @@ class _CartPageState extends State<CartPage> {
           .collection('users')
           .doc(user.uid)
           .get();
-      final userData = userDoc.data();
-      final customerName = userData?['name'] ?? 'Customer';
-      final customerEmail = user.email ?? 'customer@example.com';
+      
+      final customerName = userDoc.data()?['name'] ?? 'Customer';
 
+      // 3. Move to processing screen with all necessary data
       await Navigator.push(
         context,
         MaterialPageRoute<void>(
@@ -235,44 +189,50 @@ class _CartPageState extends State<CartPage> {
             amount: getTotal(),
             orderId: orderRef.id,
             customerName: customerName,
-            customerEmail: customerEmail,
-            cartItems: cartItems
-                .map(
-                  (item) => {
-                    'id': item.productId,
-                    'name': item.name,
-                    'price': item.price,
-                    'quantity': item.quantity,
-                    'imageUrl': item.imageUrl,
-                    'farmerId': item.farmerId,
-                    'farmerName': item.farmerName,
-                    'unit': item.unit,
-                  },
-                )
-                .toList(),
+            customerEmail: user.email ?? '',
+            cartItems: cartItems.map((item) => {
+              'productId': item.productId, // Required for stock reduction
+              'name': item.name,
+              'price': item.price,
+              'quantity': item.quantity,
+              'imageUrl': item.imageUrl,
+              'farmerId': item.farmerId, // Required for dashboard earnings
+              'farmerName': item.farmerName,
+              'unit': item.unit,
+            }).toList(),
           ),
         ),
       );
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error starting payment: $e')));
+      _showMessage('Error: $e');
     } finally {
-      if (mounted) {
-        setState(() {
-          _isProcessingPayment = false;
-        });
-      }
+      if (mounted) setState(() => _isProcessingPayment = false);
     }
   }
 
+  void _showLoginRequiredDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Login Required'),
+        content: const Text('Please login to complete your purchase.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              Navigator.pushNamed(context, '/signin', arguments: {'redirectTo': '/cart'});
+            },
+            child: const Text('Login'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _clearCart() {
-    setState(() {
-      cartItems.clear();
-    });
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Cart cleared')));
+    setState(() => cartItems.clear());
+    _showMessage('Cart cleared');
   }
 
   @override
@@ -281,14 +241,11 @@ class _CartPageState extends State<CartPage> {
       backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.green,
-        title: Text('Cart (${cartItems.length})'),
         foregroundColor: Colors.white,
+        title: Text('Cart (${cartItems.length})'),
         actions: [
           if (cartItems.isNotEmpty)
-            TextButton(
-              onPressed: _clearCart,
-              child: const Text('Clear', style: TextStyle(color: Colors.white)),
-            ),
+            IconButton(onPressed: _clearCart, icon: const Icon(Icons.delete_sweep)),
         ],
       ),
       body: cartItems.isEmpty
@@ -301,320 +258,86 @@ class _CartPageState extends State<CartPage> {
                     itemCount: cartItems.length,
                     itemBuilder: (context, index) {
                       final item = cartItems[index];
-                      final subtotal = item.price * item.quantity;
-
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 10),
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.grey.shade200),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.03),
-                              blurRadius: 5,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Product Image
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(8),
-                              child: Image.network(
-                                item.imageUrl,
-                                width: 70,
-                                height: 70,
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => Container(
-                                  width: 70,
-                                  height: 70,
-                                  color: Colors.grey.shade200,
-                                  child: const Icon(
-                                    Icons.image,
-                                    color: Colors.grey,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-
-                            // Product Details
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    item.name,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 15,
-                                    ),
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  const SizedBox(height: 4),
-
-                                  // Price per unit
-                                  Row(
-                                    children: [
-                                      Text(
-                                        'MK ${item.price.toStringAsFixed(2)}',
-                                        style: TextStyle(
-                                          color: Colors.green.shade700,
-                                          fontWeight: FontWeight.w600,
-                                          fontSize: 14,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        '/ ${item.unit}',
-                                        style: TextStyle(
-                                          color: Colors.grey.shade600,
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  
-                                  // ✅ Farmer name (for display)
-                                  Text(
-                                    'By: ${item.farmerName}',
-                                    style: TextStyle(
-                                      color: Colors.grey.shade500,
-                                      fontSize: 11,
-                                    ),
-                                  ),
-
-                                  const SizedBox(height: 6),
-
-                                  // Quantity controls with subtotal
-                                  Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Container(
-                                        decoration: BoxDecoration(
-                                          border: Border.all(
-                                            color: Colors.grey.shade300,
-                                          ),
-                                          borderRadius: BorderRadius.circular(
-                                            8,
-                                          ),
-                                        ),
-                                        child: Row(
-                                          children: [
-                                            IconButton(
-                                              icon: const Icon(
-                                                Icons.remove,
-                                                size: 18,
-                                              ),
-                                              onPressed: () {
-                                                setState(() {
-                                                  if (item.quantity > 1) {
-                                                    item.quantity -= 1;
-                                                  } else {
-                                                    cartItems.removeAt(index);
-                                                  }
-                                                });
-                                              },
-                                              padding: EdgeInsets.zero,
-                                              constraints: const BoxConstraints(
-                                                minWidth: 32,
-                                                minHeight: 32,
-                                              ),
-                                            ),
-                                            Container(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                    horizontal: 8,
-                                                  ),
-                                              child: Text(
-                                                '${item.quantity}',
-                                                style: const TextStyle(
-                                                  fontWeight: FontWeight.bold,
-                                                  fontSize: 14,
-                                                ),
-                                              ),
-                                            ),
-                                            IconButton(
-                                              icon: const Icon(
-                                                Icons.add,
-                                                size: 18,
-                                              ),
-                                              onPressed: () {
-                                                setState(() {
-                                                  if (item.stock == null ||
-                                                      item.quantity <
-                                                          item.stock!) {
-                                                    item.quantity += 1;
-                                                  } else {
-                                                    ScaffoldMessenger.of(
-                                                      context,
-                                                    ).showSnackBar(
-                                                      SnackBar(
-                                                        content: Text(
-                                                          'Only ${item.stock} unit${item.stock == 1 ? '' : 's'} available',
-                                                        ),
-                                                      ),
-                                                    );
-                                                  }
-                                                });
-                                              },
-                                              padding: EdgeInsets.zero,
-                                              constraints: const BoxConstraints(
-                                                minWidth: 32,
-                                                minHeight: 32,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-
-                                      // Subtotal
-                                      Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.end,
-                                        children: [
-                                          const Text(
-                                            'Subtotal',
-                                            style: TextStyle(
-                                              fontSize: 11,
-                                              color: Colors.grey,
-                                            ),
-                                          ),
-                                          Text(
-                                            'MK ${subtotal.toStringAsFixed(2)}',
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.green,
-                                              fontSize: 14,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
+                      return _buildCartItemTile(item, index);
                     },
                   ),
                 ),
-
-                // Bottom Summary Bar
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 10,
-                        offset: const Offset(0, -2),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    children: [
-                      const Divider(height: 1),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 12,
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Text(
-                              'Total Items:',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.grey,
-                              ),
-                            ),
-                            Text(
-                              '${cartItems.length} item${cartItems.length > 1 ? 's' : ''}',
-                              style: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Text(
-                              'Total Amount',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            Text(
-                              'MK ${getTotal().toStringAsFixed(2)}',
-                              style: const TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.green,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Center(
-                          child: ElevatedButton.icon(
-                            onPressed: cartItems.isEmpty || _isProcessingPayment
-                                ? null
-                                : _proceedToPayment,
-                            icon: _isProcessingPayment
-                                ? const SizedBox(
-                                    width: 20,
-                                    height: 20,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: Colors.white,
-                                    ),
-                                  )
-                                : const Icon(Icons.payment, size: 20),
-                            label: const Text(
-                              'Pay with PayChangu',
-                              style: TextStyle(fontSize: 16),
-                            ),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.green,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 32,
-                                vertical: 14,
-                              ),
-                              minimumSize: const Size(220, 48),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                _buildSummaryBar(),
               ],
             ),
+    );
+  }
+
+  Widget _buildCartItemTile(CartItem item, int index) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 10),
+      child: ListTile(
+        leading: ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Image.network(item.imageUrl, width: 50, height: 50, fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => const Icon(Icons.image),
+          ),
+        ),
+        title: Text(item.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+        subtitle: Text('MK ${item.price} / ${item.unit}\nFarmer: ${item.farmerName}'),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              icon: const Icon(Icons.remove_circle_outline),
+              onPressed: () => setState(() {
+                if (item.quantity > 1) item.quantity--;
+                else cartItems.removeAt(index);
+              }),
+            ),
+            Text('${item.quantity}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            IconButton(
+              icon: const Icon(Icons.add_circle_outline),
+              onPressed: () => setState(() {
+                if (item.stock == null || item.quantity < item.stock!) {
+                  item.quantity++;
+                } else {
+                  _showMessage('Only ${item.stock} available');
+                }
+              }),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSummaryBar() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 10, offset: Offset(0, -2))],
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('Total Amount', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              Text('MK ${getTotal().toStringAsFixed(2)}', 
+                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.green)),
+            ],
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: ElevatedButton(
+              onPressed: _isProcessingPayment ? null : _proceedToPayment,
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
+              child: _isProcessingPayment 
+                ? const CircularProgressIndicator(color: Colors.white)
+                : const Text('PROCEED TO PAYMENT', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

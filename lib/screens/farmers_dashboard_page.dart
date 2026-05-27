@@ -77,8 +77,6 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
           .get();
       final farmerProductIds = productsSnapshot.docs.map((doc) => doc.id).toSet();
 
-      // Read all orders so older records that stored farmer names or embedded
-      // items still count. Newer records are still filtered locally by UID.
       final ordersSnapshot = await FirebaseFirestore.instance
           .collection('orders')
           .get();
@@ -164,8 +162,20 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
         'name': userData['name'] ?? 'Unknown Farmer',
         'location': userData['location'] ?? 'Unknown',
         'totalEarnings': totalEarnings,
+        // ✅ UPDATED: Added real-time availableQuantity logic to the fetching phase
         'products': productsSnapshot.docs
-            .map((doc) => {'id': doc.id, ...doc.data()})
+            .map((doc) {
+              final data = doc.data();
+              final int total = (data['quantity'] ?? 0).toInt();
+              // Look for availableQuantity, fallback to quantity
+              final int available = (data['availableQuantity'] ?? total).toInt();
+              return {
+                'id': doc.id, 
+                ...data, 
+                'realAvailable': available,
+                'isOversold': available < 0
+              };
+            })
             .toList(),
         'orders': orders,
       };
@@ -410,10 +420,6 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
     );
   }
 
-  /// ─── BODY ───────────────────────────────────────────────────────────────
-  /// Uses a Column where the greeting is fixed-size and the grid fills the
-  /// remaining space via Expanded. Each card is forced square with AspectRatio(1)
-  /// so there is never any overflow on any screen size.
   Widget _buildBody() {
     final demandStats = _buildProduceDemandStats();
     final pendingOrders = _ordersByCompletion(completed: false);
@@ -424,7 +430,6 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Greeting ────────────────────────────────────────────────
           Text(
             'Welcome back,',
             style: TextStyle(
@@ -572,7 +577,6 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
     });
   }
 
-  /// Drawer
   Widget _buildDrawer() {
     final pendingOrders = _ordersByCompletion(completed: false);
     final completedOrders = _ordersByCompletion(completed: true);
@@ -838,7 +842,6 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
     );
   }
 
-  /// ─── DELETE ─────────────────────────────────────────────────────────────
   Future<void> _deleteProduct(String productId, int index) async {
     bool? confirm = await showDialog<bool>(
       context: context,
@@ -895,7 +898,6 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
     }
   }
 
-  /// ─── DIALOGS ────────────────────────────────────────────────────────────
   void _showProfileDialog(BuildContext context) {
     showDialog(
       context: context,
@@ -1293,8 +1295,12 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
                                             'Unnamed Product';
                                     final price =
                                         product['price']?.toString() ?? '0';
-                                    final quantity =
-                                        product['quantity']?.toString() ?? '0';
+                                    
+                                    // ✅ FIXED: Using real-time available stock logic
+                                    final int totalQty = (product['quantity'] ?? 0).toInt();
+                                    final int availableQty = (product['realAvailable'] ?? totalQty).toInt();
+                                    final String quantityDisplay = availableQty.toString();
+                                    
                                     final location =
                                         product['location']?.toString() ??
                                             'Unknown';
@@ -1321,7 +1327,21 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
                                               CrossAxisAlignment.start,
                                           children: [
                                             Text('Price: MWK $price'),
-                                            Text('Quantity: $quantity'),
+                                            // ✅ UPDATED: Visual feedback for oversold or out of stock items
+                                            Text(
+                                              'Available: $quantityDisplay',
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                color: availableQty < 0 
+                                                  ? Colors.red 
+                                                  : (availableQty == 0 ? Colors.orange : Colors.black87)
+                                              ),
+                                            ),
+                                            if (availableQty < 0)
+                                              const Text(
+                                                '⚠️ OVERSOLD (Need to restock)',
+                                                style: TextStyle(color: Colors.red, fontSize: 10, fontWeight: FontWeight.bold),
+                                              ),
                                             Text('Location: $location'),
                                           ],
                                         ),

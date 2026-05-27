@@ -1,5 +1,4 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_core/firebase_core.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 
 import 'firebase_options.dart';
@@ -10,7 +9,7 @@ import 'screens/farmers_dashboard_page.dart';
 import 'screens/home_wrapper.dart';
 import 'screens/my_orders_page.dart';
 import 'screens/orders_page.dart';
-import 'screens/payment_page.dart';
+import 'screens/payment_processing_screan.dart'; 
 import 'screens/profile_page.dart';
 import 'screens/produce_details_page.dart';
 import 'screens/signin_page.dart';
@@ -28,6 +27,10 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // ✅ NEW: Check if the browser URL contains the PayChangu success callback
+    // This ensures that when the payment is done, the app stays on '/home'
+    final bool isPaymentCallback = Uri.base.queryParameters['paychangu_callback'] == '1';
+
     return MaterialApp(
       title: 'Farm Produce Marketplace',
       debugShowCheckedModeBanner: false,
@@ -35,7 +38,8 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
         colorSchemeSeed: Colors.green,
       ),
-      initialRoute: '/home',
+      // ✅ UPDATED: If we just finished a payment, force the app to stay on /home
+      initialRoute: isPaymentCallback ? '/home' : '/home',
       routes: {
         '/home': (context) => const HomeWrapper(userType: 'customer'),
         '/signin': (context) => const SignInPage(),
@@ -55,9 +59,12 @@ class MyApp extends StatelessWidget {
             final args = settings.arguments;
             if (args is Map<String, dynamic>) {
               return MaterialPageRoute<void>(
-                builder: (context) => PaymentPage(
-                  totalAmount: (args['totalAmount'] as num).toDouble(),
+                // ✅ UPDATED: Now points to PaymentProcessingScreen to handle inventory reduction
+                builder: (context) => PaymentProcessingScreen(
                   orderId: args['orderId'] as String,
+                  customerName: args['customerName'] ?? 'Customer',
+                  customerEmail: args['customerEmail'] ?? '',
+                  amount: (args['totalAmount'] as num).toDouble(),
                   cartItems: (args['cartItems'] as List)
                       .map((item) => Map<String, dynamic>.from(item))
                       .toList(),
