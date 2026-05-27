@@ -100,6 +100,7 @@ class _SignInPageState extends State<SignInPage> {
       await RememberMeService.saveSignInChoice(
         rememberMe: _rememberMe,
         email: email,
+        password: _passwordController.text
       );
 
       print('✅ User signed in: ${userCredential.user!.uid}');
