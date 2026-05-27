@@ -19,6 +19,9 @@ class _SignInPageState extends State<SignInPage> {
   bool _isLoading = false;
   bool _rememberMe = false;
   
+  // ✅ ADDED: Boolean to toggle password visibility
+  bool _obscurePassword = true;
+
   // Store where to redirect after login
   String? _redirectTo;
 
@@ -261,12 +264,27 @@ class _SignInPageState extends State<SignInPage> {
                     ),
                     const SizedBox(height: 16),
 
+                    // ✅ UPDATED: Password field with Visibility Toggle
                     TextFormField(
                       controller: _passwordController,
-                      obscureText: true,
+                      obscureText: _obscurePassword,
                       decoration: InputDecoration(
                         labelText: 'Password',
                         prefixIcon: const Icon(Icons.lock_outline),
+                        // ✅ ADDED: Suffix icon button to toggle _obscurePassword
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscurePassword 
+                                ? Icons.visibility_off_outlined 
+                                : Icons.visibility_outlined,
+                            color: const Color(0xFF2E7D32),
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _obscurePassword = !_obscurePassword;
+                            });
+                          },
+                        ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
