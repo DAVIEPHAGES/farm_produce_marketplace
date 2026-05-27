@@ -120,28 +120,35 @@ class _ProfilePageState extends State<ProfilePage> {
                   ),
                 ),
                 const SizedBox(height: 40),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () async {
-                      RememberMeService.markSignedOut();
-                      await FirebaseAuth.instance.signOut();
-                      if (context.mounted) {
-                        Navigator.pushReplacementNamed(context, '/signin');
-                      }
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
+                
+                // ✅ UPDATED: Small and Centered Logout Button
+                Center(
+                  child: SizedBox(
+                    width: 180, // Specific width to make it small
+                    height: 48,  // Specific height for better look
+                    child: ElevatedButton(
+                      onPressed: () async {
+                        RememberMeService.markSignedOut();
+                        await FirebaseAuth.instance.signOut();
+                        if (context.mounted) {
+                          Navigator.pushReplacementNamed(context, '/signin');
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        foregroundColor: Colors.white, // White text
+                        elevation: 2,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(25), // Rounded corners
+                        ),
                       ),
-                    ),
-                    child: const Text(
-                      'Logout',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
+                      child: const Text(
+                        'LOGOUT',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1.1,
+                        ),
                       ),
                     ),
                   ),
