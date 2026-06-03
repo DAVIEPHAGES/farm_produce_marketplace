@@ -3,9 +3,10 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../data/cart_data.dart';
-// ✅ FIXED: Changed 'screan' to 'screen' to prevent navigation errors
+// FIXED: Changed 'screan' to 'screen' to prevent navigation errors
 import 'payment_processing_screan.dart';
 import '../services/local_notification_service.dart';
+import '../services/distance_service.dart';
 
 class CartPage extends StatefulWidget {
   const CartPage({super.key});
@@ -17,6 +18,11 @@ class CartPage extends StatefulWidget {
 class _CartPageState extends State<CartPage> {
   bool _isProcessingPayment = false;
   bool _hasAutoProceed = false;
+  String? _selectedDeliveryAddress; // Track custom delivery address
+  static const double _deliveryRatePerKm = 10.0; // MK per km (adjust as needed)
+  double _deliveryDistanceKm = 0.0;
+  double _deliveryFee = 0.0;
+  String? _deliveryError;
 
   @override
   void didChangeDependencies() {
@@ -112,7 +118,159 @@ class _CartPageState extends State<CartPage> {
         'Delivery address not specified';
   }
 
+  Future<void> _selectDeliveryAddress() async {
+    const districts = [
+      "Balaka",
+      "Blantyre",
+      "Chikwawa",
+      "Chiradzulu",
+      "Chitipa",
+      "Dedza",
+      "Dowa",
+      "Karonga",
+      "Kasungu",
+      "Likoma",
+      "Lilongwe",
+      "Machinga",
+      "Mangochi",
+      "Mchinji",
+      "Mulanje",
+      "Mwanza",
+      "Mzimba",
+      "Neno",
+      "Nkhata Bay",
+      "Nkhotakota",
+      "Nsanje",
+      "Ntcheu",
+      "Ntchisi",
+      "Phalombe",
+      "Rumphi",
+      "Salima",
+      "Thyolo",
+      "Zomba"
+    ];
+
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      _showMessage('Please login first');
+      return;
+    }
+
+    final userDoc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .get();
+
+    final defaultAddress = _customerDeliveryLocation(userDoc.data());
+    String? selectedDistrict = _selectedDeliveryAddress;
+
+    if (!mounted) return;
+
+    final newAddress = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('Select Delivery District'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Select your delivery district:',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                ),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  value: selectedDistrict,
+                  hint: const Text('Choose a district'),
+                  isExpanded: true,
+                  items: districts
+                      .map((district) => DropdownMenuItem(
+                            value: district,
+                            child: Text(district),
+                          ))
+                      .toList(),
+                  onChanged: (value) {
+                    setState(() => selectedDistrict = value);
+                  },
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                    contentPadding:
+                        EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                if (defaultAddress != 'Delivery address not specified')
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Your default district:',
+                        style: TextStyle(fontSize: 12, color: Colors.grey),
+                      ),
+                      const SizedBox(height: 4),
+                      TextButton(
+                        onPressed: () {
+                          setState(() => selectedDistrict = defaultAddress);
+                        },
+                        child: Text(
+                          defaultAddress,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (selectedDistrict != null && selectedDistrict!.isNotEmpty) {
+                  Navigator.pop(dialogContext, selectedDistrict);
+                } else {
+                  _showMessage('Please select a district');
+                }
+              },
+              child: const Text('Confirm'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (newAddress != null && newAddress.isNotEmpty) {
+      setState(() => _selectedDeliveryAddress = newAddress);
+    }
+  }
+
+  Future<Map<String, double>> _computeDistanceAndFee(String origin, String destination) async {
+    try {
+      final distance = await DistanceService.calculateDistanceKm(origin, destination);
+      final fee = await DistanceService.calculateDeliveryFee(
+        originDistrict: origin,
+        destinationDistrict: destination,
+        ratePerKm: _deliveryRatePerKm,
+      );
+      return { 'distance': distance, 'fee': fee };
+    } catch (e) {
+      // propagate error to UI
+      throw Exception('Distance error: $e');
+    }
+  }
+
   Future<bool> _ensureCustomerDeliveryLocation(User user) async {
+    // If user has selected a custom address, use it
+    if (_selectedDeliveryAddress != null && _selectedDeliveryAddress!.isNotEmpty) {
+      return true;
+    }
+
     final userRef = FirebaseFirestore.instance
         .collection('users')
         .doc(user.uid);
@@ -208,7 +366,8 @@ class _CartPageState extends State<CartPage> {
       _productPickupLocation(firstProductData),
       firstItem?.pickupLocation,
     ], 'Pickup location not specified');
-    final deliveryLocation = _customerDeliveryLocation(userData);
+    // Use selected delivery address if available, otherwise use user's default
+    final deliveryLocation = _selectedDeliveryAddress ?? _customerDeliveryLocation(userData);
 
     await orderRef.set({
       'orderId': orderRef.id,
@@ -304,7 +463,7 @@ class _CartPageState extends State<CartPage> {
         context,
         MaterialPageRoute<void>(
           builder: (context) => PaymentProcessingScreen(
-            amount: getTotal(),
+            amount: (getTotal() + _deliveryFee),
             orderId: orderRef.id,
             customerName: customerName,
             customerEmail: user.email ?? '',
@@ -395,9 +554,137 @@ class _CartPageState extends State<CartPage> {
                     },
                   ),
                 ),
+                _buildDeliveryAddressSection(),
                 _buildSummaryBar(),
               ],
             ),
+    );
+  }
+
+  Widget _buildDeliveryAddressSection() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.blue.shade50,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.blue.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.location_on, color: Colors.blue.shade700, size: 20),
+              const SizedBox(width: 8),
+              const Text(
+                'Delivery Address',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          FutureBuilder<DocumentSnapshot<Map<String, dynamic>>?>(
+            future: _selectedDeliveryAddress == null
+                ? FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(FirebaseAuth.instance.currentUser?.uid)
+                    .get()
+                : Future<DocumentSnapshot<Map<String, dynamic>>?>.value(null),
+            builder: (context, snapshot) {
+              String displayAddress = _selectedDeliveryAddress ?? 'Loading...';
+
+              if (_selectedDeliveryAddress == null && snapshot.hasData && snapshot.data != null) {
+                displayAddress = _customerDeliveryLocation(
+                  snapshot.data!.data(),
+                );
+              }
+
+              // Determine origin (pickup) and destination (delivery district)
+              final originDistrict = cartItems.isNotEmpty
+                  ? (cartItems.first.pickupLocation.isNotEmpty ? cartItems.first.pickupLocation : 'Pickup location not specified')
+                  : 'Pickup location not specified';
+              final destinationDistrict = displayAddress;
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    displayAddress,
+                    style: const TextStyle(fontSize: 13),
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 8),
+
+                  // Distance & Fee info
+                  FutureBuilder<Map<String, double>>(
+                    future: (destinationDistrict == 'Delivery address not specified' || originDistrict == 'Pickup location not specified')
+                        ? Future.value({'distance': 0.0, 'fee': 0.0})
+                        : _computeDistanceAndFee(originDistrict, destinationDistrict),
+                    builder: (context, infoSnap) {
+                      if (infoSnap.connectionState == ConnectionState.waiting) {
+                        return const Text('Calculating distance...', style: TextStyle(fontSize: 13));
+                      }
+                      if (infoSnap.hasError) {
+                        // store error for summary display
+                        if (_deliveryError != infoSnap.error.toString()) {
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            if (mounted) setState(() => _deliveryError = infoSnap.error.toString());
+                          });
+                        }
+                        return Text('Delivery info: ${infoSnap.error}', style: const TextStyle(fontSize: 13, color: Colors.red));
+                      }
+                      final data = infoSnap.data ?? {'distance': 0.0, 'fee': 0.0};
+                      final newDistance = data['distance'] ?? 0.0;
+                      final newFee = data['fee'] ?? 0.0;
+                      // update state once
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        if (!mounted) return;
+                        if ((_deliveryDistanceKm - newDistance).abs() > 0.001 || (_deliveryFee - newFee).abs() > 0.001) {
+                          setState(() {
+                            _deliveryDistanceKm = newDistance;
+                            _deliveryFee = newFee;
+                            _deliveryError = null;
+                          });
+                        }
+                      });
+
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Origin: $originDistrict', style: const TextStyle(fontSize: 12, color: Colors.black87)),
+                          Text('Destination: $destinationDistrict', style: const TextStyle(fontSize: 12, color: Colors.black87)),
+                          Text('Distance: ${newDistance.toStringAsFixed(2)} km', style: const TextStyle(fontSize: 12, color: Colors.black87)),
+                          Text('Delivery Fee: MK ${newFee.toStringAsFixed(2)}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.green)),
+                          const SizedBox(height: 8),
+                        ],
+                      );
+                    },
+                  ),
+
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: _selectDeliveryAddress,
+                      icon: const Icon(Icons.edit, size: 16),
+                      label: const Text('Change Address'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue.shade700,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ],
+      ),
     );
   }
 
@@ -454,7 +741,7 @@ class _CartPageState extends State<CartPage> {
     );
   }
 
-  // ✅ UPDATED: Small and Centered Checkout Button
+  //  UPDATED: Small and Centered Checkout Button
   Widget _buildSummaryBar() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
@@ -479,7 +766,7 @@ class _CartPageState extends State<CartPage> {
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
               Text(
-                'MK ${getTotal().toStringAsFixed(2)}',
+                'MK ${(getTotal() + _deliveryFee).toStringAsFixed(2)}',
                 style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -488,8 +775,28 @@ class _CartPageState extends State<CartPage> {
               ),
             ],
           ),
+          if (_deliveryFee > 0 || _deliveryError != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 8.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    _deliveryError == null ? 'Delivery Fee' : 'Delivery Fee (error)',
+                    style: const TextStyle(fontSize: 14),
+                  ),
+                  Text(
+                    _deliveryError == null ? 'MK ${_deliveryFee.toStringAsFixed(2)}' : _deliveryError!,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: _deliveryError == null ? Colors.black87 : Colors.red,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           const SizedBox(height: 12),
-          // ✅ Small Centered Button
+          //  Small Centered Button
           Center(
             child: SizedBox(
               width: 200, // Specific width to make it small
