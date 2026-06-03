@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../data/cart_data.dart';
 // ✅ FIXED: Changed 'screan' to 'screen' to prevent navigation errors
-import 'payment_processing_screan.dart'; 
+import 'payment_processing_screan.dart';
 import '../services/local_notification_service.dart';
 
 class CartPage extends StatefulWidget {
@@ -29,7 +29,7 @@ class _CartPageState extends State<CartPage> {
       _hasAutoProceed = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         // Only auto-proceed if you want the app to jump to payment automatically
-        // _proceedToPayment(); 
+        // _proceedToPayment();
       });
     }
   }
@@ -69,9 +69,9 @@ class _CartPageState extends State<CartPage> {
 
       if (stock != null && (stock <= 0 || item.quantity > stock)) {
         _showMessage(
-          stock <= 0 
-            ? '❌ Sorry, ${item.name} is out of stock!' 
-            : '⚠️ Only $stock left of ${item.name}. Please reduce quantity.',
+          stock <= 0
+              ? '❌ Sorry, ${item.name} is out of stock!'
+              : '⚠️ Only $stock left of ${item.name}. Please reduce quantity.',
         );
         return false;
       }
@@ -79,11 +79,92 @@ class _CartPageState extends State<CartPage> {
     return true;
   }
 
+  String _firstNonEmpty(List<dynamic> values, String fallback) {
+    for (final value in values) {
+      final text = value?.toString().trim() ?? '';
+      if (text.isNotEmpty) return text;
+    }
+    return fallback;
+  }
+
+  String _customerDeliveryLocation(Map<String, dynamic>? userData) {
+    return _firstNonEmpty([
+      userData?['deliveryLocation'],
+      userData?['deliveryAddress'],
+      userData?['customerAddress'],
+      userData?['address'],
+      userData?['location'],
+      userData?['fullAddress'],
+    ], 'Delivery address not specified');
+  }
+
+  bool _hasCustomerDeliveryLocation(Map<String, dynamic>? userData) {
+    return _customerDeliveryLocation(userData) !=
+        'Delivery address not specified';
+  }
+
+  Future<bool> _ensureCustomerDeliveryLocation(User user) async {
+    final userRef = FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid);
+    final userDoc = await userRef.get();
+    if (_hasCustomerDeliveryLocation(userDoc.data())) {
+      return true;
+    }
+    if (!mounted) return false;
+
+    final controller = TextEditingController();
+    final deliveryLocation = await showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delivery Location'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLines: 2,
+          decoration: const InputDecoration(
+            labelText: 'Where should the produce be delivered?',
+            hintText: 'Area, town, district, or landmark',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final value = controller.text.trim();
+              if (value.isNotEmpty) {
+                Navigator.pop(dialogContext, value);
+              }
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+
+    if (deliveryLocation == null || deliveryLocation.trim().isEmpty) {
+      return false;
+    }
+
+    await userRef.set({
+      'deliveryLocation': deliveryLocation.trim(),
+      'deliveryAddress': deliveryLocation.trim(),
+      'location': deliveryLocation.trim(),
+    }, SetOptions(merge: true));
+    return true;
+  }
+
   void _showMessage(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<DocumentReference<Map<String, dynamic>>?> _createOrder({
@@ -102,14 +183,22 @@ class _CartPageState extends State<CartPage> {
     final orderRef = FirebaseFirestore.instance.collection('orders').doc();
     final firstItem = cartItems.isNotEmpty ? cartItems.first : null;
     final farmerIds = cartItems.map((item) => item.farmerId).toSet().toList();
+    final userData = userDoc.data();
+    final pickupLocation =
+        firstItem?.pickupLocation ?? 'Pickup location not specified';
+    final deliveryLocation = _customerDeliveryLocation(userData);
 
     await orderRef.set({
       'orderId': orderRef.id,
       'customerId': user.uid,
-      'customerName': userDoc.data()?['name'] ?? 'Customer',
+      'customerName': userData?['name'] ?? 'Customer',
       'customerEmail': user.email,
-      'customerPhone': userDoc.data()?['phone'] ?? '',
+      'customerPhone': userData?['phone'] ?? '',
       'farmerIds': farmerIds,
+      'pickupLocation': pickupLocation,
+      'pickupAddress': pickupLocation,
+      'deliveryLocation': deliveryLocation,
+      'deliveryAddress': deliveryLocation,
       'imageUrl': firstItem?.imageUrl ?? '',
       'productName': firstItem?.name ?? '',
       'totalPrice': total,
@@ -130,12 +219,13 @@ class _CartPageState extends State<CartPage> {
         'imageUrl': item.imageUrl,
         'farmerId': item.farmerId,
         'farmerName': item.farmerName,
+        'pickupLocation': item.pickupLocation,
         'unit': item.unit,
       });
     }
 
     await LocalNotificationService.showNewOrderNotification(
-      userDoc.data()?['name'] ?? 'Customer',
+      userData?['name'] ?? 'Customer',
       orderRef.id,
     );
 
@@ -152,6 +242,11 @@ class _CartPageState extends State<CartPage> {
     setState(() => _isProcessingPayment = true);
 
     try {
+      if (!await _ensureCustomerDeliveryLocation(user)) {
+        setState(() => _isProcessingPayment = false);
+        return;
+      }
+
       if (!await _validateCartStock()) {
         setState(() => _isProcessingPayment = false);
         return;
@@ -171,8 +266,12 @@ class _CartPageState extends State<CartPage> {
           .collection('users')
           .doc(user.uid)
           .get();
-      
+
       final customerName = userDoc.data()?['name'] ?? 'Customer';
+
+      if (!mounted) {
+        return;
+      }
 
       await Navigator.push(
         context,
@@ -182,16 +281,21 @@ class _CartPageState extends State<CartPage> {
             orderId: orderRef.id,
             customerName: customerName,
             customerEmail: user.email ?? '',
-            cartItems: cartItems.map((item) => {
-              'productId': item.productId,
-              'name': item.name,
-              'price': item.price,
-              'quantity': item.quantity,
-              'imageUrl': item.imageUrl,
-              'farmerId': item.farmerId,
-              'farmerName': item.farmerName,
-              'unit': item.unit,
-            }).toList(),
+            cartItems: cartItems
+                .map(
+                  (item) => {
+                    'productId': item.productId,
+                    'name': item.name,
+                    'price': item.price,
+                    'quantity': item.quantity,
+                    'imageUrl': item.imageUrl,
+                    'farmerId': item.farmerId,
+                    'farmerName': item.farmerName,
+                    'pickupLocation': item.pickupLocation,
+                    'unit': item.unit,
+                  },
+                )
+                .toList(),
           ),
         ),
       );
@@ -209,11 +313,18 @@ class _CartPageState extends State<CartPage> {
         title: const Text('Login Required'),
         content: const Text('Please login to complete your purchase.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
-              Navigator.pushNamed(context, '/signin', arguments: {'redirectTo': '/cart'});
+              Navigator.pushNamed(
+                context,
+                '/signin',
+                arguments: {'redirectTo': '/cart'},
+              );
             },
             child: const Text('Login'),
           ),
@@ -237,7 +348,10 @@ class _CartPageState extends State<CartPage> {
         title: Text('Cart (${cartItems.length})'),
         actions: [
           if (cartItems.isNotEmpty)
-            IconButton(onPressed: _clearCart, icon: const Icon(Icons.delete_sweep)),
+            IconButton(
+              onPressed: _clearCart,
+              icon: const Icon(Icons.delete_sweep),
+            ),
         ],
       ),
       body: cartItems.isEmpty
@@ -266,23 +380,37 @@ class _CartPageState extends State<CartPage> {
       child: ListTile(
         leading: ClipRRect(
           borderRadius: BorderRadius.circular(8),
-          child: Image.network(item.imageUrl, width: 50, height: 50, fit: BoxFit.cover,
+          child: Image.network(
+            item.imageUrl,
+            width: 50,
+            height: 50,
+            fit: BoxFit.cover,
             errorBuilder: (_, __, ___) => const Icon(Icons.image),
           ),
         ),
-        title: Text(item.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Text('MK ${item.price} / ${item.unit}\nFarmer: ${item.farmerName}'),
+        title: Text(
+          item.name,
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+        subtitle: Text(
+          'MK ${item.price} / ${item.unit}\nFarmer: ${item.farmerName}',
+        ),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             IconButton(
               icon: const Icon(Icons.remove_circle_outline),
               onPressed: () => setState(() {
-                if (item.quantity > 1) item.quantity--;
-                else cartItems.removeAt(index);
+                if (item.quantity > 1)
+                  item.quantity--;
+                else
+                  cartItems.removeAt(index);
               }),
             ),
-            Text('${item.quantity}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            Text(
+              '${item.quantity}',
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
             IconButton(
               icon: const Icon(Icons.add_circle_outline),
               onPressed: () => setState(() {
@@ -305,7 +433,13 @@ class _CartPageState extends State<CartPage> {
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
       decoration: BoxDecoration(
         color: Colors.white,
-        boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 10, offset: const Offset(0, -2))],
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black12,
+            blurRadius: 10,
+            offset: const Offset(0, -2),
+          ),
+        ],
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -313,9 +447,18 @@ class _CartPageState extends State<CartPage> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Total Amount', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-              Text('MK ${getTotal().toStringAsFixed(2)}', 
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green)),
+              const Text(
+                'Total Amount',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              Text(
+                'MK ${getTotal().toStringAsFixed(2)}',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.green,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 12),
@@ -327,17 +470,28 @@ class _CartPageState extends State<CartPage> {
               child: ElevatedButton(
                 onPressed: _isProcessingPayment ? null : _proceedToPayment,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green, 
+                  backgroundColor: Colors.green,
                   foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(25),
+                  ),
                 ),
-                child: _isProcessingPayment 
-                  ? const SizedBox(
-                      width: 20, 
-                      height: 20, 
-                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)
-                    )
-                  : const Text('PAY NOW', style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+                child: _isProcessingPayment
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : const Text(
+                        'PAY NOW',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1.2,
+                        ),
+                      ),
               ),
             ),
           ),
