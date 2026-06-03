@@ -1,4 +1,5 @@
-import 'package:cloud_firestore/cloud_firestore.dart';import 'package:firebase_core/firebase_core.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 
 import 'firebase_options.dart';
@@ -7,9 +8,10 @@ import 'screens/admin_dashboard_page.dart';
 import 'screens/cart_page.dart';
 import 'screens/farmers_dashboard_page.dart';
 import 'screens/home_wrapper.dart';
+import 'screens/logistics_dashboard_page.dart';
 import 'screens/my_orders_page.dart';
 import 'screens/orders_page.dart';
-import 'screens/payment_processing_screan.dart'; 
+import 'screens/payment_processing_screan.dart';
 import 'screens/profile_page.dart';
 import 'screens/produce_details_page.dart';
 import 'screens/signin_page.dart';
@@ -29,15 +31,13 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     // ✅ NEW: Check if the browser URL contains the PayChangu success callback
     // This ensures that when the payment is done, the app stays on '/home'
-    final bool isPaymentCallback = Uri.base.queryParameters['paychangu_callback'] == '1';
+    final bool isPaymentCallback =
+        Uri.base.queryParameters['paychangu_callback'] == '1';
 
     return MaterialApp(
       title: 'Farm Produce Marketplace',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        colorSchemeSeed: Colors.green,
-      ),
+      theme: ThemeData(useMaterial3: true, colorSchemeSeed: Colors.green),
       // ✅ UPDATED: If we just finished a payment, force the app to stay on /home
       initialRoute: isPaymentCallback ? '/home' : '/home',
       routes: {
@@ -49,6 +49,7 @@ class MyApp extends StatelessWidget {
         '/my-orders': (context) => const MyOrdersPage(),
         '/profile': (context) => const ProfilePage(),
         '/farmers-dashboard': (context) => const FarmersDashboardPage(),
+        '/logistics-dashboard': (context) => const LogisticsDashboardPage(),
         '/admin-dashboard': (context) => const AdminDashboard(),
         '/add-produce': (context) => const AddProducePage(),
         '/fix-orders': (context) => const FixOrdersWithNames(),
