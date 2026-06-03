@@ -84,6 +84,8 @@ class _ProduceDetailsPageState extends State<ProduceDetailsPage> {
           quantity: quantity,
           imageUrl: data['imageUrl'] ?? '',
           farmerId: data['farmerId'] ?? '',
+          farmerPhone: data['farmerPhone']?.toString() ?? 'N/A',
+          operatorRefId: data['operatorRefId']?.toString() ?? 'N/A',
           farmerName: data['farmerName'] ?? 'Farmer',
           pickupLocation: data['location']?.toString().trim().isNotEmpty == true
               ? data['location'].toString()
