@@ -1384,7 +1384,7 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
     required IconData icon,
     required Color color,
   }) {
-    final isPendingOrders = title.toLowerCase().contains('pending');
+    final isCompletedOrders = title.toLowerCase().contains('completed');
     final groupedOrders = _groupOrdersByCustomer(orders);
 
     Navigator.push(
@@ -1626,8 +1626,8 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
                                                 ),
                                               ),
                                             const SizedBox(height: 8),
-                                            // Assign to Logistics button (only for pending)
-                                            if (isPendingOrders)
+                                            // Assign to Logistics button (only for completed)
+                                            if (isCompletedOrders)
                                               SizedBox(
                                                 width: double.infinity,
                                                 child: ElevatedButton.icon(
@@ -1646,7 +1646,7 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
                                                   style:
                                                       ElevatedButton.styleFrom(
                                                         backgroundColor:
-                                                            Colors.blue[600],
+                                                            Colors.green[600],
                                                         foregroundColor:
                                                             Colors.white,
                                                       ),
