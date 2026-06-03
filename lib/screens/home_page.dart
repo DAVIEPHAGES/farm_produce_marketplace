@@ -178,6 +178,8 @@ class _HomePageState extends State<HomePage> {
         CartItem(
           productId: id,
           name: name,
+          farmerPhone: data['farmerPhone']?.toString() ?? 'N/A',
+          operatorRefId: data['operatorRefId']?.toString() ?? 'N/A',
           price: price,
           quantity: 1,
           imageUrl: imageUrl,

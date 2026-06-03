@@ -57,12 +57,25 @@ class _PaymentProcessingScreenState extends State<PaymentProcessingScreen> {
         .get();
     final orderData = orderDoc.data();
 
-    // ✅ NEW: Extract farmerIds so the order shows up on the Farmer's Dashboard
+    // ✅ Extract farmerIds and farmer phones
     final farmerIds = widget.cartItems
         .map((item) => item['farmerId']?.toString() ?? '')
         .where((id) => id.isNotEmpty)
         .toSet()
         .toList();
+    
+    // ✅ Extract seller phone from first cart item (for payouts)
+    final sellerMobile = widget.cartItems.isNotEmpty 
+        ? (widget.cartItems.first['farmerPhone'] ?? 
+           widget.cartItems.first['sellerMobile'] ?? 
+           widget.cartItems.first['phone'] ?? '')
+        : '';
+    
+    final sellerOperatorRefId = widget.cartItems.isNotEmpty
+        ? (widget.cartItems.first['operatorRefId'] ?? 
+           widget.cartItems.first['mobileMoneyOperator'] ?? 'tnm_mpamba')
+        : 'tnm_mpamba';
+
     final firstProductData = await _firstProductData();
     final pickupLocation = _firstNonEmpty([
       orderData?['pickupLocation'],
@@ -75,6 +88,7 @@ class _PaymentProcessingScreenState extends State<PaymentProcessingScreen> {
       firstProductData?['pickupLocation'],
       firstProductData?['pickupAddress'],
     ], 'Pickup location not specified');
+    
     final deliveryLocation = _firstNonEmpty([
       orderData?['deliveryLocation'],
       orderData?['deliveryAddress'],
@@ -87,7 +101,10 @@ class _PaymentProcessingScreenState extends State<PaymentProcessingScreen> {
       'customerName': widget.customerName,
       'customerEmail': widget.customerEmail,
       'customerPhone': userData?['phone'] ?? '',
-      'farmerIds': farmerIds, // ✅ Added for dashboard logic
+      'farmerIds': farmerIds,
+      // ✅ Store seller info for payouts
+      'sellerPhone': sellerMobile,
+      'sellerOperatorRefId': sellerOperatorRefId,
       'pickupLocation': pickupLocation,
       'pickupAddress': pickupLocation,
       'deliveryLocation': deliveryLocation,
@@ -103,6 +120,7 @@ class _PaymentProcessingScreenState extends State<PaymentProcessingScreen> {
     }, SetOptions(merge: true));
 
     print('✅ Order saved to Firestore with Farmer IDs');
+    print('📱 Seller Mobile stored: $sellerMobile');
   }
 
   String _firstNonEmpty(List<dynamic> values, String fallback) {
@@ -140,6 +158,21 @@ class _PaymentProcessingScreenState extends State<PaymentProcessingScreen> {
   Future<void> _processPayment() async {
     setState(() => _isProcessing = true);
     try {
+      // ✅ Extract seller mobile from cart items
+      final sellerMobile = widget.cartItems.isNotEmpty 
+          ? (widget.cartItems.first['farmerPhone'] ?? 
+             widget.cartItems.first['sellerMobile'] ?? 
+             widget.cartItems.first['phone'] ?? '')
+          : '';
+      
+      final sellerOperatorRefId = widget.cartItems.isNotEmpty
+          ? (widget.cartItems.first['operatorRefId'] ?? 
+             widget.cartItems.first['mobileMoneyOperator'] ?? 'tnm_mpamba')
+          : 'tnm_mpamba';
+
+      print('📱 Sending to backend - Seller Mobile: $sellerMobile');
+      print('📱 Sending to backend - Seller Operator: $sellerOperatorRefId');
+
       final response = await http.post(
         Uri.parse('$backendUrl/api/paychangu'),
         headers: {'Content-Type': 'application/json'},
@@ -149,6 +182,11 @@ class _PaymentProcessingScreenState extends State<PaymentProcessingScreen> {
           'email': widget.customerEmail,
           'amount': widget.amount.toString(),
           'orderId': widget.orderId,
+          // ✅ ADDED: Seller information for payouts
+          'sellerMobile': sellerMobile,
+          'sellerOperatorRefId': sellerOperatorRefId,
+          // Optional: Logistics/delivery rider info
+          'logisticsMobile': '',
         }),
       );
 
@@ -158,9 +196,10 @@ class _PaymentProcessingScreenState extends State<PaymentProcessingScreen> {
       if (paymentUrl != null && mounted) {
         _showOpenBrowserDialog(Uri.parse(paymentUrl));
       } else {
-        throw Exception('No payment URL received');
+        throw Exception('No payment URL received: ${data['error'] ?? 'Unknown error'}');
       }
     } catch (e) {
+      print('❌ Payment error: $e');
       setState(() => _isProcessing = false);
       _showError(e.toString());
     }
