@@ -8,7 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'payment_success_screen.dart';
 import '../services/local_notification_service.dart';
 // ✅ Import cart_data to clear it after success
-import '../data/cart_data.dart' as cart_data; 
+import '../data/cart_data.dart' as cart_data;
 
 class PaymentProcessingScreen extends StatefulWidget {
   final String orderId;
@@ -27,7 +27,8 @@ class PaymentProcessingScreen extends StatefulWidget {
   }) : super(key: key);
 
   @override
-  State<PaymentProcessingScreen> createState() => _PaymentProcessingScreenState();
+  State<PaymentProcessingScreen> createState() =>
+      _PaymentProcessingScreenState();
 }
 
 class _PaymentProcessingScreenState extends State<PaymentProcessingScreen> {
@@ -57,6 +58,12 @@ class _PaymentProcessingScreenState extends State<PaymentProcessingScreen> {
         .where((id) => id.isNotEmpty)
         .toSet()
         .toList();
+    final pickupLocation = _firstNonEmpty([
+      if (widget.cartItems.isNotEmpty) widget.cartItems.first['pickupLocation'],
+      if (widget.cartItems.isNotEmpty) widget.cartItems.first['location'],
+      if (widget.cartItems.isNotEmpty) widget.cartItems.first['farmerLocation'],
+    ], 'Pickup location not specified');
+    final deliveryLocation = _customerDeliveryLocation(userData);
 
     await _firestore.collection('orders').doc(widget.orderId).set({
       'orderId': widget.orderId,
@@ -65,6 +72,10 @@ class _PaymentProcessingScreenState extends State<PaymentProcessingScreen> {
       'customerEmail': widget.customerEmail,
       'customerPhone': userData?['phone'] ?? '',
       'farmerIds': farmerIds, // ✅ Added for dashboard logic
+      'pickupLocation': pickupLocation,
+      'pickupAddress': pickupLocation,
+      'deliveryLocation': deliveryLocation,
+      'deliveryAddress': deliveryLocation,
       'totalAmount': widget.amount,
       'totalPrice': widget.amount,
       'items': widget.cartItems,
@@ -74,8 +85,27 @@ class _PaymentProcessingScreenState extends State<PaymentProcessingScreen> {
       'status': 'Pending',
       'timestamp': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
-    
+
     print('✅ Order saved to Firestore with Farmer IDs');
+  }
+
+  String _firstNonEmpty(List<dynamic> values, String fallback) {
+    for (final value in values) {
+      final text = value?.toString().trim() ?? '';
+      if (text.isNotEmpty) return text;
+    }
+    return fallback;
+  }
+
+  String _customerDeliveryLocation(Map<String, dynamic>? userData) {
+    return _firstNonEmpty([
+      userData?['deliveryLocation'],
+      userData?['deliveryAddress'],
+      userData?['customerAddress'],
+      userData?['address'],
+      userData?['location'],
+      userData?['fullAddress'],
+    ], 'Delivery address not specified');
   }
 
   Future<void> _processPayment() async {
@@ -110,7 +140,7 @@ class _PaymentProcessingScreenState extends State<PaymentProcessingScreen> {
   void _listenForPaymentStatus() {
     if (_isListening) return;
     _isListening = true;
-    
+
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -119,12 +149,13 @@ class _PaymentProcessingScreenState extends State<PaymentProcessingScreen> {
         content: Text('Please wait while we confirm your payment...'),
       ),
     );
-    
-    _firestore.collection('orders').doc(widget.orderId).snapshots().listen((snapshot) async {
+
+    _firestore.collection('orders').doc(widget.orderId).snapshots().listen((
+      snapshot,
+    ) async {
       if (snapshot.exists) {
         final data = snapshot.data() as Map<String, dynamic>;
         if (data['paymentStatus'] == 'completed') {
-          
           // ✅ STEP 1: Clear local cart memory
           cart_data.cartItems.clear();
 
@@ -139,7 +170,7 @@ class _PaymentProcessingScreenState extends State<PaymentProcessingScreen> {
             widget.orderId,
             widget.amount,
           );
-          
+
           if (mounted) {
             Navigator.pop(context); // Close dialog
             _navigateToSuccess();
@@ -152,16 +183,20 @@ class _PaymentProcessingScreenState extends State<PaymentProcessingScreen> {
   // --- Helper UI Methods ---
 
   void _showError(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), backgroundColor: Colors.red));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(msg), backgroundColor: Colors.red));
   }
 
   void _navigateToSuccess() {
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (context) => PaymentSuccessScreen(
-        customerName: widget.customerName,
-        amount: widget.amount,
-        orderId: widget.orderId,
-      )),
+      MaterialPageRoute(
+        builder: (context) => PaymentSuccessScreen(
+          customerName: widget.customerName,
+          amount: widget.amount,
+          orderId: widget.orderId,
+        ),
+      ),
     );
   }
 
@@ -171,11 +206,19 @@ class _PaymentProcessingScreenState extends State<PaymentProcessingScreen> {
       barrierDismissible: false,
       builder: (context) => AlertDialog(
         title: const Text('Complete Payment'),
-        content: const Text('You will be redirected to PayChangu to pay MWK safely.'),
+        content: const Text(
+          'You will be redirected to PayChangu to pay MWK safely.',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
           ElevatedButton(
-            onPressed: () { Navigator.pop(context); _openInChrome(url); },
+            onPressed: () {
+              Navigator.pop(context);
+              _openInChrome(url);
+            },
             child: const Text('Open Browser'),
           ),
         ],
@@ -189,12 +232,18 @@ class _PaymentProcessingScreenState extends State<PaymentProcessingScreen> {
     }
   }
 
-  void _showCopyUrlDialog(Uri url) { /* ... Logic for manual copy ... */ _listenForPaymentStatus(); }
+  void _showCopyUrlDialog(Uri url) {
+    /* ... Logic for manual copy ... */
+    _listenForPaymentStatus();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('PayChangu Payment'), backgroundColor: Colors.green),
+      appBar: AppBar(
+        title: const Text('PayChangu Payment'),
+        backgroundColor: Colors.green,
+      ),
       body: Padding(
         padding: const EdgeInsets.all(24.0),
         child: Column(
@@ -205,7 +254,11 @@ class _PaymentProcessingScreenState extends State<PaymentProcessingScreen> {
                 child: Column(
                   children: [
                     _buildInfoRow('Order ID:', widget.orderId),
-                    _buildInfoRow('Total:', 'MWK ${widget.amount.toStringAsFixed(2)}', isTotal: true),
+                    _buildInfoRow(
+                      'Total:',
+                      'MWK ${widget.amount.toStringAsFixed(2)}',
+                      isTotal: true,
+                    ),
                   ],
                 ),
               ),
@@ -213,8 +266,13 @@ class _PaymentProcessingScreenState extends State<PaymentProcessingScreen> {
             const SizedBox(height: 32),
             ElevatedButton(
               onPressed: _isProcessing ? null : _processPayment,
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.green, minimumSize: const Size(double.infinity, 50)),
-              child: _isProcessing ? const CircularProgressIndicator(color: Colors.white) : const Text('PAY NOW'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+                minimumSize: const Size(double.infinity, 50),
+              ),
+              child: _isProcessing
+                  ? const CircularProgressIndicator(color: Colors.white)
+                  : const Text('PAY NOW'),
             ),
           ],
         ),
@@ -223,6 +281,17 @@ class _PaymentProcessingScreenState extends State<PaymentProcessingScreen> {
   }
 
   Widget _buildInfoRow(String label, String value, {bool isTotal = false}) {
-    return Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text(label), Text(value, style: TextStyle(fontWeight: isTotal ? FontWeight.bold : FontWeight.normal))]);
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label),
+        Text(
+          value,
+          style: TextStyle(
+            fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
+          ),
+        ),
+      ],
+    );
   }
 }
