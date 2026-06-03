@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
 class AdminProductsPage extends StatefulWidget {
   const AdminProductsPage({super.key});
@@ -11,7 +10,6 @@ class AdminProductsPage extends StatefulWidget {
 
 class _AdminProductsPageState extends State<AdminProductsPage> {
   String _searchQuery = '';
-  String _filterCategory = 'all';
   bool _isDeleting = false;
   
   final TextEditingController _editNameController = TextEditingController();
@@ -90,46 +88,31 @@ class _AdminProductsPageState extends State<AdminProductsPage> {
             children: [
               TextField(
                 controller: _editNameController,
-                decoration: const InputDecoration(
-                  labelText: 'Product Name',
-                  border: OutlineInputBorder(),
-                ),
+                decoration: const InputDecoration(labelText: 'Product Name'),
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: _editPriceController,
-                decoration: const InputDecoration(
-                  labelText: 'Price (MWK)',
-                  border: OutlineInputBorder(),
-                ),
+                decoration: const InputDecoration(labelText: 'Price (MWK)'),
                 keyboardType: TextInputType.number,
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: _editStockController,
-                decoration: const InputDecoration(
-                  labelText: 'Stock Quantity',
-                  border: OutlineInputBorder(),
-                ),
+                decoration: const InputDecoration(labelText: 'Stock Quantity'),
                 keyboardType: TextInputType.number,
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: _editDescriptionController,
-                decoration: const InputDecoration(
-                  labelText: 'Description',
-                  border: OutlineInputBorder(),
-                ),
+                decoration: const InputDecoration(labelText: 'Description'),
                 maxLines: 3,
               ),
             ],
           ),
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             style: TextButton.styleFrom(foregroundColor: Colors.green),
@@ -141,7 +124,6 @@ class _AdminProductsPageState extends State<AdminProductsPage> {
     
     if (result == true) {
       setState(() => _isDeleting = true);
-      
       try {
         await FirebaseFirestore.instance
             .collection('products')
@@ -153,7 +135,6 @@ class _AdminProductsPageState extends State<AdminProductsPage> {
               'description': _editDescriptionController.text,
               'updatedAt': FieldValue.serverTimestamp(),
             });
-        
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Product updated successfully'), backgroundColor: Colors.green),
@@ -179,27 +160,11 @@ class _AdminProductsPageState extends State<AdminProductsPage> {
         Padding(
           padding: const EdgeInsets.all(16),
           child: TextField(
-            onChanged: (value) {
-              setState(() {
-                _searchQuery = value.toLowerCase();
-              });
-            },
+            onChanged: (value) => setState(() => _searchQuery = value.toLowerCase()),
             decoration: InputDecoration(
-              hintText: 'Search products by name...',
+              hintText: 'Search products...',
               prefixIcon: const Icon(Icons.search),
-              suffixIcon: _searchQuery.isNotEmpty
-                  ? IconButton(
-                      icon: const Icon(Icons.clear),
-                      onPressed: () {
-                        setState(() {
-                          _searchQuery = '';
-                        });
-                      },
-                    )
-                  : null,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               filled: true,
               fillColor: Colors.white,
             ),
@@ -214,49 +179,14 @@ class _AdminProductsPageState extends State<AdminProductsPage> {
                 .orderBy('timestamp', descending: true)
                 .snapshots(),
             builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              
-              if (snapshot.hasError) {
-                return Center(child: Text('Error: ${snapshot.error}'));
-              }
-              
-              if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                return const Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.inventory, size: 64, color: Colors.grey),
-                      SizedBox(height: 16),
-                      Text('No products found', style: TextStyle(fontSize: 18, color: Colors.grey)),
-                    ],
-                  ),
-                );
-              }
+              if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
               
               var products = snapshot.data!.docs;
-              
               if (_searchQuery.isNotEmpty) {
                 products = products.where((doc) {
-                  final data = doc.data() as Map<String, dynamic>;
-                  final name = (data['name'] ?? '').toString().toLowerCase();
-                  final category = (data['category'] ?? '').toString().toLowerCase();
-                  return name.contains(_searchQuery) || category.contains(_searchQuery);
+                  final name = (doc['name'] ?? '').toString().toLowerCase();
+                  return name.contains(_searchQuery);
                 }).toList();
-              }
-              
-              if (products.isEmpty) {
-                return const Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.search_off, size: 64, color: Colors.grey),
-                      SizedBox(height: 16),
-                      Text('No products match your search', style: TextStyle(fontSize: 18, color: Colors.grey)),
-                    ],
-                  ),
-                );
               }
               
               return ListView.builder(
@@ -265,91 +195,71 @@ class _AdminProductsPageState extends State<AdminProductsPage> {
                 itemBuilder: (context, index) {
                   final product = products[index];
                   final data = product.data() as Map<String, dynamic>;
-                  
                   final productName = data['name'] ?? 'Unknown';
                   final price = (data['price'] ?? 0).toDouble();
                   final stock = data['stock'] ?? 0;
-                  final farmerName = data['farmerName'] ?? 'Unknown';
                   final imageUrl = data['imageUrl'];
-                  final description = data['description'];
-                  final category = data['category'] ?? 'Uncategorized';
-                  
+
                   return Card(
                     margin: const EdgeInsets.only(bottom: 12),
                     elevation: 2,
                     child: ExpansionTile(
+                      // ✅ FIXED: Added specific tile padding to gain horizontal space
+                      tilePadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                       leading: ClipRRect(
                         borderRadius: BorderRadius.circular(8),
                         child: imageUrl != null && imageUrl.isNotEmpty
-                            ? Image.network(
-                                imageUrl,
-                                width: 60,
-                                height: 60,
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => Container(
-                                  width: 60,
-                                  height: 60,
-                                  color: Colors.grey[200],
-                                  child: const Icon(Icons.image, size: 30, color: Colors.grey),
-                                ),
-                              )
-                            : Container(
-                                width: 60,
-                                height: 60,
-                                color: Colors.grey[200],
-                                child: const Icon(Icons.image, size: 30, color: Colors.grey),
-                              ),
+                            ? Image.network(imageUrl, width: 50, height: 50, fit: BoxFit.cover)
+                            : Container(width: 50, height: 50, color: Colors.grey[200], child: const Icon(Icons.image)),
                       ),
                       title: Text(
                         productName,
-                        style: const TextStyle(fontWeight: FontWeight.bold),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis, // ✅ FIXED: Prevent long titles from causing overflow
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                       ),
                       subtitle: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('MWK ${price.toStringAsFixed(2)}'),
+                          Text('MWK ${price.toStringAsFixed(2)}', style: const TextStyle(fontSize: 12)),
                           const SizedBox(height: 4),
-                          Row(
+                          // ✅ FIXED: Using Wrap instead of Row to handle overflow of labels
+                          Wrap(
+                            spacing: 4,
+                            runSpacing: 4,
                             children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: stock > 0 ? Colors.green : Colors.red,
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Text(
-                                  stock > 0 ? 'In Stock ($stock)' : 'Out of Stock',
-                                  style: const TextStyle(color: Colors.white, fontSize: 10),
-                                ),
+                              _buildMiniChip(
+                                stock > 0 ? 'In Stock ($stock)' : 'Out of Stock',
+                                stock > 0 ? Colors.green : Colors.red,
                               ),
-                              const SizedBox(width: 8),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: Colors.blue,
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Text(
-                                  category,
-                                  style: const TextStyle(color: Colors.white, fontSize: 10),
-                                ),
-                              ),
+                              _buildMiniChip(data['category'] ?? 'Produce', Colors.blue),
                             ],
                           ),
                         ],
                       ),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.edit, color: Colors.blue),
-                            onPressed: _isDeleting ? null : () => _editProduct(product.id, data),
-                            tooltip: 'Edit Product',
+                      // ✅ FIXED: Replaced Row of IconButtons with a PopupMenuButton to save horizontal space
+                      trailing: PopupMenuButton<String>(
+                        icon: const Icon(Icons.more_vert),
+                        onSelected: (value) {
+                          if (value == 'edit') _editProduct(product.id, data);
+                          if (value == 'delete') _deleteProduct(product.id, productName);
+                        },
+                        itemBuilder: (context) => [
+                          const PopupMenuItem(
+                            value: 'edit',
+                            child: ListTile(
+                              leading: Icon(Icons.edit, color: Colors.blue, size: 20),
+                              title: Text('Edit'),
+                              dense: true,
+                            ),
                           ),
-                          IconButton(
-                            icon: const Icon(Icons.delete, color: Colors.red),
-                            onPressed: _isDeleting ? null : () => _deleteProduct(product.id, productName),
-                            tooltip: 'Delete Product',
+                          const PopupMenuItem(
+                            value: 'delete',
+                            child: ListTile(
+                              leading: Icon(Icons.delete, color: Colors.red, size: 20),
+                              title: Text('Delete'),
+                              dense: true,
+                            ),
                           ),
                         ],
                       ),
@@ -359,42 +269,10 @@ class _AdminProductsPageState extends State<AdminProductsPage> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // Product Details
-                              const Text(
-                                'Product Details:',
-                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                              ),
-                              const SizedBox(height: 8),
                               _buildInfoRow('Product ID:', product.id),
-                              _buildInfoRow('Name:', productName),
-                              _buildInfoRow('Category:', category),
-                              _buildInfoRow('Price:', 'MWK ${price.toStringAsFixed(2)}'),
-                              _buildInfoRow('Stock:', stock.toString()),
-                              if (description != null && description.isNotEmpty)
-                                _buildInfoRow('Description:', description),
-                              
-                              const Divider(),
-                              
-                              // Farmer Information
-                              const Text(
-                                'Farmer Information:',
-                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                              ),
-                              const SizedBox(height: 8),
-                              _buildInfoRow('Farmer:', farmerName),
-                              _buildInfoRow('Farmer ID:', data['farmerId'] ?? 'Unknown'),
-                              
-                              const Divider(),
-                              
-                              // Additional Info
-                              const Text(
-                                'Additional Information:',
-                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                              ),
-                              const SizedBox(height: 8),
+                              _buildInfoRow('Farmer:', data['farmerName'] ?? 'Unknown'),
+                              _buildInfoRow('Description:', data['description'] ?? 'No description'),
                               _buildInfoRow('Listed On:', _formatDate(data['timestamp'])),
-                              if (data['updatedAt'] != null)
-                                _buildInfoRow('Last Updated:', _formatDate(data['updatedAt'])),
                             ],
                           ),
                         ),
@@ -410,6 +288,20 @@ class _AdminProductsPageState extends State<AdminProductsPage> {
     );
   }
 
+  Widget _buildMiniChip(String label, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(color: Colors.white, fontSize: 10),
+      ),
+    );
+  }
+
   Widget _buildInfoRow(String label, String value) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
@@ -417,25 +309,16 @@ class _AdminProductsPageState extends State<AdminProductsPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 110,
-            child: Text(
-              label,
-              style: const TextStyle(fontWeight: FontWeight.w500, color: Colors.grey),
-            ),
+            width: 100,
+            child: Text(label, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.grey, fontSize: 12)),
           ),
-          Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(fontWeight: FontWeight.normal),
-            ),
-          ),
+          Expanded(child: Text(value, style: const TextStyle(fontSize: 12))),
         ],
       ),
     );
   }
 
   String _formatDate(dynamic timestamp) {
-    if (timestamp == null) return 'Unknown';
     if (timestamp is Timestamp) {
       final date = timestamp.toDate();
       return '${date.day}/${date.month}/${date.year}';
