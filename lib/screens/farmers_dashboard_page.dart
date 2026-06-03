@@ -1628,8 +1628,9 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
                                             const SizedBox(height: 8),
                                             // Assign to Logistics button (only for completed)
                                             if (isCompletedOrders)
-                                              SizedBox(
-                                                width: double.infinity,
+                                              Align(
+                                                alignment:
+                                                    Alignment.centerRight,
                                                 child: ElevatedButton.icon(
                                                   onPressed: () =>
                                                       _showAssignLogisticsDialog(
@@ -1649,6 +1650,12 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
                                                             Colors.green[600],
                                                         foregroundColor:
                                                             Colors.white,
+                                                        padding:
+                                                            const EdgeInsets
+                                                                .symmetric(
+                                                          horizontal: 16,
+                                                          vertical: 8,
+                                                        ),
                                                       ),
                                                 ),
                                               ),
