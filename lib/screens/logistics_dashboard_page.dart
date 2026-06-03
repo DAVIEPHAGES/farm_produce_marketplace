@@ -2,6 +2,16 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+class _DeliveryRouteDetails {
+  final String pickupLocation;
+  final String deliveryAddress;
+
+  const _DeliveryRouteDetails({
+    required this.pickupLocation,
+    required this.deliveryAddress,
+  });
+}
+
 class LogisticsDashboardPage extends StatefulWidget {
   const LogisticsDashboardPage({super.key});
 
@@ -69,6 +79,13 @@ class _LogisticsDashboardPageState extends State<LogisticsDashboardPage> {
   String _firstNonEmpty(List<dynamic> values, String fallback) {
     for (final value in values) {
       final text = value?.toString().trim() ?? '';
+      final normalized = text.toLowerCase();
+      if (normalized == 'pickup location not specified' ||
+          normalized == 'delivery address not specified' ||
+          normalized == 'location not specified' ||
+          normalized == 'location not set') {
+        continue;
+      }
       if (text.isNotEmpty) return text;
     }
     return fallback;
@@ -100,6 +117,140 @@ class _LogisticsDashboardPageState extends State<LogisticsDashboardPage> {
       orderData['customerLocation'],
       orderData['customerAddress'],
     ], 'Delivery address not specified');
+  }
+
+  bool _isMissingLocation(String value) {
+    final normalized = value.trim().toLowerCase();
+    return normalized.isEmpty ||
+        normalized == 'pickup location not specified' ||
+        normalized == 'delivery address not specified' ||
+        normalized == 'location not specified' ||
+        normalized == 'location not set';
+  }
+
+  String _productPickupLocation(Map<String, dynamic>? productData) {
+    return _firstNonEmpty([
+      productData?['location'],
+      productData?['farmerLocation'],
+      productData?['pickupLocation'],
+      productData?['pickupAddress'],
+    ], '');
+  }
+
+  String _farmerPickupLocation(Map<String, dynamic>? farmerData) {
+    return _firstNonEmpty([
+      farmerData?['farmAddress'],
+      farmerData?['fullAddress'],
+      farmerData?['location'],
+      farmerData?['address'],
+      farmerData?['farmCity'],
+      farmerData?['farmDistrict'],
+    ], '');
+  }
+
+  String _customerDeliveryAddress(Map<String, dynamic>? customerData) {
+    return _firstNonEmpty([
+      customerData?['deliveryLocation'],
+      customerData?['deliveryAddress'],
+      customerData?['customerAddress'],
+      customerData?['address'],
+      customerData?['location'],
+      customerData?['fullAddress'],
+    ], '');
+  }
+
+  Future<_DeliveryRouteDetails> _loadRouteDetails(
+    QueryDocumentSnapshot<Map<String, dynamic>> order,
+  ) async {
+    final orderData = order.data();
+    var pickup = _getPickupLocation(orderData);
+    var delivery = _getDeliveryLocation(orderData);
+    Map<String, dynamic>? firstItem;
+
+    final inlineItems = orderData['items'];
+    if (inlineItems is List &&
+        inlineItems.isNotEmpty &&
+        inlineItems.first is Map) {
+      firstItem = Map<String, dynamic>.from(inlineItems.first as Map);
+    }
+
+    if (firstItem == null) {
+      final itemsSnapshot = await order.reference
+          .collection('items')
+          .limit(1)
+          .get();
+      if (itemsSnapshot.docs.isNotEmpty) {
+        firstItem = itemsSnapshot.docs.first.data();
+      }
+    }
+
+    if (_isMissingLocation(pickup) && firstItem != null) {
+      pickup = _firstNonEmpty([
+        firstItem['pickupLocation'],
+        firstItem['location'],
+        firstItem['farmerLocation'],
+      ], pickup);
+    }
+
+    final productId = firstItem?['productId']?.toString() ?? '';
+    if (_isMissingLocation(pickup) && productId.isNotEmpty) {
+      final productDoc = await _firestore
+          .collection('products')
+          .doc(productId)
+          .get();
+      pickup = _firstNonEmpty([
+        _productPickupLocation(productDoc.data()),
+        pickup,
+      ], 'Pickup location not specified');
+    }
+
+    final farmerId =
+        firstItem?['farmerId']?.toString() ??
+        ((orderData['farmerIds'] is List &&
+                (orderData['farmerIds'] as List).isNotEmpty)
+            ? (orderData['farmerIds'] as List).first.toString()
+            : '');
+    if (_isMissingLocation(pickup) && farmerId.isNotEmpty) {
+      final farmerDoc = await _firestore
+          .collection('users')
+          .doc(farmerId)
+          .get();
+      pickup = _firstNonEmpty([
+        _farmerPickupLocation(farmerDoc.data()),
+        pickup,
+      ], 'Pickup location not specified');
+    }
+
+    final customerId = orderData['customerId']?.toString() ?? '';
+    if (_isMissingLocation(delivery) && customerId.isNotEmpty) {
+      final customerDoc = await _firestore
+          .collection('users')
+          .doc(customerId)
+          .get();
+      delivery = _firstNonEmpty([
+        _customerDeliveryAddress(customerDoc.data()),
+        delivery,
+      ], 'Delivery address not specified');
+    }
+
+    final updateData = <String, dynamic>{};
+    if (!_isMissingLocation(pickup) && pickup != orderData['pickupLocation']) {
+      updateData['pickupLocation'] = pickup;
+      updateData['pickupAddress'] = pickup;
+    }
+    if (!_isMissingLocation(delivery) &&
+        delivery != orderData['deliveryLocation']) {
+      updateData['deliveryLocation'] = delivery;
+      updateData['deliveryAddress'] = delivery;
+    }
+    if (updateData.isNotEmpty) {
+      await order.reference.set(updateData, SetOptions(merge: true));
+    }
+
+    return _DeliveryRouteDetails(
+      pickupLocation: pickup,
+      deliveryAddress: delivery,
+    );
   }
 
   Future<void> _updateLogisticsStatus(
@@ -478,8 +629,6 @@ class _LogisticsDashboardPageState extends State<LogisticsDashboardPage> {
     final orderData = order.data();
     final orderId = orderData['orderId'] ?? order.id;
     final status = _getLogisticsStatus(orderData);
-    final pickup = _getPickupLocation(orderData);
-    final delivery = _getDeliveryLocation(orderData);
     final totalAmount =
         (orderData['totalAmount'] ?? orderData['totalPrice'] ?? 0).toString();
 
@@ -543,17 +692,7 @@ class _LogisticsDashboardPageState extends State<LogisticsDashboardPage> {
             ],
           ),
           const SizedBox(height: 20),
-          _buildDeliveryInfoRow(
-            icon: Icons.location_on,
-            label: 'Pickup',
-            value: pickup,
-          ),
-          const SizedBox(height: 12),
-          _buildDeliveryInfoRow(
-            icon: Icons.flag,
-            label: 'Delivery',
-            value: delivery,
-          ),
+          _buildRouteInfoRows(order),
           const SizedBox(height: 12),
           _buildDeliveryInfoRow(
             icon: Icons.attach_money,
@@ -609,8 +748,6 @@ class _LogisticsDashboardPageState extends State<LogisticsDashboardPage> {
   ) {
     final orderData = order.data();
     final orderId = orderData['orderId'] ?? order.id;
-    final pickup = _getPickupLocation(orderData);
-    final delivery = _getDeliveryLocation(orderData);
     final status = _getLogisticsStatus(orderData);
     final customerName = orderData['customerName'] ?? 'Customer';
 
@@ -681,17 +818,7 @@ class _LogisticsDashboardPageState extends State<LogisticsDashboardPage> {
               style: const TextStyle(fontSize: 14, color: Colors.grey),
             ),
             const SizedBox(height: 10),
-            _buildDeliveryInfoRow(
-              icon: Icons.location_on,
-              label: 'Pickup',
-              value: pickup,
-            ),
-            const SizedBox(height: 10),
-            _buildDeliveryInfoRow(
-              icon: Icons.flag,
-              label: 'Delivery',
-              value: delivery,
-            ),
+            _buildRouteInfoRows(order),
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: status == 'assigned'
@@ -841,6 +968,40 @@ class _LogisticsDashboardPageState extends State<LogisticsDashboardPage> {
           Text(description, style: const TextStyle(color: Colors.grey)),
         ],
       ),
+    );
+  }
+
+  Widget _buildRouteInfoRows(
+    QueryDocumentSnapshot<Map<String, dynamic>> order,
+  ) {
+    final orderData = order.data();
+    final fallbackRoute = _DeliveryRouteDetails(
+      pickupLocation: _getPickupLocation(orderData),
+      deliveryAddress: _getDeliveryLocation(orderData),
+    );
+
+    return FutureBuilder<_DeliveryRouteDetails>(
+      future: _loadRouteDetails(order),
+      initialData: fallbackRoute,
+      builder: (context, snapshot) {
+        final route = snapshot.data ?? fallbackRoute;
+
+        return Column(
+          children: [
+            _buildDeliveryInfoRow(
+              icon: Icons.location_on,
+              label: 'Pickup location',
+              value: route.pickupLocation,
+            ),
+            const SizedBox(height: 12),
+            _buildDeliveryInfoRow(
+              icon: Icons.flag,
+              label: 'Delivery address',
+              value: route.deliveryAddress,
+            ),
+          ],
+        );
+      },
     );
   }
 
