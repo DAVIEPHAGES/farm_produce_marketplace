@@ -26,7 +26,7 @@ class _SignUpPageState extends State<SignUpPage> {
   String _userType = 'customer';
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
-  
+
   // ✅ Store where to redirect after signup
   String? _redirectTo;
 
@@ -93,20 +93,18 @@ class _SignUpPageState extends State<SignUpPage> {
     }
 
     String cleanedNumber = value.replaceAll(RegExp(r'[^0-9+]'), '');
-    
+
     if (cleanedNumber.startsWith('0')) {
       if (cleanedNumber.length != 10) {
         return 'Phone number must have exactly 10 digits (e.g., 0999123456)';
       }
       return null;
-    } 
-    else if (cleanedNumber.startsWith('+265')) {
+    } else if (cleanedNumber.startsWith('+265')) {
       if (cleanedNumber.length != 12) {
         return 'Phone number must have exactly 12 digits (e.g., +265999123456)';
       }
       return null;
-    } 
-    else {
+    } else {
       return 'Invalid phone number. Must start with 0 or +265';
     }
   }
@@ -115,7 +113,7 @@ class _SignUpPageState extends State<SignUpPage> {
     if (!_formKey.currentState!.validate()) {
       return;
     }
-    
+
     if (_userType == 'farmer') {
       if (_farmNameController.text.trim().isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -126,7 +124,7 @@ class _SignUpPageState extends State<SignUpPage> {
         );
         return;
       }
-      
+
       if (_farmAddressController.text.trim().isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -136,7 +134,7 @@ class _SignUpPageState extends State<SignUpPage> {
         );
         return;
       }
-      
+
       if (_farmCityController.text.trim().isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -146,7 +144,7 @@ class _SignUpPageState extends State<SignUpPage> {
         );
         return;
       }
-      
+
       if (_farmDistrictController.text.trim().isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -169,8 +167,11 @@ class _SignUpPageState extends State<SignUpPage> {
             password: _passwordController.text,
           );
 
-      String cleanedPhone = _phoneController.text.trim().replaceAll(RegExp(r'[^0-9+]'), '');
-      
+      String cleanedPhone = _phoneController.text.trim().replaceAll(
+        RegExp(r'[^0-9+]'),
+        '',
+      );
+
       Map<String, dynamic> userData = {
         'uid': userCredential.user!.uid,
         'name': _nameController.text.trim(),
@@ -187,7 +188,8 @@ class _SignUpPageState extends State<SignUpPage> {
           'farmCity': _farmCityController.text.trim(),
           'farmDistrict': _farmDistrictController.text.trim(),
           'farmDescription': _farmDescriptionController.text.trim(),
-          'fullAddress': '${_farmAddressController.text.trim()}, ${_farmCityController.text.trim()}, ${_farmDistrictController.text.trim()}',
+          'fullAddress':
+              '${_farmAddressController.text.trim()}, ${_farmCityController.text.trim()}, ${_farmDistrictController.text.trim()}',
           'isVerified': false,
           'rating': 0.0,
           'totalSales': 0,
@@ -204,7 +206,8 @@ class _SignUpPageState extends State<SignUpPage> {
       String redirectRoute = '';
 
       if (_userType == 'farmer') {
-        successMessage = 'Farmer account created successfully! Please wait for verification.';
+        successMessage =
+            'Farmer account created successfully! Please wait for verification.';
         redirectRoute = '/farmers-dashboard';
       } else {
         successMessage = 'Account created successfully!';
@@ -225,7 +228,7 @@ class _SignUpPageState extends State<SignUpPage> {
         );
 
         await Future.delayed(const Duration(milliseconds: 500));
-        
+
         if (mounted) {
           // ✅ Redirect to previous page if specified, otherwise default
           if (_redirectTo != null) {
@@ -319,9 +322,14 @@ class _SignUpPageState extends State<SignUpPage> {
                         children: [
                           Expanded(
                             child: GestureDetector(
-                              onTap: _isLoading ? null : () => setState(() => _userType = 'customer'),
+                              onTap: _isLoading
+                                  ? null
+                                  : () =>
+                                        setState(() => _userType = 'customer'),
                               child: Container(
-                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 12,
+                                ),
                                 decoration: BoxDecoration(
                                   color: _userType == 'customer'
                                       ? const Color(0xFF2E7D32)
@@ -356,9 +364,13 @@ class _SignUpPageState extends State<SignUpPage> {
                           ),
                           Expanded(
                             child: GestureDetector(
-                              onTap: _isLoading ? null : () => setState(() => _userType = 'farmer'),
+                              onTap: _isLoading
+                                  ? null
+                                  : () => setState(() => _userType = 'farmer'),
                               child: Container(
-                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 12,
+                                ),
                                 decoration: BoxDecoration(
                                   color: _userType == 'farmer'
                                       ? const Color(0xFF2E7D32)
@@ -478,7 +490,7 @@ class _SignUpPageState extends State<SignUpPage> {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      
+
                       TextFormField(
                         controller: _farmNameController,
                         enabled: !_isLoading,
@@ -561,7 +573,8 @@ class _SignUpPageState extends State<SignUpPage> {
                           ),
                           filled: true,
                           fillColor: Colors.grey.shade50,
-                          hintText: 'Tell customers about your farming practices, products, etc.',
+                          hintText:
+                              'Tell customers about your farming practices, products, etc.',
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -576,7 +589,9 @@ class _SignUpPageState extends State<SignUpPage> {
                         prefixIcon: const Icon(Icons.lock_outline),
                         suffixIcon: IconButton(
                           icon: Icon(
-                            _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                            _obscurePassword
+                                ? Icons.visibility_outlined
+                                : Icons.visibility_off_outlined,
                           ),
                           onPressed: () {
                             setState(() {
@@ -604,11 +619,14 @@ class _SignUpPageState extends State<SignUpPage> {
                         prefixIcon: const Icon(Icons.lock_outline),
                         suffixIcon: IconButton(
                           icon: Icon(
-                            _obscureConfirmPassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                            _obscureConfirmPassword
+                                ? Icons.visibility_outlined
+                                : Icons.visibility_off_outlined,
                           ),
                           onPressed: () {
                             setState(() {
-                              _obscureConfirmPassword = !_obscureConfirmPassword;
+                              _obscureConfirmPassword =
+                                  !_obscureConfirmPassword;
                             });
                           },
                         ),
@@ -639,12 +657,17 @@ class _SignUpPageState extends State<SignUpPage> {
                                 width: 20,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    Colors.white,
+                                  ),
                                 ),
                               )
                             : const Text(
                                 'Create Account',
-                                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
                       ),
                     ),
@@ -653,11 +676,17 @@ class _SignUpPageState extends State<SignUpPage> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Text('Already have an account? ', style: TextStyle(color: Colors.grey)),
+                        const Text(
+                          'Already have an account? ',
+                          style: TextStyle(color: Colors.grey),
+                        ),
                         GestureDetector(
                           onTap: _isLoading
                               ? null
-                              : () => Navigator.pushReplacementNamed(context, '/signin'),
+                              : () => Navigator.pushReplacementNamed(
+                                  context,
+                                  '/signin',
+                                ),
                           child: const Text(
                             'Sign In',
                             style: TextStyle(
