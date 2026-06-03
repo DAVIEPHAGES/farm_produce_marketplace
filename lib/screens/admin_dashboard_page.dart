@@ -259,6 +259,16 @@ class _DashboardHomeState extends State<DashboardHome> {
           .where('userType', isEqualTo: 'customer')
           .get();
 
+      // Get logistics companies and drivers
+      final logisticsSnapshot = await firestore
+          .collection('users')
+          .where('userType', isEqualTo: 'logistics_company')
+          .get();
+      final driversSnapshot = await firestore
+          .collection('users')
+          .where('userType', isEqualTo: 'driver')
+          .get();
+
       // Get all products
       final productsSnapshot = await firestore.collection('products').get();
 
@@ -303,6 +313,8 @@ class _DashboardHomeState extends State<DashboardHome> {
           'totalUsers': usersSnapshot.size,
           'totalFarmers': farmersSnapshot.size,
           'totalCustomers': customersSnapshot.size,
+          'totalLogisticsCompanies': logisticsSnapshot.size,
+          'totalDrivers': driversSnapshot.size,
           'totalProducts': productsSnapshot.size,
           'totalOrders': ordersSnapshot.size,
           'completedOrders': completedOrders,
@@ -356,6 +368,13 @@ class _DashboardHomeState extends State<DashboardHome> {
                   onTap: () => widget.onNavigate(1),
                 ),
                 _buildClickableStatCard(
+                  title: 'Logistics',
+                  value: _stats['totalLogisticsCompanies'].toString(),
+                  icon: Icons.local_shipping,
+                  color: Colors.blue,
+                  onTap: () => widget.onNavigate(3),
+                ),
+                _buildClickableStatCard(
                   title: 'Orders',
                   value: _stats['totalOrders'].toString(),
                   icon: Icons.receipt,
@@ -389,6 +408,13 @@ class _DashboardHomeState extends State<DashboardHome> {
                   icon: Icons.check_circle,
                   color: Colors.green,
                   onTap: () => widget.onNavigate(2, 'completed'),
+                ),
+                _buildClickableStatCard(
+                  title: 'Drivers',
+                  value: _stats['totalDrivers'].toString(),
+                  icon: Icons.directions_car,
+                  color: Colors.indigo,
+                  onTap: () => widget.onNavigate(3),
                 ),
                 _buildClickableStatCard(
                   title: 'Pending',
