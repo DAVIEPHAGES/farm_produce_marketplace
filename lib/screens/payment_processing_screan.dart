@@ -51,6 +51,11 @@ class _PaymentProcessingScreenState extends State<PaymentProcessingScreen> {
 
     final userDoc = await _firestore.collection('users').doc(user.uid).get();
     final userData = userDoc.data();
+    final orderDoc = await _firestore
+        .collection('orders')
+        .doc(widget.orderId)
+        .get();
+    final orderData = orderDoc.data();
 
     // ✅ NEW: Extract farmerIds so the order shows up on the Farmer's Dashboard
     final farmerIds = widget.cartItems
@@ -58,12 +63,23 @@ class _PaymentProcessingScreenState extends State<PaymentProcessingScreen> {
         .where((id) => id.isNotEmpty)
         .toSet()
         .toList();
+    final firstProductData = await _firstProductData();
     final pickupLocation = _firstNonEmpty([
+      orderData?['pickupLocation'],
+      orderData?['pickupAddress'],
       if (widget.cartItems.isNotEmpty) widget.cartItems.first['pickupLocation'],
       if (widget.cartItems.isNotEmpty) widget.cartItems.first['location'],
       if (widget.cartItems.isNotEmpty) widget.cartItems.first['farmerLocation'],
+      firstProductData?['location'],
+      firstProductData?['farmerLocation'],
+      firstProductData?['pickupLocation'],
+      firstProductData?['pickupAddress'],
     ], 'Pickup location not specified');
-    final deliveryLocation = _customerDeliveryLocation(userData);
+    final deliveryLocation = _firstNonEmpty([
+      orderData?['deliveryLocation'],
+      orderData?['deliveryAddress'],
+      _customerDeliveryLocation(userData),
+    ], 'Delivery address not specified');
 
     await _firestore.collection('orders').doc(widget.orderId).set({
       'orderId': widget.orderId,
@@ -106,6 +122,19 @@ class _PaymentProcessingScreenState extends State<PaymentProcessingScreen> {
       userData?['location'],
       userData?['fullAddress'],
     ], 'Delivery address not specified');
+  }
+
+  Future<Map<String, dynamic>?> _firstProductData() async {
+    if (widget.cartItems.isEmpty) return null;
+
+    final productId = widget.cartItems.first['productId']?.toString() ?? '';
+    if (productId.isEmpty) return null;
+
+    final productDoc = await _firestore
+        .collection('products')
+        .doc(productId)
+        .get();
+    return productDoc.data();
   }
 
   Future<void> _processPayment() async {
