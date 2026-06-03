@@ -98,6 +98,15 @@ class _CartPageState extends State<CartPage> {
     ], 'Delivery address not specified');
   }
 
+  String _productPickupLocation(Map<String, dynamic>? productData) {
+    return _firstNonEmpty([
+      productData?['location'],
+      productData?['farmerLocation'],
+      productData?['pickupLocation'],
+      productData?['pickupAddress'],
+    ], '');
+  }
+
   bool _hasCustomerDeliveryLocation(Map<String, dynamic>? userData) {
     return _customerDeliveryLocation(userData) !=
         'Delivery address not specified';
@@ -180,12 +189,25 @@ class _CartPageState extends State<CartPage> {
         .doc(user.uid)
         .get();
 
+    final productSnapshots = <String, DocumentSnapshot<Map<String, dynamic>>>{};
+    for (final item in cartItems) {
+      productSnapshots[item.productId] = await FirebaseFirestore.instance
+          .collection('products')
+          .doc(item.productId)
+          .get();
+    }
+
     final orderRef = FirebaseFirestore.instance.collection('orders').doc();
     final firstItem = cartItems.isNotEmpty ? cartItems.first : null;
     final farmerIds = cartItems.map((item) => item.farmerId).toSet().toList();
     final userData = userDoc.data();
-    final pickupLocation =
-        firstItem?.pickupLocation ?? 'Pickup location not specified';
+    final firstProductData = firstItem == null
+        ? null
+        : productSnapshots[firstItem.productId]?.data();
+    final pickupLocation = _firstNonEmpty([
+      _productPickupLocation(firstProductData),
+      firstItem?.pickupLocation,
+    ], 'Pickup location not specified');
     final deliveryLocation = _customerDeliveryLocation(userData);
 
     await orderRef.set({
@@ -210,6 +232,11 @@ class _CartPageState extends State<CartPage> {
     });
 
     for (final item in cartItems) {
+      final itemPickupLocation = _firstNonEmpty([
+        _productPickupLocation(productSnapshots[item.productId]?.data()),
+        item.pickupLocation,
+      ], 'Pickup location not specified');
+
       await orderRef.collection('items').add({
         'productId': item.productId,
         'name': item.name,
@@ -219,7 +246,7 @@ class _CartPageState extends State<CartPage> {
         'imageUrl': item.imageUrl,
         'farmerId': item.farmerId,
         'farmerName': item.farmerName,
-        'pickupLocation': item.pickupLocation,
+        'pickupLocation': itemPickupLocation,
         'unit': item.unit,
       });
     }
