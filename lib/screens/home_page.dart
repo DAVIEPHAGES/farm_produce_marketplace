@@ -42,10 +42,12 @@ class _HomePageState extends State<HomePage> {
 
   /// Returns (crossAxisCount, childAspectRatio).
   /// childAspectRatio controls card proportions in the grid.
-  (int crossAxisCount, double childAspectRatio) _getGridConfig(double screenWidth) {
+  (int crossAxisCount, double childAspectRatio) _getGridConfig(
+    double screenWidth,
+  ) {
     if (screenWidth >= 1200) return (4, 0.80); // 4-col desktop
-    if (screenWidth >= 800) return (3, 0.78);  // 3-col tablet
-    return (2, 0.75);                           // 2-col phone
+    if (screenWidth >= 800) return (3, 0.78); // 3-col tablet
+    return (2, 0.75); // 2-col phone
   }
 
   void _resetToInitialView(int productsPerPage) {
@@ -83,8 +85,8 @@ class _HomePageState extends State<HomePage> {
     return false;
   }
 
-  (double? minPrice, double? maxPrice, String? priceStartsWith) _parsePriceQuery(
-      String query) {
+  (double? minPrice, double? maxPrice, String? priceStartsWith)
+  _parsePriceQuery(String query) {
     final trimmed = query.trim().toLowerCase();
     if (RegExp(r'^\d+$').hasMatch(trimmed)) return (null, null, trimmed);
 
@@ -97,15 +99,17 @@ class _HomePageState extends State<HomePage> {
       }
     }
 
-    final underMatch =
-        RegExp(r'(?:under|below)\s*(\d+(?:\.\d+)?)').firstMatch(trimmed);
+    final underMatch = RegExp(
+      r'(?:under|below)\s*(\d+(?:\.\d+)?)',
+    ).firstMatch(trimmed);
     if (underMatch != null) {
       final max = double.tryParse(underMatch.group(1)!);
       if (max != null) return (null, max, null);
     }
 
-    final aboveMatch =
-        RegExp(r'(?:above|over)\s*(\d+(?:\.\d+)?)').firstMatch(trimmed);
+    final aboveMatch = RegExp(
+      r'(?:above|over)\s*(\d+(?:\.\d+)?)',
+    ).firstMatch(trimmed);
     if (aboveMatch != null) {
       final min = double.tryParse(aboveMatch.group(1)!);
       if (min != null) return (min, null, null);
@@ -129,9 +133,9 @@ class _HomePageState extends State<HomePage> {
     final existingIndex = cartItems.indexWhere((item) => item.productId == id);
 
     if (availableStock != null && availableStock <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Product is out of stock')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Product is out of stock')));
       return;
     }
 
@@ -141,9 +145,9 @@ class _HomePageState extends State<HomePage> {
         setState(() {
           cartItems[existingIndex].quantity += 1;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Added to cart')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Added to cart')));
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -162,6 +166,12 @@ class _HomePageState extends State<HomePage> {
     final name = data['name']?.toString() ?? '';
     final price = (data['price'] as num?)?.toDouble() ?? 0;
     final imageUrl = data['imageUrl']?.toString() ?? '';
+    final pickupLocation =
+        data['location']?.toString().trim().isNotEmpty == true
+        ? data['location'].toString()
+        : data['farmerLocation']?.toString().trim().isNotEmpty == true
+        ? data['farmerLocation'].toString()
+        : 'Pickup location not specified';
 
     setState(() {
       cartItems.add(
@@ -173,15 +183,16 @@ class _HomePageState extends State<HomePage> {
           imageUrl: imageUrl,
           farmerId: farmerId,
           farmerName: farmerName,
+          pickupLocation: pickupLocation,
           unit: unit,
           stock: availableStock,
         ),
       );
     });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Added to cart')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Added to cart')));
   }
 
   Widget _buildCardInfoRow({
@@ -211,15 +222,19 @@ class _HomePageState extends State<HomePage> {
   /// - Clean white card with subtle shadow
   /// - Compact but readable text info below image
   Widget _buildCard(
-      Map<String, dynamic> data, String id, QueryDocumentSnapshot doc) {
+    Map<String, dynamic> data,
+    String id,
+    QueryDocumentSnapshot doc,
+  ) {
     final farmerName = data['farmerName']?.toString().trim().isNotEmpty == true
         ? data['farmerName'].toString()
         : 'Farmer';
-    final farmerLocation = data['location']?.toString().trim().isNotEmpty == true
+    final farmerLocation =
+        data['location']?.toString().trim().isNotEmpty == true
         ? data['location'].toString()
         : data['farmerLocation']?.toString().trim().isNotEmpty == true
-            ? data['farmerLocation'].toString()
-            : 'Location not set';
+        ? data['farmerLocation'].toString()
+        : 'Location not set';
     final price = data['price'] ?? 0;
     final sellingUnit = data['sellingUnit'] ?? '';
     final name = data['name']?.toString() ?? '';
@@ -256,8 +271,11 @@ class _HomePageState extends State<HomePage> {
               errorBuilder: (_, __, ___) => Container(
                 color: Colors.grey.shade100,
                 child: const Center(
-                  child: Icon(Icons.image_not_supported,
-                      size: 32, color: Colors.grey),
+                  child: Icon(
+                    Icons.image_not_supported,
+                    size: 32,
+                    color: Colors.grey,
+                  ),
                 ),
               ),
             ),
@@ -402,7 +420,9 @@ class _HomePageState extends State<HomePage> {
                       child: Text(
                         title,
                         style: const TextStyle(
-                            fontWeight: FontWeight.w600, fontSize: 13),
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                        ),
                       ),
                     ),
                   ],
@@ -456,8 +476,11 @@ class _HomePageState extends State<HomePage> {
                     color: Colors.green.shade100,
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child:
-                      Icon(Icons.security, color: Colors.green.shade800, size: 20),
+                  child: Icon(
+                    Icons.security,
+                    color: Colors.green.shade800,
+                    size: 20,
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -521,14 +544,19 @@ class _HomePageState extends State<HomePage> {
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.info_outline,
-                          color: Colors.amber.shade800, size: 20),
+                      Icon(
+                        Icons.info_outline,
+                        color: Colors.amber.shade800,
+                        size: 20,
+                      ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           'For any issues regarding payments or deliveries, please contact our support team immediately.',
                           style: TextStyle(
-                              fontSize: 12, color: Colors.amber.shade800),
+                            fontSize: 12,
+                            color: Colors.amber.shade800,
+                          ),
                         ),
                       ),
                     ],
@@ -591,8 +619,7 @@ class _HomePageState extends State<HomePage> {
                     ),
                     child: Text(
                       cartItems.length.toString(),
-                      style:
-                          const TextStyle(color: Colors.white, fontSize: 11),
+                      style: const TextStyle(color: Colors.white, fontSize: 11),
                     ),
                   ),
                 ),
@@ -631,10 +658,11 @@ class _HomePageState extends State<HomePage> {
                     });
                   },
                   decoration: InputDecoration(
-                    hintText:
-                        'Search by name or price (e.g. 1000-5000)',
-                    hintStyle:
-                        TextStyle(fontSize: 13, color: Colors.grey.shade500),
+                    hintText: 'Search by name or price (e.g. 1000-5000)',
+                    hintStyle: TextStyle(
+                      fontSize: 13,
+                      color: Colors.grey.shade500,
+                    ),
                     prefixIcon: const Icon(Icons.search),
                     suffixIcon: searchQuery.isNotEmpty
                         ? IconButton(
@@ -649,22 +677,21 @@ class _HomePageState extends State<HomePage> {
                         : null,
                     filled: true,
                     fillColor: Colors.white,
-                    contentPadding:
-                        const EdgeInsets.symmetric(vertical: 10),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 10),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide:
-                          BorderSide(color: Colors.grey.shade300),
+                      borderSide: BorderSide(color: Colors.grey.shade300),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide:
-                          BorderSide(color: Colors.grey.shade300),
+                      borderSide: BorderSide(color: Colors.grey.shade300),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: BorderSide(
-                          color: Colors.green.shade400, width: 1.5),
+                        color: Colors.green.shade400,
+                        width: 1.5,
+                      ),
                     ),
                   ),
                 ),
@@ -686,7 +713,9 @@ class _HomePageState extends State<HomePage> {
                               ? 'Searching by price...'
                               : 'Searching by name...',
                           style: TextStyle(
-                              fontSize: 11, color: Colors.grey[600]),
+                            fontSize: 11,
+                            color: Colors.grey[600],
+                          ),
                         ),
                       ],
                     ),
@@ -717,11 +746,11 @@ class _HomePageState extends State<HomePage> {
                   child: Container(
                     margin: const EdgeInsets.only(right: 8),
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 6),
+                      horizontal: 14,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
-                      color: isSelected
-                          ? Colors.green.shade600
-                          : Colors.white,
+                      color: isSelected ? Colors.green.shade600 : Colors.white,
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
                         color: isSelected
@@ -736,9 +765,7 @@ class _HomePageState extends State<HomePage> {
                         fontWeight: isSelected
                             ? FontWeight.w600
                             : FontWeight.normal,
-                        color: isSelected
-                            ? Colors.white
-                            : Colors.black87,
+                        color: isSelected ? Colors.white : Colors.black87,
                       ),
                     ),
                   ),
@@ -782,23 +809,21 @@ class _HomePageState extends State<HomePage> {
 
                 final docs = snapshot.data!.docs;
                 final isPriceSearch = _isPriceSearch(searchQuery);
-                final (minPrice, maxPrice, priceStartsWith) =
-                    _parsePriceQuery(searchQuery);
+                final (minPrice, maxPrice, priceStartsWith) = _parsePriceQuery(
+                  searchQuery,
+                );
 
                 final filtered = docs.where((doc) {
                   final data = doc.data() as Map<String, dynamic>;
-                  final name =
-                      (data['name'] ?? '').toString().toLowerCase();
-                  final price =
-                      (data['price'] as num?)?.toDouble() ?? 0;
+                  final name = (data['name'] ?? '').toString().toLowerCase();
+                  final price = (data['price'] as num?)?.toDouble() ?? 0;
                   final priceString = price.toString();
 
                   bool matchesSearch = true;
                   if (searchQuery.isNotEmpty) {
                     if (isPriceSearch) {
                       if (priceStartsWith != null) {
-                        matchesSearch =
-                            priceString.startsWith(priceStartsWith);
+                        matchesSearch = priceString.startsWith(priceStartsWith);
                       } else {
                         if (minPrice != null && price < minPrice)
                           matchesSearch = false;
@@ -812,8 +837,7 @@ class _HomePageState extends State<HomePage> {
 
                   final matchesCategory = selectedCategory == 'All'
                       ? true
-                      : name.contains(
-                          selectedCategory.toLowerCase());
+                      : name.contains(selectedCategory.toLowerCase());
                   return matchesSearch && matchesCategory;
                 }).toList();
 
@@ -824,31 +848,39 @@ class _HomePageState extends State<HomePage> {
                   _isShowingAll = false;
                 }
 
-                final visibleProducts =
-                    filtered.take(_visibleProductsCount).toList();
-                final hasMore =
-                    _visibleProductsCount < _totalProductsCount;
-                final hasLess =
-                    _visibleProductsCount > productsPerPage;
+                final visibleProducts = filtered
+                    .take(_visibleProductsCount)
+                    .toList();
+                final hasMore = _visibleProductsCount < _totalProductsCount;
+                final hasLess = _visibleProductsCount > productsPerPage;
 
                 if (filtered.isEmpty) {
                   return Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.search_off,
-                            size: 64, color: Colors.grey[400]),
+                        Icon(
+                          Icons.search_off,
+                          size: 64,
+                          color: Colors.grey[400],
+                        ),
                         const SizedBox(height: 16),
-                        Text('No products found',
-                            style: TextStyle(
-                                fontSize: 16, color: Colors.grey[600])),
+                        Text(
+                          'No products found',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.grey[600],
+                          ),
+                        ),
                         const SizedBox(height: 8),
                         Text(
                           isPriceSearch
                               ? 'Try: "1", "10", "100", "500-2000", "under 1000", "above 5000"'
                               : 'Try typing a produce name like "maize" or "beans"',
                           style: TextStyle(
-                              fontSize: 12, color: Colors.grey[500]),
+                            fontSize: 12,
+                            color: Colors.grey[500],
+                          ),
                           textAlign: TextAlign.center,
                         ),
                       ],
@@ -862,10 +894,11 @@ class _HomePageState extends State<HomePage> {
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 4),
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
                       itemCount: visibleProducts.length,
-                      gridDelegate:
-                          SliverGridDelegateWithFixedCrossAxisCount(
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                         crossAxisCount: crossAxisCount,
                         crossAxisSpacing: 10,
                         mainAxisSpacing: 10,
@@ -875,10 +908,8 @@ class _HomePageState extends State<HomePage> {
                       ),
                       itemBuilder: (context, index) {
                         final doc = visibleProducts[index];
-                        final data =
-                            doc.data() as Map<String, dynamic>;
-                        return _buildCard(
-                            data, doc.id, doc);
+                        final data = doc.data() as Map<String, dynamic>;
+                        return _buildCard(data, doc.id, doc);
                       },
                     ),
 
@@ -887,71 +918,62 @@ class _HomePageState extends State<HomePage> {
                       Center(
                         child: Padding(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 20, vertical: 8),
+                            horizontal: 20,
+                            vertical: 8,
+                          ),
                           child: Row(
-                            mainAxisAlignment:
-                                MainAxisAlignment.center,
+                            mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               if (hasLess)
                                 OutlinedButton.icon(
                                   onPressed: () =>
-                                      _showLessProducts(
-                                          productsPerPage),
-                                  icon: const Icon(
-                                      Icons.expand_less,
-                                      size: 16),
-                                  label:
-                                      const Text('View Less'),
+                                      _showLessProducts(productsPerPage),
+                                  icon: const Icon(Icons.expand_less, size: 16),
+                                  label: const Text('View Less'),
                                   style: OutlinedButton.styleFrom(
-                                    foregroundColor:
-                                        Colors.green.shade700,
+                                    foregroundColor: Colors.green.shade700,
                                     side: BorderSide(
-                                        color:
-                                            Colors.green.shade400),
-                                    padding:
-                                        const EdgeInsets.symmetric(
-                                            horizontal: 16,
-                                            vertical: 8),
+                                      color: Colors.green.shade400,
+                                    ),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 8,
+                                    ),
                                     shape: RoundedRectangleBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(
-                                                20)),
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
                                     textStyle: const TextStyle(
-                                        fontSize: 12,
-                                        fontWeight:
-                                            FontWeight.w500),
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
+                                    ),
                                   ),
                                 ),
-                              if (hasMore && hasLess)
-                                const SizedBox(width: 12),
+                              if (hasMore && hasLess) const SizedBox(width: 12),
                               if (hasMore)
                                 ElevatedButton.icon(
-                                  onPressed: () =>
-                                      _loadMoreProducts(
-                                          productsPerPage,
-                                          _totalProductsCount),
-                                  icon: const Icon(
-                                      Icons.expand_more,
-                                      size: 16),
+                                  onPressed: () => _loadMoreProducts(
+                                    productsPerPage,
+                                    _totalProductsCount,
+                                  ),
+                                  icon: const Icon(Icons.expand_more, size: 16),
                                   label: Text(
-                                      'View More (${_totalProductsCount - _visibleProductsCount})'),
+                                    'View More (${_totalProductsCount - _visibleProductsCount})',
+                                  ),
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor:
-                                        Colors.green.shade600,
+                                    backgroundColor: Colors.green.shade600,
                                     foregroundColor: Colors.white,
                                     elevation: 0,
-                                    padding:
-                                        const EdgeInsets.symmetric(
-                                            horizontal: 16,
-                                            vertical: 8),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 8,
+                                    ),
                                     shape: RoundedRectangleBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(
-                                                20)),
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
                                     textStyle: const TextStyle(
-                                        fontSize: 12,
-                                        fontWeight:
-                                            FontWeight.w500),
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
+                                    ),
                                   ),
                                 ),
                             ],
@@ -961,7 +983,9 @@ class _HomePageState extends State<HomePage> {
 
                     Padding(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 20, vertical: 2),
+                        horizontal: 20,
+                        vertical: 2,
+                      ),
                       child: Center(
                         child: Text(
                           _isShowingAll
@@ -969,7 +993,9 @@ class _HomePageState extends State<HomePage> {
                               : 'Showing $_visibleProductsCount of $_totalProductsCount products',
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                              fontSize: 11, color: Colors.grey[500]),
+                            fontSize: 11,
+                            color: Colors.grey[500],
+                          ),
                         ),
                       ),
                     ),
@@ -994,8 +1020,7 @@ class _HomePageState extends State<HomePage> {
           if (index == 1) {
             Navigator.push(
               context,
-              MaterialPageRoute(
-                  builder: (_) => const MyOrdersPage()),
+              MaterialPageRoute(builder: (_) => const MyOrdersPage()),
             ).then((_) {
               setState(() {
                 _selectedBottomNavIndex = 0;
@@ -1010,12 +1035,15 @@ class _HomePageState extends State<HomePage> {
           }
         },
         items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
           BottomNavigationBarItem(
-              icon: Icon(Icons.home), label: 'Home'),
+            icon: Icon(Icons.receipt_long),
+            label: 'My Order',
+          ),
           BottomNavigationBarItem(
-              icon: Icon(Icons.receipt_long), label: 'My Order'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.person_outline), label: 'Profile'),
+            icon: Icon(Icons.person_outline),
+            label: 'Profile',
+          ),
         ],
       ),
     );
