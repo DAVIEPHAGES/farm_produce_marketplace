@@ -18,7 +18,7 @@ class _SignInPageState extends State<SignInPage> {
 
   bool _isLoading = false;
   bool _rememberMe = false;
-  
+
   // ✅ ADDED: Boolean to toggle password visibility
   bool _obscurePassword = true;
 
@@ -103,7 +103,7 @@ class _SignInPageState extends State<SignInPage> {
       await RememberMeService.saveSignInChoice(
         rememberMe: _rememberMe,
         email: email,
-        password: _passwordController.text
+        password: _passwordController.text,
       );
 
       print('✅ User signed in: ${userCredential.user!.uid}');
@@ -144,9 +144,11 @@ class _SignInPageState extends State<SignInPage> {
           Navigator.pushReplacementNamed(context, _redirectTo!);
         } else if (userDoc.exists) {
           String userType = userDoc.get('userType') ?? 'customer';
-          
+
           if (userType == 'farmer') {
             Navigator.pushReplacementNamed(context, '/farmers-dashboard');
+          } else if (userType == 'logistics_company') {
+            Navigator.pushReplacementNamed(context, '/logistics-dashboard');
           } else {
             Navigator.pushReplacementNamed(context, '/home');
           }
@@ -155,12 +157,12 @@ class _SignInPageState extends State<SignInPage> {
               .collection('users')
               .doc(userCredential.user!.uid)
               .set({
-            'uid': userCredential.user!.uid,
-            'email': userCredential.user!.email,
-            'name': _emailController.text.split('@')[0],
-            'userType': 'customer',
-            'createdAt': FieldValue.serverTimestamp(),
-          });
+                'uid': userCredential.user!.uid,
+                'email': userCredential.user!.email,
+                'name': _emailController.text.split('@')[0],
+                'userType': 'customer',
+                'createdAt': FieldValue.serverTimestamp(),
+              });
           Navigator.pushReplacementNamed(context, '/home');
         }
       }
@@ -186,13 +188,10 @@ class _SignInPageState extends State<SignInPage> {
         default:
           errorMessage = 'Sign in failed: ${e.message}';
       }
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(errorMessage),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text(errorMessage), backgroundColor: Colors.red),
         );
       }
     } catch (e) {
@@ -274,8 +273,8 @@ class _SignInPageState extends State<SignInPage> {
                         // ✅ ADDED: Suffix icon button to toggle _obscurePassword
                         suffixIcon: IconButton(
                           icon: Icon(
-                            _obscurePassword 
-                                ? Icons.visibility_off_outlined 
+                            _obscurePassword
+                                ? Icons.visibility_off_outlined
                                 : Icons.visibility_outlined,
                             color: const Color(0xFF2E7D32),
                           ),
@@ -372,7 +371,10 @@ class _SignInPageState extends State<SignInPage> {
                           padding: const EdgeInsets.symmetric(horizontal: 16),
                           child: Text(
                             'or',
-                            style: TextStyle(color: Colors.grey[500], fontSize: 14),
+                            style: TextStyle(
+                              color: Colors.grey[500],
+                              fontSize: 14,
+                            ),
                           ),
                         ),
                         Expanded(
@@ -415,7 +417,7 @@ class _SignInPageState extends State<SignInPage> {
 
   void _showForgotPasswordDialog() {
     final emailController = TextEditingController();
-    
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -451,19 +453,26 @@ class _SignInPageState extends State<SignInPage> {
                 );
                 return;
               }
-              
+
               try {
-                await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
+                await FirebaseAuth.instance.sendPasswordResetEmail(
+                  email: email,
+                );
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text('Password reset email sent! Check your inbox.'),
+                    content: Text(
+                      'Password reset email sent! Check your inbox.',
+                    ),
                     backgroundColor: Colors.green,
                   ),
                 );
               } catch (e) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+                  SnackBar(
+                    content: Text('Error: $e'),
+                    backgroundColor: Colors.red,
+                  ),
                 );
               }
             },
