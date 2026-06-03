@@ -58,27 +58,20 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
           .doc(user.uid)
           .get();
       final userData = doc.data() ?? {};
-      final farmerName = (userData['name'] ?? user.displayName ?? '')
-          .toString()
-          .trim()
-          .toLowerCase();
-      final farmerAliases = {
-        user.uid.toLowerCase(),
-        if (farmerName.isNotEmpty) farmerName,
-        if ((userData['farmName'] ?? '').toString().trim().isNotEmpty)
-          (userData['farmName'] ?? '').toString().trim().toLowerCase(),
-        if ((userData['displayName'] ?? '').toString().trim().isNotEmpty)
-          (userData['displayName'] ?? '').toString().trim().toLowerCase(),
-      };
 
+      // Fetch only farmer's products
       final productsSnapshot = await FirebaseFirestore.instance
           .collection('products')
           .where('farmerId', isEqualTo: user.uid)
           .get();
-      final farmerProductIds = productsSnapshot.docs.map((doc) => doc.id).toSet();
+      final farmerProductIds = productsSnapshot.docs
+          .map((doc) => doc.id)
+          .toSet();
 
+      // OPTIMIZED: Query only orders where farmerIds array contains this farmer
       final ordersSnapshot = await FirebaseFirestore.instance
           .collection('orders')
+          .where('farmerIds', arrayContains: user.uid)
           .get();
 
       double totalEarnings = 0.0;
@@ -93,46 +86,27 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
             .toString()
             .toLowerCase();
 
-        final itemsSnapshot = await orderDoc.reference
-            .collection('items')
-            .get();
-        final embeddedItems = order['items'] is List ? order['items'] as List : [];
+        // Get embedded items from order document (most common pattern)
+        final embeddedItems = order['items'] is List
+            ? order['items'] as List
+            : [];
 
         double farmerItemQuantity = 0.0;
         double farmerItemEarnings = 0.0;
         final List<Map<String, dynamic>> farmerItems = [];
 
-        final allItems = <Map<String, dynamic>>[
-          ...itemsSnapshot.docs.map((itemDoc) => itemDoc.data()),
-          ...embeddedItems
-              .whereType<Map>()
-              .map((item) => Map<String, dynamic>.from(item)),
-        ];
-
-        bool belongsToFarmer = _orderBelongsToFarmer(order, farmerAliases);
-
-        for (final item in allItems) {
-          if (!_itemBelongsToFarmer(item, farmerAliases, farmerProductIds)) {
-            continue;
-          }
-
-          belongsToFarmer = true;
-          final double price = _toDouble(item['price']);
-          final double quantity = _toDouble(item['quantity']);
+        // Process embedded items only (avoid subcollection read)
+        for (final item in embeddedItems.whereType<Map>()) {
+          final itemMap = Map<String, dynamic>.from(item);
+          final double price = _toDouble(itemMap['price']);
+          final double quantity = _toDouble(itemMap['quantity']);
 
           farmerItemQuantity += quantity;
-          farmerItemEarnings += _toDouble(item['totalPrice'], fallback: price * quantity);
-          farmerItems.add(item);
-        }
-
-        if (!belongsToFarmer) {
-          continue;
-        }
-
-        if (farmerItems.isEmpty) {
-          farmerItemQuantity = _toDouble(order['quantity']);
-          farmerItemEarnings = _toDouble(order['farmerEarnings'],
-              fallback: _toDouble(order['totalPrice'] ?? order['totalAmount']));
+          farmerItemEarnings += _toDouble(
+            itemMap['totalPrice'],
+            fallback: price * quantity,
+          );
+          farmerItems.add(itemMap);
         }
 
         if (paymentStatus == 'completed' ||
@@ -162,21 +136,17 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
         'name': userData['name'] ?? 'Unknown Farmer',
         'location': userData['location'] ?? 'Unknown',
         'totalEarnings': totalEarnings,
-        // ✅ UPDATED: Added real-time availableQuantity logic to the fetching phase
-        'products': productsSnapshot.docs
-            .map((doc) {
-              final data = doc.data();
-              final int total = (data['quantity'] ?? 0).toInt();
-              // Look for availableQuantity, fallback to quantity
-              final int available = (data['availableQuantity'] ?? total).toInt();
-              return {
-                'id': doc.id, 
-                ...data, 
-                'realAvailable': available,
-                'isOversold': available < 0
-              };
-            })
-            .toList(),
+        'products': productsSnapshot.docs.map((doc) {
+          final data = doc.data();
+          final int total = (data['quantity'] ?? 0).toInt();
+          final int available = (data['availableQuantity'] ?? total).toInt();
+          return {
+            'id': doc.id,
+            ...data,
+            'realAvailable': available,
+            'isOversold': available < 0,
+          };
+        }).toList(),
         'orders': orders,
       };
     } catch (e) {
@@ -189,49 +159,6 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
         'orders': [],
       };
     }
-  }
-
-  bool _orderBelongsToFarmer(
-    Map<String, dynamic> order,
-    Set<String> farmerAliases,
-  ) {
-    final farmerIds = order['farmerIds'];
-    if (farmerIds is List) {
-      return farmerIds.any(
-        (id) => farmerAliases.contains(id.toString().trim().toLowerCase()),
-      );
-    }
-
-    final farmerId = (order['farmerId'] ?? order['ownerId'] ?? '').toString();
-    if (farmerId.trim().isNotEmpty &&
-        farmerAliases.contains(farmerId.trim().toLowerCase())) {
-      return true;
-    }
-
-    final farmerName = (order['farmerName'] ?? order['farmer'] ?? '').toString();
-    return farmerName.trim().isNotEmpty &&
-        farmerAliases.contains(farmerName.trim().toLowerCase());
-  }
-
-  bool _itemBelongsToFarmer(
-    Map<String, dynamic> item,
-    Set<String> farmerAliases,
-    Set<String> farmerProductIds,
-  ) {
-    final farmerId = (item['farmerId'] ?? item['ownerId'] ?? '').toString();
-    if (farmerId.trim().isNotEmpty &&
-        farmerAliases.contains(farmerId.trim().toLowerCase())) {
-      return true;
-    }
-
-    final farmerName = (item['farmerName'] ?? item['farmer'] ?? '').toString();
-    if (farmerName.trim().isNotEmpty &&
-        farmerAliases.contains(farmerName.trim().toLowerCase())) {
-      return true;
-    }
-
-    final productId = (item['productId'] ?? item['id'] ?? '').toString();
-    return productId.trim().isNotEmpty && farmerProductIds.contains(productId);
   }
 
   double _toDouble(dynamic value, {double fallback = 0.0}) {
@@ -264,7 +191,9 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
     for (final order in orders.whereType<Map>()) {
       final orderData = Map<String, dynamic>.from(order);
       final orderDate = _readOrderDate(orderData);
-      final items = orderData['items'] is List ? orderData['items'] as List : [];
+      final items = orderData['items'] is List
+          ? orderData['items'] as List
+          : [];
 
       if (items.isEmpty) {
         final name = (orderData['productName'] ?? 'Unknown Product').toString();
@@ -294,7 +223,9 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
     }
 
     final stats = statsByProduct.values.toList();
-    stats.sort((a, b) => _toDouble(b['quantity']).compareTo(_toDouble(a['quantity'])));
+    stats.sort(
+      (a, b) => _toDouble(b['quantity']).compareTo(_toDouble(a['quantity'])),
+    );
     return stats;
   }
 
@@ -358,6 +289,19 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
         .map((order) => Map<String, dynamic>.from(order))
         .where((order) => _isCompletedOrder(order) == completed)
         .toList();
+  }
+
+  /// Group orders by customer name for better organization
+  Map<String, List<Map<String, dynamic>>> _groupOrdersByCustomer(
+    List<Map<String, dynamic>> orders,
+  ) {
+    final grouped = <String, List<Map<String, dynamic>>>{};
+    for (final order in orders) {
+      final customerName =
+          order['customerName']?.toString() ?? 'Unknown Customer';
+      grouped.putIfAbsent(customerName, () => []).add(order);
+    }
+    return grouped;
   }
 
   @override
@@ -560,19 +504,10 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
   void _openAddProducePage() {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => const AddProducePage(),
-      ),
+      MaterialPageRoute(builder: (context) => const AddProducePage()),
     ).then((result) {
       if (result != null) {
         _loadData();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Produce added successfully!'),
-            backgroundColor: Colors.green,
-            duration: Duration(seconds: 2),
-          ),
-        );
       }
     });
   }
@@ -799,7 +734,9 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
     required double maxQuantity,
     required int orders,
   }) {
-    final percent = maxQuantity <= 0 ? 0.0 : (quantity / maxQuantity).clamp(0.0, 1.0);
+    final percent = maxQuantity <= 0
+        ? 0.0
+        : (quantity / maxQuantity).clamp(0.0, 1.0);
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 7),
@@ -842,7 +779,7 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
     );
   }
 
-  Future<void> _deleteProduct(String productId, int index) async {
+  Future<void> _deleteProduct(String productId) async {
     bool? confirm = await showDialog<bool>(
       context: context,
       builder: (BuildContext context) {
@@ -874,9 +811,6 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
           .collection('products')
           .doc(productId)
           .delete();
-      setState(() {
-        farmerProfile['products'].removeAt(index);
-      });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -950,7 +884,7 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
                   ],
                 ),
               ),
-                            ),
+            ),
           ),
           actions: [
             TextButton(
@@ -994,8 +928,10 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
               Text(
                 value,
                 overflow: TextOverflow.ellipsis,
-                style:
-                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
               ),
             ],
           ),
@@ -1164,11 +1100,9 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
                                         const SizedBox(height: 8),
                                         _buildDemandBar(
                                           name: 'Customer demand',
-                                          quantity:
-                                              _toDouble(stat['quantity']),
+                                          quantity: _toDouble(stat['quantity']),
                                           maxQuantity: maxQuantity,
-                                          orders:
-                                              stat['orders'] as int? ?? 0,
+                                          orders: stat['orders'] as int? ?? 0,
                                         ),
                                         Row(
                                           children: [
@@ -1247,216 +1181,125 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
     );
   }
 
+  // ✅ UPDATED: REAL-TIME MY PRODUCE PAGE
   void _openMyProducePage() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (pageContext) {
-          return StatefulBuilder(
-            builder: (context, refreshPage) {
-              final products = farmerProfile['products'] is List
-                  ? farmerProfile['products'] as List
-                  : const [];
+        builder: (pageContext) => Scaffold(
+          appBar: AppBar(
+            title: const Text('My Produce'),
+            backgroundColor: Colors.green[700],
+            foregroundColor: Colors.white,
+          ),
+          body: StreamBuilder<QuerySnapshot>(
+            // REAL-TIME LISTENER
+            stream: FirebaseFirestore.instance
+                .collection('products')
+                .where('farmerId', isEqualTo: user.uid)
+                .snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.hasError)
+                return Center(child: Text('Error: ${snapshot.error}'));
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
 
-              return Scaffold(
-                backgroundColor: Colors.white,
-                appBar: AppBar(
-                  title: const Text('My Produce'),
-                  backgroundColor: Colors.green[700],
-                  foregroundColor: Colors.white,
-                ),
-                body: SafeArea(
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Column(
-                      children: [
-                        Expanded(
-                          child: products.isEmpty
-                              ? const Center(
-                                  child: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(
-                                        Icons.agriculture,
-                                        size: 56,
-                                        color: Colors.grey,
-                                      ),
-                                      SizedBox(height: 16),
-                                      Text('No produce added yet'),
-                                    ],
-                                  ),
-                                )
-                              : ListView.builder(
-                                  itemCount: products.length,
-                                  itemBuilder: (context, index) {
-                                    final product = products[index];
-                                    final productName =
-                                        product['name']?.toString() ??
-                                            'Unnamed Product';
-                                    final price =
-                                        product['price']?.toString() ?? '0';
-                                    
-                                    // ✅ FIXED: Using real-time available stock logic
-                                    final int totalQty = (product['quantity'] ?? 0).toInt();
-                                    final int availableQty = (product['realAvailable'] ?? totalQty).toInt();
-                                    final String quantityDisplay = availableQty.toString();
-                                    
-                                    final location =
-                                        product['location']?.toString() ??
-                                            'Unknown';
-                                    final dateAdded =
-                                        product['dateAdded']?.toString() ?? '';
-                                    final productId =
-                                        product['id']?.toString() ?? '';
+              final docs = snapshot.data!.docs;
+              if (docs.isEmpty) {
+                return const Center(child: Text('No produce added yet.'));
+              }
 
-                                    return Card(
-                                      margin: const EdgeInsets.only(bottom: 8),
-                                      child: ListTile(
-                                        leading: const Icon(
-                                          Icons.agriculture,
-                                          color: Colors.green,
-                                        ),
-                                        title: Text(
-                                          productName,
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                        subtitle: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text('Price: MWK $price'),
-                                            // ✅ UPDATED: Visual feedback for oversold or out of stock items
-                                            Text(
-                                              'Available: $quantityDisplay',
-                                              style: TextStyle(
-                                                fontWeight: FontWeight.bold,
-                                                color: availableQty < 0 
-                                                  ? Colors.red 
-                                                  : (availableQty == 0 ? Colors.orange : Colors.black87)
-                                              ),
-                                            ),
-                                            if (availableQty < 0)
-                                              const Text(
-                                                '⚠️ OVERSOLD (Need to restock)',
-                                                style: TextStyle(color: Colors.red, fontSize: 10, fontWeight: FontWeight.bold),
-                                              ),
-                                            Text('Location: $location'),
-                                          ],
-                                        ),
-                                        trailing: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            if (dateAdded.isNotEmpty)
-                                              Text(
-                                                _formatDate(dateAdded),
-                                                style: const TextStyle(
-                                                  fontSize: 11,
-                                                  color: Colors.grey,
-                                                ),
-                                              ),
-                                            IconButton(
-                                              icon: const Icon(
-                                                Icons.edit,
-                                                color: Colors.blue,
-                                              ),
-                                              onPressed: () async {
-                                                final result =
-                                                    await Navigator.push(
-                                                  context,
-                                                  MaterialPageRoute(
-                                                    builder: (context) =>
-                                                        AddProducePage(
-                                                      isEditing: true,
-                                                      existingProduct: product,
-                                                      productId: productId,
-                                                    ),
-                                                  ),
-                                                );
-                                                if (result == true) {
-                                                  await _loadData();
-                                                  refreshPage(() {});
-                                                }
-                                              },
-                                              tooltip: 'Edit product',
-                                            ),
-                                            IconButton(
-                                              icon: const Icon(
-                                                Icons.delete,
-                                                color: Colors.red,
-                                              ),
-                                              onPressed: () async {
-                                                await _deleteProduct(
-                                                  productId,
-                                                  index,
-                                                );
-                                                refreshPage(() {});
-                                              },
-                                              tooltip: 'Delete product',
-                                            ),
-                                          ],
-                                        ),
-                                        isThreeLine: true,
-                                      ),
-                                    );
-                                  },
-                                ),
-                        ),
-                        const SizedBox(height: 12),
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: ElevatedButton.icon(
-                            onPressed: () async {
-                              final result = await Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) =>
-                                      const AddProducePage(),
-                                ),
-                              );
-                              if (result != null) {
-                                await _loadData();
-                                refreshPage(() {});
-                                if (mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text(
-                                        'Produce added successfully!',
-                                      ),
-                                      backgroundColor: Colors.green,
-                                      duration: Duration(seconds: 2),
-                                    ),
-                                  );
-                                }
-                              }
-                            },
-                            icon: const Icon(Icons.add, size: 18),
-                            label: const Text('Post new item'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.green,
-                              foregroundColor: Colors.white,
-                              elevation: 3,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 14,
-                                vertical: 10,
+              return ListView.builder(
+                padding: const EdgeInsets.all(12),
+                itemCount: docs.length,
+                itemBuilder: (context, index) {
+                  final data = docs[index].data() as Map<String, dynamic>;
+                  final id = docs[index].id;
+
+                  // Inventory Stock Logic
+                  final int totalQty = (data['quantity'] ?? 0).toInt();
+                  final int availableQty =
+                      (data['availableQuantity'] ?? totalQty).toInt();
+
+                  return Card(
+                    margin: const EdgeInsets.only(bottom: 10),
+                    child: ListTile(
+                      leading: const CircleAvatar(
+                        backgroundColor: Colors.green,
+                        child: Icon(Icons.agriculture, color: Colors.white),
+                      ),
+                      title: Text(
+                        data['name'] ?? 'Unnamed',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Price: MWK ${data['price']}'),
+                          Text(
+                            'Available: $availableQty',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: availableQty <= 0
+                                  ? Colors.red
+                                  : Colors.black87,
+                            ),
+                          ),
+                          if (availableQty < 0)
+                            const Text(
+                              '⚠️ OVERSOLD',
+                              style: TextStyle(
+                                color: Colors.red,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
                               ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
+                            ),
+                        ],
+                      ),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.edit, color: Colors.blue),
+                            onPressed: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => AddProducePage(
+                                  isEditing: true,
+                                  existingProduct: data,
+                                  productId: id,
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                      ],
+                          IconButton(
+                            icon: const Icon(Icons.delete, color: Colors.red),
+                            onPressed: () => _deleteProduct(id),
+                          ),
+                        ],
+                      ),
+                      isThreeLine: true,
                     ),
-                  ),
-                ),
+                  );
+                },
               );
             },
-          );
-        },
+          ),
+          floatingActionButton: FloatingActionButton(
+            backgroundColor: Colors.green[700],
+            child: const Icon(Icons.add, color: Colors.white),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const AddProducePage()),
+            ),
+          ),
+        ),
       ),
-    );
+    ).then((_) => _loadData()); // Refresh summary cards on return
   }
 
   void _showOrdersDialog(
@@ -1491,15 +1334,11 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
                     itemCount: orders.length,
                     itemBuilder: (context, index) {
                       var order = orders[index];
-                      final status =
-                          order['status']?.toString() ?? 'pending';
+                      final status = order['status']?.toString() ?? 'pending';
                       return Card(
                         margin: const EdgeInsets.only(bottom: 8),
                         child: ListTile(
-                          leading: Icon(
-                            icon,
-                            color: color,
-                          ),
+                          leading: Icon(icon, color: color),
                           title: Text(
                             order['productName']?.toString() ??
                                 'Unknown Product',
@@ -1518,10 +1357,7 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
                             ),
                             child: Text(
                               status,
-                              style: TextStyle(
-                                color: color,
-                                fontSize: 12,
-                              ),
+                              style: TextStyle(color: color, fontSize: 12),
                             ),
                           ),
                           isThreeLine: true,
@@ -1548,6 +1384,9 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
     required IconData icon,
     required Color color,
   }) {
+    final isPendingOrders = title.toLowerCase().contains('pending');
+    final groupedOrders = _groupOrdersByCustomer(orders);
+
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -1562,7 +1401,7 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
             body: SafeArea(
               child: Padding(
                 padding: const EdgeInsets.all(12),
-                child: orders.isEmpty
+                child: groupedOrders.isEmpty
                     ? Center(
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
@@ -1574,41 +1413,252 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
                         ),
                       )
                     : ListView.builder(
-                        itemCount: orders.length,
-                        itemBuilder: (context, index) {
-                          final order = orders[index];
-                          final status =
-                              order['status']?.toString() ?? 'pending';
+                        itemCount: groupedOrders.keys.length,
+                        itemBuilder: (context, customerIndex) {
+                          final customerName = groupedOrders.keys.elementAt(
+                            customerIndex,
+                          );
+                          final customerOrders = groupedOrders[customerName]!;
+                          final totalItems = customerOrders.fold<double>(
+                            0,
+                            (sum, order) =>
+                                sum +
+                                _toDouble(order['quantity'], fallback: 1.0),
+                          );
+                          final totalValue = customerOrders.fold<double>(
+                            0,
+                            (sum, order) =>
+                                sum +
+                                _toDouble(
+                                  order['totalPrice'] ??
+                                      order['farmerEarnings'],
+                                  fallback: 0.0,
+                                ),
+                          );
 
                           return Card(
-                            margin: const EdgeInsets.only(bottom: 8),
-                            child: ListTile(
-                              leading: Icon(icon, color: color),
-                              title: Text(
-                                order['productName']?.toString() ??
-                                    'Unknown Product',
+                            margin: const EdgeInsets.only(bottom: 12),
+                            elevation: 2,
+                            child: ExpansionTile(
+                              title: Row(
+                                children: [
+                                  CircleAvatar(
+                                    backgroundColor: color.withOpacity(0.3),
+                                    child: Icon(
+                                      Icons.person,
+                                      color: color,
+                                      size: 20,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          customerName,
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 16,
+                                          ),
+                                        ),
+                                        Text(
+                                          '${customerOrders.length} order${customerOrders.length > 1 ? 's' : ''} • $totalItems items',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.grey[600],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 6,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: color.withOpacity(0.2),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Text(
+                                      'MWK ${totalValue.toStringAsFixed(0)}',
+                                      style: TextStyle(
+                                        color: color,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
-                              subtitle: Text(
-                                'Customer: ${order['customerName']?.toString() ?? "Unknown"}\nQuantity needed: ${order['quantity']?.toString() ?? "0"}\nStatus: ${order['paymentStatus']?.toString() ?? order['status']?.toString() ?? 'pending'}',
-                              ),
-                              trailing: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 4,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: color.withOpacity(0.2),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Text(
-                                  status,
-                                  style: TextStyle(
-                                    color: color,
-                                    fontSize: 12,
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.all(12),
+                                  child: Column(
+                                    children: [
+                                      ...customerOrders.asMap().entries.map((
+                                        entry,
+                                      ) {
+                                        final orderIndex = entry.key;
+                                        final order = entry.value;
+                                        final status =
+                                            order['status']
+                                                ?.toString()
+                                                .toUpperCase() ??
+                                            'PENDING';
+                                        final items = order['items'] is List
+                                            ? order['items'] as List
+                                            : [];
+
+                                        return Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            if (orderIndex > 0) const Divider(),
+                                            Row(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment
+                                                      .spaceBetween,
+                                              children: [
+                                                Text(
+                                                  'Order #${order['id']?.toString().substring(0, 8).toUpperCase() ?? orderIndex}',
+                                                  style: const TextStyle(
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 13,
+                                                  ),
+                                                ),
+                                                Container(
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                        horizontal: 8,
+                                                        vertical: 4,
+                                                      ),
+                                                  decoration: BoxDecoration(
+                                                    color: status == 'PENDING'
+                                                        ? Colors.orange
+                                                              .withOpacity(0.2)
+                                                        : Colors.green
+                                                              .withOpacity(0.2),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          8,
+                                                        ),
+                                                  ),
+                                                  child: Text(
+                                                    status,
+                                                    style: TextStyle(
+                                                      color: status == 'PENDING'
+                                                          ? Colors.orange[700]
+                                                          : Colors.green[700],
+                                                      fontSize: 11,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            const SizedBox(height: 8),
+                                            // Product details
+                                            ...items.whereType<Map>().map((
+                                              item,
+                                            ) {
+                                              return Padding(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      vertical: 4,
+                                                    ),
+                                                child: Row(
+                                                  mainAxisAlignment:
+                                                      MainAxisAlignment
+                                                          .spaceBetween,
+                                                  children: [
+                                                    Expanded(
+                                                      child: Text(
+                                                        '${item['productName'] ?? item['name'] ?? 'Unknown'} x${_toDouble(item['quantity']).toStringAsFixed(0)}',
+                                                        style: const TextStyle(
+                                                          fontSize: 12,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                    Text(
+                                                      'MWK ${_toDouble(item['totalPrice']).toStringAsFixed(0)}',
+                                                      style: const TextStyle(
+                                                        fontSize: 12,
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              );
+                                            }),
+                                            if (items.isEmpty)
+                                              Padding(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      vertical: 4,
+                                                    ),
+                                                child: Row(
+                                                  mainAxisAlignment:
+                                                      MainAxisAlignment
+                                                          .spaceBetween,
+                                                  children: [
+                                                    Expanded(
+                                                      child: Text(
+                                                        '${order['productName'] ?? 'Unknown'} x${_toDouble(order['quantity']).toStringAsFixed(0)}',
+                                                        style: const TextStyle(
+                                                          fontSize: 12,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                    Text(
+                                                      'MWK ${_toDouble(order['totalPrice'] ?? order['farmerEarnings']).toStringAsFixed(0)}',
+                                                      style: const TextStyle(
+                                                        fontSize: 12,
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            const SizedBox(height: 8),
+                                            // Assign to Logistics button (only for pending)
+                                            if (isPendingOrders)
+                                              SizedBox(
+                                                width: double.infinity,
+                                                child: ElevatedButton.icon(
+                                                  onPressed: () =>
+                                                      _showAssignLogisticsDialog(
+                                                        context,
+                                                        order,
+                                                      ),
+                                                  icon: const Icon(
+                                                    Icons
+                                                        .local_shipping_outlined,
+                                                  ),
+                                                  label: const Text(
+                                                    'Assign to Logistics',
+                                                  ),
+                                                  style:
+                                                      ElevatedButton.styleFrom(
+                                                        backgroundColor:
+                                                            Colors.blue[600],
+                                                        foregroundColor:
+                                                            Colors.white,
+                                                      ),
+                                                ),
+                                              ),
+                                          ],
+                                        );
+                                      }),
+                                    ],
                                   ),
                                 ),
-                              ),
-                              isThreeLine: true,
+                              ],
                             ),
                           );
                         },
@@ -1619,6 +1669,193 @@ class _FarmersDashboardPageState extends State<FarmersDashboardPage> {
         },
       ),
     );
+  }
+
+  Future<void> _showAssignLogisticsDialog(
+    BuildContext context,
+    Map<String, dynamic> order,
+  ) async {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => FutureBuilder<QuerySnapshot>(
+        future: FirebaseFirestore.instance
+            .collection('users')
+            .where('userType', isEqualTo: 'logistics_company')
+            .get(),
+        builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return AlertDialog(
+              title: const Text('Error'),
+              content: Text(
+                'Error loading logistics companies: ${snapshot.error}',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Close'),
+                ),
+              ],
+            );
+          }
+
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return AlertDialog(
+              content: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: const [
+                    CircularProgressIndicator(),
+                    SizedBox(height: 16),
+                    Text('Loading logistics companies...'),
+                  ],
+                ),
+              ),
+            );
+          }
+
+          final companies = snapshot.data?.docs ?? [];
+          if (companies.isEmpty) {
+            return AlertDialog(
+              title: const Text('No Logistics Companies'),
+              content: const Text(
+                'No logistics companies available. Please contact the administrator.',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Close'),
+                ),
+              ],
+            );
+          }
+
+          return AlertDialog(
+            title: const Text('Assign to Logistics Company'),
+            content: SizedBox(
+              width: double.maxFinite,
+              child: ListView.builder(
+                shrinkWrap: true,
+                itemCount: companies.length,
+                itemBuilder: (context, index) {
+                  final company =
+                      companies[index].data() as Map<String, dynamic>;
+                  final companyId = companies[index].id;
+                  final companyName =
+                      company['companyName'] ?? company['name'] ?? 'Unknown';
+                  final phone = company['phone'] ?? 'N/A';
+                  final location = company['location'] ?? 'N/A';
+
+                  return Card(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    child: ListTile(
+                      leading: CircleAvatar(
+                        backgroundColor: Colors.blue[100],
+                        child: const Icon(
+                          Icons.local_shipping,
+                          color: Colors.blue,
+                        ),
+                      ),
+                      title: Text(
+                        companyName,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Phone: $phone',
+                            style: const TextStyle(fontSize: 11),
+                          ),
+                          Text(
+                            'Location: $location',
+                            style: const TextStyle(fontSize: 11),
+                          ),
+                        ],
+                      ),
+                      trailing: ElevatedButton(
+                        onPressed: () => _assignOrderToLogistics(
+                          order,
+                          companyId,
+                          companyName,
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green[600],
+                        ),
+                        child: const Text(
+                          'Select',
+                          style: TextStyle(color: Colors.white, fontSize: 12),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _assignOrderToLogistics(
+    Map<String, dynamic> order,
+    String companyId,
+    String companyName,
+  ) async {
+    try {
+      final orderId = order['id']?.toString();
+      if (orderId == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Error: Order ID not found'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      // Update order with logistics assignment
+      await FirebaseFirestore.instance
+          .collection('orders')
+          .doc(orderId)
+          .update({
+            'assignedLogisticsCompanyId': companyId,
+            'assignedLogisticsCompanyName': companyName,
+            'logisticsAssignedAt': FieldValue.serverTimestamp(),
+            'logisticsStatus': 'assigned',
+          });
+
+      if (mounted) {
+        Navigator.pop(context); // Close logistics selection dialog
+        Navigator.pop(context); // Close orders page
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('✓ Order assigned to $companyName'),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+
+        // Refresh farmer data
+        _loadData();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error assigning order: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   String _formatDate(String dateTime) {
