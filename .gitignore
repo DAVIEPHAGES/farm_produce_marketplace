@@ -1,49 +1,34 @@
-# Flutter/Dart
-.dart_tool/
-.flutter-plugins
-.flutter-plugins-dependencies
-.packages
-.pub-cache/
-.pub/
-/build/
-/ios/
-/android/app/build/
-/android/.gradle/
-/android/local.properties
-/android/**/build/
-/ios/**/build/
-
-# IDE
-.idea/
-.vscode/
-*.iml
-*.swp
-*.swo
-*~
-
-# Generated files
-*.g.dart
-*.freezed.dart
-*.gr.dart
-
-# Keys and secrets
-*.key
-*.pem
-*.p12
-service-account.json
-.env
-
-# Logs
-*.log
-
-# OS files
-.DS_Store
-Thumbs.db"node_modules/" 
+"# Flutter" 
+".dart_tool/" 
+".pub/" 
+"build/" 
+"*.lock" 
+"" 
+"# Android" 
+"android/" 
+"" 
+"# iOS" 
+"ios/" 
+"" 
+"# macOS" 
+"macos/" 
+"" 
+"# Windows" 
+"windows/" 
+"" 
+"# Linux" 
+"linux/" 
+"" 
+"# Web" 
+"web/" 
+"" 
+"# Node" 
+"node_modules/" 
+"functions/" 
 "package-lock.json" 
 "package.json" 
 "" 
-"# Android build files" 
-"android/.gradle/" 
-"android/app/build/" 
-"android/build/" 
-"android/local.properties" 
+"# IDE" 
+".idea/" 
+".vscode/" 
+"*.iml" 
