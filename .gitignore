@@ -32,3 +32,5 @@
 ".idea/" 
 ".vscode/" 
 "*.iml" 
+"*final" 
+"*final.pub" 
