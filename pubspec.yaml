@@ -1,0 +1,61 @@
+name: farm_app
+description: "A new Flutter project."
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.11.1 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  
+  # Firebase
+  firebase_core: ^3.12.1
+  firebase_auth: ^5.5.1
+  cloud_firestore: ^5.6.5
+  firebase_storage: ^12.4.4
+  firebase_messaging: ^15.2.4
+  firebase_analytics: ^11.4.4
+  firebase_crashlytics: ^4.3.4
+  cloud_functions: ^5.1.1  # ✅ ADD THIS - for Firebase Cloud Functions
+
+
+  # Push Notifications
+  flutter_local_notifications: ^17.2.3
+  
+  # Payment
+  paychangu_flutter: ^0.0.3
+  
+  # Storage & Session
+  shared_preferences: ^2.2.2
+  
+  # HTTP
+  http: ^1.1.0
+  
+  # WebView (for PayChangu payment page)
+  webview_flutter: ^4.4.0  # ✅ ADD THIS
+  
+  # UI
+  cupertino_icons: ^1.0.8
+  provider: ^6.1.5+1
+  
+  # Image Picker
+  image_picker: ^1.2.1
+  
+  # Utilities
+  intl: ^0.20.2
+  url_launcher: ^6.2.1
+  geolocator: ^9.0.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+  
+  assets:
+    - assets/data/malawi_districts.json
